@@ -38,6 +38,12 @@ async function api(path,method='GET',body=null,key=''){
 }
 function setDeal(offer){
  activeDeal=offer;
+ // A reopened private link must show the saved server-authoritative math, not default sliders.
+ if(buyerKey){
+   for(const [id,value] of [['pet',offer.petHalfK],['mount',offer.mountHalfK],['rate',offer.rateCents],['offer',offer.offerCents]]) el(id).value=String(value);
+   el('alias').value=offer.buyerAlias;
+   showMath();
+ }
  el('dealSection').hidden=false;
  el('statusBadge').textContent=offer.status.replaceAll('_',' ').toUpperCase();
  el('dealTitle').textContent=offer.status==='accepted'?'Deal accepted':offer.status==='countered'?'Seller counteroffer':'Offer '+offer.status.replaceAll('_',' ');
@@ -59,7 +65,7 @@ el('send').addEventListener('click',async()=>{
    const data=await api('/api/offers','POST',fields());
    buyerKey=data.buyerKey;
    location.hash='offer='+data.offer.id+'.'+buyerKey;
-   setDeal(data.offer);toast('Offer submitted. Copy your private deal link.');
+   setDeal(data.offer);toast('Offer saved. Copy the public summary to DM the seller; keep your status link private.');
  }catch(e){toast(e.message);}finally{btn.disabled=false;}
 });
 async function loadDeal(){
@@ -71,6 +77,11 @@ async function loadDeal(){
 }
 window.addEventListener('hashchange',loadDeal);
 loadDeal();
+el('copySummary').addEventListener('click',async()=>{
+ if(!activeDeal)return;
+ try{await navigator.clipboard.writeText(el('dealCopy').textContent+' Trader: '+location.origin+location.pathname);toast('Public offer summary copied. Safe to DM the seller.');}
+ catch{toast('Clipboard denied; select and copy the offer summary above.');}
+});
 el('copy').addEventListener('click',async()=>{
  try{await navigator.clipboard.writeText(dealLink(activeDeal.id,buyerKey));toast('Private buyer status link copied. Do NOT share it with the seller or publicly.');}
  catch{toast('Clipboard denied; use your browser address bar.');}
@@ -113,7 +124,7 @@ async function refreshSeller(){
      const h=document.createElement('h3');h.textContent=offer.buyerAlias+' • '+money(offer.offerCents)+' • '+offer.status;
      const p=document.createElement('p');p.textContent='40 × '+(offer.petHalfK/2).toFixed(1)+'k + 128 × '+(offer.mountHalfK/2).toFixed(1)+'k = '+gold(offer.math.totalCoins)+' → '+money(offer.math.estimatedCents)+' at '+money(offer.rateCents)+'/m';
      card.append(h,p);
-     if(['submitted','countered'].includes(offer.status)){
+     if(offer.status==='submitted'){
        const actions=document.createElement('div');actions.className='actions';
        const act=(name,action)=>{
          const btn=document.createElement('button');btn.className='secondary';btn.type='button';btn.textContent=name;
@@ -131,7 +142,10 @@ async function refreshSeller(){
        };
        act('Accept','accept');act('Counter','counter');act('Reject','reject');card.append(actions);
      }
-     target.append(card);
+     if(offer.status==='countered'){
+     const pending=document.createElement('p');pending.textContent='Counter sent — waiting for buyer to respond. Original offer cannot be accepted again.';card.append(pending);
+   }
+   target.append(card);
    }
  }catch(e){toast(e.message);}
 }
