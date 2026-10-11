@@ -30,7 +30,7 @@ Requires Node.js 22+; zero third-party runtime packages. Keep this product in `H
 1. Obtain accepted/released commit of `fengie/Heaven.gg` through Toolbox's protected update channel. **Do not deploy a held PR or bypass Toolbox merge freeze.**
 2. On Heaven1, provision a **separate private data directory** outside the Git checkout, backed up regularly and readable only by the service identity.
 3. Provision a random 32+ byte `TRADER_SELLER_KEY` on Heaven1 in a secured secret store, never in source, issue comments, browser URL, or a public service command. Keep it away from Heaven2's routine UI.
-4. Launch under the minimal worker identity with `TRADER_PORT=8787`, `TRADER_DATA_PATH=<absolute private offers.json path>`, `TRADER_PUBLIC_ORIGIN=https://trader.heaven.gg`, then `node apps/trader/server.mjs`. Listen address is deliberately **127.0.0.1 only**.
+4. Launch under the minimal worker identity with `TRADER_PORT=8787`, `TRADER_DATA_PATH=<absolute private offers.json path>`, `TRADER_PUBLIC_ORIGIN=https://trader.heaven.gg`, then run `node <absolute verified checkout path>/apps/trader/server.mjs` (pass a true absolute script path, not a relative one). Listen address is deliberately **127.0.0.1 only**.
 5. In the existing Cloudflare Tunnel **on Heaven1**, add a public hostname (e.g. `trader.heaven.gg`) forwarding to `http://127.0.0.1:8787`. No inbound router port forwarding. Make sure the tunnel actually lives on Heaven1, not Heaven2. Restrict operator endpoints at the edge if a suitable private path policy can coexist with buyer access.
 6. Add bounded Cloudflare WAF/rate limits for public `POST /api/offers` and monitor 429/5xx. For a verified localhost cloudflared-only ingress, set `TRADER_TRUST_CF_CONNECTING_IP=1` so valid `CF-Connecting-IP` addresses receive separate five/minute visitor buckets; the app also keeps an aggregate 100/minute cap. **Only enable after confirming the service cannot be reached except through trusted cloudflared on loopback** (the local host is still a privileged trust boundary). Without this flag, forwarded headers are ignored. If ingress changes, disable this setting and review proxy trust before re-enabling.
 7. Verify live HTTPS route, valid Origin checks, non-seller inability to read offers, seller key acceptance, buyer submission/counter acceptance, state serialization under simultaneous actions, Cloudflare per-visitor quota with distinct external clients, and persistence across a **controlled restart**. `/healthz` contains an **operator-claimed** `TRADER_RELEASE_SHA`; it does **not** attest its own installed code. Independently record the Heaven1 process identity, executable path, on-disk file hashes, admitted release SHA, and protected runtime evidence before claiming the release.
@@ -49,6 +49,14 @@ $env:TRADER_EXPECT_RELEASE_SHA = '<exact approved 40-character commit>'
 $env:TRADER_PUBLIC_ORIGIN = 'https://trader.heaven.gg'
 node apps/trader/tools/release-preflight.mjs
 ~~~
+
+After an authorized owner starts Trader using an **absolute path** to the admitted checkout's `apps/trader/server.mjs` under a restricted non-admin account, obtain its actual PID from the approved service manager and run this separate read-only observation on **physical Windows Heaven1**:
+
+~~~powershell
+./apps/trader/tools/Verify-Heaven1TraderRuntime.ps1 -ExpectedCommit $env:TRADER_EXPECT_RELEASE_SHA -ExpectedPid <verified-numeric-service-PID> -Port 8787
+~~~
+
+It fails closed off Heaven1, on wrong commit/PID, if the process command line does not name the expected absolute entrypoint, if ownership is unreadable/SYSTEM, or if the listener is not exclusively `127.0.0.1:8787` under the same PID. It emits `UNSIGNED_RUNTIME_OBSERVATION_ONLY`, **not** a signed receipt or evidence that the user-facing HTTPS route works. Independently compare the admitted full-tree hashes, protect seller credentials/data ACLs, collect runtime signer evidence via Toolbox #822, and test external TLS through Cloudflare. A relative `node apps/trader/server.mjs` launch will not satisfy the observer because it cannot reliably bind the observed process to a checked-out entrypoint path.
 
 Required separate receipts:
 - Provenance: signed approval and lease, physical Heaven1 identity, admitted commit SHA, clean checkout and independently read-back file digests.
