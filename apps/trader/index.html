@@ -18,7 +18,7 @@
 <div class="control"><div class="control-head"><label for="offer">Your cash offer</label><output id="offerOut" for="offer"></output></div><input id="offer" type="range" min="5000" max="20000" step="100" value="11000"><div class="bounds"><span>$50</span><span>$200</span></div></div>
 <div class="identity"><label for="alias">Buyer display name (optional)</label><input id="alias" maxlength="32" placeholder="Buyer" autocomplete="nickname"></div>
 <button class="primary" id="send" type="button">Send offer for seller review →</button>
-<p class="fine">Seller must explicitly accept or counter. No payment or in-game transfer happens on this site.</p>
+<p class="fine">Seller must explicitly accept or counter. No payment or in-game transfer happens on this site. Your private status link permits responding to counteroffers; keep it secret.</p>
 </section>
 <section class="panel math" aria-live="polite"><div class="panel-title"><div><small>02 / COMPLETE BREAKDOWN</small><h2>Every number explained</h2></div></div>
 <div class="mathline"><span>Pet tokens</span><strong id="petMath"></strong></div>
@@ -34,7 +34,7 @@
 </section>
 </div>
 <section class="panel status" id="dealSection" hidden><div class="panel-title"><div><small>03 / YOUR DEAL</small><h2 id="dealTitle">Offer submitted</h2></div><span class="pill" id="statusBadge"></span></div>
-<p id="dealCopy"></p><div class="dealbuttons"><button id="copy" class="secondary" type="button">Copy deal link</button><button id="refresh" class="secondary" type="button">Check status</button><button id="acceptCounter" class="primary" type="button" hidden>Accept seller counter</button><button id="rejectCounter" class="secondary" type="button" hidden>Decline counter</button></div></section>
+<p id="dealCopy"></p><div class="dealbuttons"><button id="copy" class="secondary" type="button">Copy private status link</button><button id="refresh" class="secondary" type="button">Check status</button><button id="acceptCounter" class="primary" type="button" hidden>Accept seller counter</button><button id="rejectCounter" class="secondary" type="button" hidden>Decline counter</button></div></section>
 <section class="panel catalog"><div class="panel-title"><div><small>FUTURE MARKETPLACE / DATABASE PREVIEW</small><h2>Search the item index</h2></div><span class="pill">READ-ONLY</span></div>
 <p>Browse Heaven.gg's pinned historical game-item names. These entries are not verified as currently tradeable, and no prices are inferred from them.</p><label for="catalogQuery">Search items</label><div class="search-row"><input id="catalogQuery" placeholder="Search item names..." minlength="2" maxlength="60"><button class="secondary" id="catalogSearch" type="button">Search</button></div><ul id="catalogResults"></ul></section>
 <section class="panel seller"><details><summary>Seller console <span>private key required</span></summary><div class="seller-inner"><p>Review proposals, accept, reject or make a counteroffer. Keep your private seller key off Discord.</p><label for="sellerKey">Seller secret</label><input id="sellerKey" type="password" autocomplete="off" placeholder="Your configured seller key"><button id="loadOffers" class="secondary" type="button">Load offers</button><div id="sellerOffers"></div></div></details></section>

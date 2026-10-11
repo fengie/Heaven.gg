@@ -72,7 +72,7 @@ async function loadDeal(){
 window.addEventListener('hashchange',loadDeal);
 loadDeal();
 el('copy').addEventListener('click',async()=>{
- try{await navigator.clipboard.writeText(dealLink(activeDeal.id,buyerKey));toast('Private deal link copied — anyone with it can respond as buyer.');}
+ try{await navigator.clipboard.writeText(dealLink(activeDeal.id,buyerKey));toast('Private buyer status link copied. Do NOT share it with the seller or publicly.');}
  catch{toast('Clipboard denied; use your browser address bar.');}
 });
 el('refresh').addEventListener('click',async()=>{

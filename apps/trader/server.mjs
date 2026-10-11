@@ -86,7 +86,10 @@ export async function makeApp(options={}) {
   }
   let writeQueue=Promise.resolve();
   const serialize = fn => {
-    const result=writeQueue.then(fn);
+    const result=writeQueue.then(async()=>{
+      const snapshot=structuredClone(records);
+      try { return await fn(); } catch(e) { records=snapshot; throw e; }
+    });
     writeQueue=result.catch(()=>{});
     return result;
   };
