@@ -55,4 +55,16 @@ node --check apps/trader/server.mjs
 node --check apps/trader/app.js
 ```
 
-CI runs these on PRs via `.github/workflows/trader.yml`. Toolbox release and host acceptance are **independent of green CI**. No recurring agent, autonomous market scraper, or live release is installed by this PR.
+CI runs Node 22 tests on Linux **and a GitHub-hosted Windows runner** via `.github/workflows/trader.yml`. Windows hosted CI checks portability, **not native Heaven1 acceptance**.
+
+A separate, no-credential, read-only HTTPS smoke script exercises the *real* public origin (one deliberately rejected cross-origin request is sent; no real offer is submitted):
+
+```sh
+TRADER_SMOKE_BASE_URL=https://trader.heaven.gg \\
+TRADER_EXPECT_RELEASE_SHA=<40-character-approved-commit-sha> \\
+node apps/trader/tests/live-smoke.mjs
+```
+
+Run the equivalent environment assignment using PowerShell when invoking on Heaven1. The smoke script explicitly marks its version as an **operator claim**, not runtime attestation. The authorized Toolbox owner must separately sign an exact-candidate release, observe physical Heaven1 PID/service identity, installed SHA and file hashes, Cloudflare ingress, restart persistence and rollback, plus successful positive end-to-end buyer/seller negotiation in an isolated staging deal before making the production link public. Never put the seller key in logs, screenshots, release comments or CI.
+
+Toolbox release and host acceptance are **independent of green CI**. No recurring agent, autonomous market scraper, or live release is installed by this PR.
