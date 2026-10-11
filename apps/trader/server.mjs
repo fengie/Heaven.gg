@@ -42,6 +42,30 @@ export function totals(input) {
   return {petCoins,mountCoins,totalCoins:gold,estimatedCents:Math.round(gold*rateCents/1000000),
     effectiveRateCents:Math.round(offerCents*1000000/gold)};
 }
+function validStoredRecord(record) {
+  if(!record || typeof record!=='object' || Array.isArray(record)) return false;
+  if(typeof record.id!=='string' || !/^[a-f0-9]{24}$/.test(record.id)
+    || typeof record.buyerKeyHash!=='string' || !/^[a-f0-9]{64}$/.test(record.buyerKeyHash)
+    || typeof record.buyerAlias!=='string' || record.buyerAlias.length<1
+    || record.buyerAlias.length>32 || !/^[\\p{L}\\p{N} ._-]+$/u.test(record.buyerAlias)
+    || !VALID_STATES.has(record.status)) return false;
+  const isoTimestamp=value=>typeof value==='string' && !Number.isNaN(Date.parse(value))
+    && new Date(value).toISOString()===value;
+  if(!isoTimestamp(record.createdAt) || !isoTimestamp(record.updatedAt)
+    || Date.parse(record.updatedAt)<Date.parse(record.createdAt)) return false;
+  try { totals(record); } catch { return false; }
+  const hasCounter=['countered','counter_rejected'].includes(record.status);
+  return hasCounter ? boundedInt(record.counterCents,5000,20000) : record.counterCents===null;
+}
+function validStore(saved) {
+  if(!Array.isArray(saved) || saved.length>1000 || !saved.every(validStoredRecord)) return false;
+  const ids=new Set(), keys=new Set();
+  for(const record of saved) {
+    if(ids.has(record.id) || keys.has(record.buyerKeyHash)) return false;
+    ids.add(record.id);keys.add(record.buyerKeyHash);
+  }
+  return true;
+}
 function publicOffer(record) {
   const {id,createdAt,status,buyerAlias,petHalfK,mountHalfK,rateCents,offerCents,counterCents,updatedAt} = record;
   return {id,createdAt,status,buyerAlias,petHalfK,mountHalfK,rateCents,offerCents,counterCents,updatedAt,math:totals(record)};
@@ -86,7 +110,7 @@ export async function makeApp(options={}) {
   let records=[];
   try {
     const saved=JSON.parse(await readFile(dataPath,'utf8'));
-    if(!Array.isArray(saved) || saved.some(x=>!VALID_STATES.has(x.status))) throw Error('Invalid offer store');
+    if(!validStore(saved)) throw Error('Invalid offer store');
     records=saved;
   } catch(e) {
     if(e.code!=='ENOENT') throw e; // corrupt data never silently overwritten
