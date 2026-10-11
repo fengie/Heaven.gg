@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#090d16"><meta name="description" content="Heaven.gg Trader · transparent Celtic Heroes token negotiation">
+<title>Heaven.gg Trader · Token Negotiator</title>
+<link rel="stylesheet" href="./style.css"><script src="./app.js" defer></script>
+</head><body>
+<header class="top"><a class="brand" href="/"><span>✦</span> HEAVEN<span class="accent">.GG</span></a><div class="tag">TRADER <b>EARLY ACCESS</b></div></header>
+<main>
+<section class="intro"><div class="eyebrow">CELTIC HEROES / PRIVATE DEAL ROOM</div><h1>Build your offer.<br><em>Show your math.</em></h1><p>128 Mount Tokens + 40 Pet Tokens. Adjust the prices, show your reasoning, and send an offer for the seller to review. Nothing here transfers items or money.</p></section>
+<div class="layout">
+<section class="panel sliders" id="negotiator" aria-label="Build an offer">
+<div class="panel-title"><div><small>01 / TOKEN PRICING</small><h2>Set your assumptions</h2></div><span class="pill">LIVE CALCULATOR</span></div>
+<div class="control"><div class="control-head"><label for="pet">Pet token <span>× 40</span></label><output id="petOut" for="pet"></output></div><input id="pet" type="range" min="80" max="90" step="1" value="80"><div class="bounds"><span>40k</span><span>45k</span></div></div>
+<div class="control"><div class="control-head"><label for="mount">Mount token <span>× 128</span></label><output id="mountOut" for="mount"></output></div><input id="mount" type="range" min="160" max="170" step="1" value="160"><div class="bounds"><span>80k</span><span>85k</span></div></div>
+<div class="control"><div class="control-head"><label for="rate">USD per 1 million gold</label><output id="rateOut" for="rate"></output></div><input id="rate" type="range" min="700" max="800" step="25" value="750"><div class="bounds"><span>$7.00</span><span>$8.00</span></div></div>
+<div class="divider"></div>
+<div class="control"><div class="control-head"><label for="offer">Your cash offer</label><output id="offerOut" for="offer"></output></div><input id="offer" type="range" min="5000" max="20000" step="100" value="11000"><div class="bounds"><span>$50</span><span>$200</span></div></div>
+<div class="identity"><label for="alias">Buyer display name (optional)</label><input id="alias" maxlength="32" placeholder="Buyer" autocomplete="nickname"></div>
+<button class="primary" id="send" type="button">Send offer for seller review →</button>
+<p class="fine">Seller must explicitly accept or counter. No payment or in-game transfer happens on this site. Your private status link permits responding to counteroffers; keep it secret.</p>
+</section>
+<section class="panel math" aria-live="polite"><div class="panel-title"><div><small>02 / COMPLETE BREAKDOWN</small><h2>Every number explained</h2></div></div>
+<div class="mathline"><span>Pet tokens</span><strong id="petMath"></strong></div>
+<div class="mathline"><span>Mount tokens</span><strong id="mountMath"></strong></div>
+<div class="mathline subtotal"><span>Total game gold</span><strong id="totalGold"></strong></div>
+<div class="formula" id="formula"></div>
+<div class="valuation"><span>Calculated equivalent</span><strong id="estimated"></strong><small>From buyer-chosen token prices and USD/gold rate. Not a verified market quote.</small></div>
+<div class="mathline"><span>Seller asking price</span><strong>$110.00</strong></div>
+<div class="mathline"><span>Buyer offer</span><strong id="offerMath"></strong></div>
+<div class="mathline"><span>Offer − calculated equivalent</span><strong id="delta"></strong></div>
+<div class="mathline"><span>Offer's implied USD per 1m</span><strong id="effective"></strong></div>
+<div class="notice">Prices are user-provided estimates. Buyer and seller must independently verify item quantities, world, delivery and payment terms.</div>
+</section>
+</div>
+<section class="panel status" id="dealSection" hidden><div class="panel-title"><div><small>03 / YOUR DEAL</small><h2 id="dealTitle">Offer submitted</h2></div><span class="pill" id="statusBadge"></span></div>
+<p id="dealCopy"></p><div class="dealbuttons"><button id="copySummary" class="primary" type="button">Copy public offer for Discord</button><button id="copy" class="secondary" type="button">Copy private status link</button><button id="refresh" class="secondary" type="button">Check status</button><button id="acceptCounter" class="primary" type="button" hidden>Accept seller counter</button><button id="rejectCounter" class="secondary" type="button" hidden>Decline counter</button></div></section>
+<section class="panel catalog"><div class="panel-title"><div><small>FUTURE MARKETPLACE / DATABASE PREVIEW</small><h2>Search the item index</h2></div><span class="pill">READ-ONLY</span></div>
+<p>Browse Heaven.gg's pinned historical game-item names. These entries are not verified as currently tradeable, and no prices are inferred from them.</p><label for="catalogQuery">Search items</label><div class="search-row"><input id="catalogQuery" placeholder="Search item names..." minlength="2" maxlength="60"><button class="secondary" id="catalogSearch" type="button">Search</button></div><ul id="catalogResults"></ul></section>
+<section class="panel seller"><details><summary>Seller console <span>private key required</span></summary><div class="seller-inner"><p>Review proposals, accept, reject or make a counteroffer. Keep your private seller key off Discord.</p><label for="sellerKey">Seller secret</label><input id="sellerKey" type="password" autocomplete="off" placeholder="Your configured seller key"><button id="loadOffers" class="secondary" type="button">Load offers</button><div id="sellerOffers"></div></div></details></section>
+</main><footer>HEAVEN.GG / TRADER PROTOTYPE · No escrow, payments, or trade guarantees · <a href="https://github.com/fengie/Heaven.gg">Source</a></footer>
+<div role="status" id="toast" class="toast" aria-live="polite"></div>
+</body></html>

@@ -1,0 +1,59 @@
+name: Trader Safety & Pricing
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/trader/**'
+      - 'data/game/item_names.tsv'
+      - '.github/workflows/trader.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/trader/**'
+      - 'data/game/item_names.tsv'
+      - '.github/workflows/trader.yml'
+permissions:
+  contents: read
+jobs:
+  trader-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout isolated candidate
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Node.js 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Syntax checks
+        run: |
+          node --check apps/trader/server.mjs
+          node --check apps/trader/app.js
+          node --check apps/trader/tools/release-preflight.mjs
+      - name: Verify pricing, auth, state, persistence
+        run: node --test apps/trader/tests/trader.test.mjs apps/trader/tests/restart.test.mjs apps/trader/tests/release-preflight.test.mjs
+
+  # Windows runner is a portability check, never a substitute for a physical Heaven1 receipt.
+  trader-test-windows:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact PR candidate
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Node.js 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Windows syntax checks
+        run: |
+          node --check apps/trader/server.mjs
+          node --check apps/trader/app.js
+          node --check apps/trader/tools/release-preflight.mjs
+          node --check apps/trader/tests/live-smoke.mjs
+          node --check apps/trader/tests/restart.test.mjs
+      - name: Windows pricing and auth tests
+        run: node --test apps/trader/tests/trader.test.mjs apps/trader/tests/restart.test.mjs apps/trader/tests/release-preflight.test.mjs
