@@ -14,6 +14,9 @@ const files=[
   'apps/trader/server.mjs','apps/trader/app.js','apps/trader/index.html',
   'apps/trader/style.css','apps/trader/tests/live-smoke.mjs',
   'apps/trader/tests/restart.test.mjs',
+  'apps/trader/tests/release-preflight.test.mjs',
+  'apps/trader/tools/release-preflight.mjs',
+  'apps/trader/tools/Verify-Heaven1TraderRuntime.ps1',
   'data/game/item_names.tsv'
 ];
 function fail(message) {
