@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
+import { isIP } from 'node:net';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '../..');
@@ -71,7 +72,13 @@ export async function makeApp(options={}) {
   const dataPath=resolve(options.dataPath || process.env.TRADER_DATA_PATH || join(process.env.LOCALAPPDATA || process.env.HOME || root,'HeavenTrader','offers.json'));
   const catalogPath=resolve(options.catalogPath || join(root,'data/game/item_names.tsv'));
   const allowedOrigin = options.publicOrigin || process.env.TRADER_PUBLIC_ORIGIN || 'http://127.0.0.1:8787';
-  const origin = new URL(allowedOrigin).origin;
+  const configuredOrigin = new URL(allowedOrigin);
+  if (configuredOrigin.origin !== allowedOrigin || !['https:', 'http:'].includes(configuredOrigin.protocol) ||
+      (configuredOrigin.protocol !== 'https:' && !['localhost', '127.0.0.1', '[::1]'].includes(configuredOrigin.hostname)))
+    throw Error('TRADER_PUBLIC_ORIGIN must be an exact HTTPS origin (HTTP permitted only for localhost)');
+  const origin = configuredOrigin.origin;
+  // Only trust Cloudflare's client address when a local cloudflared instance is the sole origin ingress.
+  const trustCloudflareIp = options.trustCloudflareIp ?? process.env.TRADER_TRUST_CF_CONNECTING_IP === '1';
   const names=(await readFile(catalogPath,'utf8')).split(/\r?\n/).map(line=>{
     const tab=line.indexOf('\t');
     return tab>0 ? {id:line.slice(0,tab),name:line.slice(tab+1).trim()} : null;
@@ -100,12 +107,22 @@ export async function makeApp(options={}) {
     await rename(temp,dataPath);
   }
   const limits=new Map();
-  function rateCheck(ip) {
-    const now=Date.now(), prev=limits.get(ip)||[];
-    const recent=prev.filter(t=>now-t<60000);
-    if(recent.length>=5) return false;
-    recent.push(now); limits.set(ip,recent);
-    if(limits.size>1000) for(const [k,v] of limits) if(v[v.length-1]<now-60000) limits.delete(k);
+  function rateCheck(req) {
+    const now=Date.now();
+    const peer=req.socket.remoteAddress || 'unknown';
+    const cfIp=req.headers['cf-connecting-ip'];
+    const loopback=['127.0.0.1','::1','::ffff:127.0.0.1'].includes(peer);
+    const client=trustCloudflareIp && loopback && typeof cfIp==='string' && isIP(cfIp) ? cfIp : peer;
+    // Separate visitor quotas; still bound aggregate load even if the tunnel header is spoofed locally.
+    function recent(key) {
+      return (limits.get(key) || []).filter(t=>now-t<60000);
+    }
+    const own=recent('client:'+client), all=recent('global');
+    if(own.length>=5 || all.length>=100) return false;
+    own.push(now);all.push(now);
+    limits.set('client:'+client,own);limits.set('global',all);
+    if(limits.size>1000) for(const [key,times] of limits)
+      if(!times.length || times[times.length-1]<now-60000) limits.delete(key);
     return true;
   }
   const auth=req=>String(req.headers.authorization||'').replace(/^Bearer /i,'');
@@ -125,7 +142,7 @@ export async function makeApp(options={}) {
         res.end(body);return;
       }
       if(method==='GET' && pathname==='/healthz') {
-        respond(res,200,{ok:true,service:'heaven-trader',revision:process.env.GITHUB_SHA || 'unverified'});
+        respond(res,200,{ok:true,service:'heaven-trader',revision:process.env.TRADER_RELEASE_SHA || 'unverified',revisionProof:'operator-claimed; independent deployment receipt required'});
         return;
       }
       if(method==='GET' && pathname==='/api/catalog') {
@@ -136,7 +153,7 @@ export async function makeApp(options={}) {
         return;
       }
       if(method==='POST' && pathname==='/api/offers') {
-        if(!rateCheck(req.socket.remoteAddress||'local')) throw fail(429,'Too many offers; retry later');
+        if(!rateCheck(req)) throw fail(429,'Too many offers; retry later');
         const input=await parseBody(req);
         const numbers={petHalfK:input.petHalfK,mountHalfK:input.mountHalfK,rateCents:input.rateCents,offerCents:input.offerCents};
         totals(numbers); // authoritative server-side validation and recomputation
@@ -160,14 +177,14 @@ export async function makeApp(options={}) {
       }
       const match=pathname.match(/^\/api\/offers\/([a-f0-9]{24})(?:\/(action|respond))?$/);
       if(match) {
-        const record=records.find(r=>r.id===match[1]);
-        if(!record) throw fail(404,'Offer not found or expired');
-        const admin=isSeller(req), buyer=matchesBuyer(req,record);
-        if(!admin && !buyer) throw fail(401,'Offer access key required');
-        if(method==='GET' && !match[2]) {respond(res,200,{offer:publicOffer(record)});return;}
         if(method==='POST' && match[2]) {
           const data=await parseBody(req);
-          await serialize(async()=>{
+          // Re-select record and authenticate inside the mutation queue; no stale object survives a rollback.
+          const updated=await serialize(async()=>{
+            const record=records.find(r=>r.id===match[1]);
+            if(!record) throw fail(404,'Offer not found or expired');
+            const admin=isSeller(req), buyer=matchesBuyer(req,record);
+            if(!admin && !buyer) throw fail(401,'Offer access key required');
             if(match[2]==='action' && admin && record.status==='submitted') {
               if(data.action==='accept') {record.status='accepted';record.counterCents=null;}
               else if(data.action==='reject') {record.status='rejected';}
@@ -181,7 +198,14 @@ export async function makeApp(options={}) {
             } else throw fail(409,'Action not permitted in this state');
             record.updatedAt=new Date().toISOString();
             await persist();
+            return publicOffer(record);
           });
+          respond(res,200,{offer:updated});return;
+        }
+        if(method==='GET' && !match[2]) {
+          const record=records.find(r=>r.id===match[1]);
+          if(!record) throw fail(404,'Offer not found or expired');
+          if(!isSeller(req) && !matchesBuyer(req,record)) throw fail(401,'Offer access key required');
           respond(res,200,{offer:publicOffer(record)});return;
         }
       }
