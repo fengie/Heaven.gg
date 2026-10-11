@@ -109,3 +109,32 @@ test('production origins require exact HTTPS scheme/host with no paths',async()=
   await assert.rejects(makeApp({sellerKey,publicOrigin:'http://trader.heaven.gg'}),/HTTPS origin/);
   await assert.rejects(makeApp({sellerKey,publicOrigin:'https://trader.heaven.gg/extra'}),/HTTPS origin/);
 });
+
+
+test('rejects corrupted persisted offer records before serving requests',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'trader-bad-store-'));
+ const catalogPath=join(dir,'names.tsv'),dataPath=join(dir,'offers.json');
+ await writeFile(catalogPath,'7\tPet Token\n8\tMount Token\n');
+ const validNumbers={petHalfK:80,mountHalfK:160,rateCents:750,offerCents:11000};
+ const sample={id:'1234567890abcdef12345678',buyerKeyHash:'a'.repeat(64),
+   buyerAlias:'Valid Buyer',...validNumbers,status:'submitted',counterCents:null,
+   createdAt:'2026-10-11T12:00:00.000Z',updatedAt:'2026-10-11T12:00:00.000Z'};
+ const cases=[
+   [{status:'submitted'}],
+   [{...sample,petHalfK:999}],
+   [{...sample,buyerKeyHash:'broken'}],
+   [{...sample,status:'countered',counterCents:null}],
+   [{...sample,createdAt:'not-a-date'}],
+   [{...sample},{...sample}],
+   [{...sample,updatedAt:'2000-01-01T00:00:00.000Z'}],
+ ];
+ try {
+   for(const records of cases){
+     await writeFile(dataPath,JSON.stringify(records));
+     await assert.rejects(makeApp({sellerKey,dataPath,catalogPath,publicOrigin:origin}),/Invalid offer store/,
+       'Corrupt or duplicated offers must stop startup instead of serving partial data');
+   }
+   await writeFile(dataPath,JSON.stringify([sample]));
+   assert.equal(typeof (await makeApp({sellerKey,dataPath,catalogPath,publicOrigin:origin})).listener,'function');
+ }finally{await rm(dir,{recursive:true,force:true});}
+});
