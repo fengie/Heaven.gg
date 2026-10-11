@@ -32,7 +32,7 @@ jobs:
           node --check apps/trader/server.mjs
           node --check apps/trader/app.js
       - name: Verify pricing, auth, state, persistence
-        run: node --test apps/trader/tests/trader.test.mjs
+        run: node --test apps/trader/tests/trader.test.mjs apps/trader/tests/restart.test.mjs
 
   # Windows runner is a portability check, never a substitute for a physical Heaven1 receipt.
   trader-test-windows:
@@ -52,5 +52,6 @@ jobs:
           node --check apps/trader/server.mjs
           node --check apps/trader/app.js
           node --check apps/trader/tests/live-smoke.mjs
+          node --check apps/trader/tests/restart.test.mjs
       - name: Windows pricing and auth tests
-        run: node --test apps/trader/tests/trader.test.mjs
+        run: node --test apps/trader/tests/trader.test.mjs apps/trader/tests/restart.test.mjs
