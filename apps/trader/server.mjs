@@ -47,7 +47,7 @@ function validStoredRecord(record) {
   if(typeof record.id!=='string' || !/^[a-f0-9]{24}$/.test(record.id)
     || typeof record.buyerKeyHash!=='string' || !/^[a-f0-9]{64}$/.test(record.buyerKeyHash)
     || typeof record.buyerAlias!=='string' || record.buyerAlias.length<1
-    || record.buyerAlias.length>32 || !/^[\\p{L}\\p{N} ._-]+$/u.test(record.buyerAlias)
+    || record.buyerAlias.length>32 || !/^[\p{L}\p{N} ._-]+$/u.test(record.buyerAlias)
     || !VALID_STATES.has(record.status)) return false;
   const isoTimestamp=value=>typeof value==='string' && !Number.isNaN(Date.parse(value))
     && new Date(value).toISOString()===value;
