@@ -38,6 +38,28 @@ Requires Node.js 22+; zero third-party runtime packages. Keep this product in `H
 
 `TRADER_PUBLIC_ORIGIN` must exactly match the browser's origin (scheme + host + optional port); the default is `http://127.0.0.1:8787` for local development. For a local private test, use a local seller key, e.g. a secure random 32-byte string exported by the trusted environment, and run `node apps/trader/server.mjs`. Never use the sample testing key in production.
 
+## Heaven1 release evidence checklist — NOT YET EXECUTED
+
+Toolbox #822 / #874 is the signed execution/CI lane; #849 is the merge freeze authority; #882 makes the future host locality Heaven1-only. The #866 OpenAI/MCP private tunnel does NOT configure the distinct public Cloudflare Tunnel website route. Reuse the already authorized owners, not a new signer, deployment lane, or privileged GitHub Action.
+
+After the freeze is explicitly released and a signed exact-candidate Toolbox admission exists, the trusted Heaven1 owner can perform this READ-ONLY source check using the admitted revision. It fails on Heaven2 and cannot issue deployment approval or secrets:
+
+~~~powershell
+$env:TRADER_EXPECT_RELEASE_SHA = '<exact approved 40-character commit>'
+$env:TRADER_PUBLIC_ORIGIN = 'https://trader.heaven.gg'
+node apps/trader/tools/release-preflight.mjs
+~~~
+
+Required separate receipts:
+- Provenance: signed approval and lease, physical Heaven1 identity, admitted commit SHA, clean checkout and independently read-back file digests.
+- Runtime: non-admin service identity; installed executable/Node and application paths; process PID and listening port 127.0.0.1:8787; secret and offer directory ACLs outside source; captured source-to-service linkage.
+- Cloudflare: outbound cloudflared on physical Heaven1, managed under existing owner/credentials; hostname route trader.heaven.gg to http://127.0.0.1:8787; default unmatched route to 404; verify DNS, WAF, and outside-browser HTTPS. A healthy cloudflared control connection alone does NOT prove the origin route works.
+- Negative tests: anonymous seller-list denial, invalid/cross-origin mutation, invalid capability, spoofed-header handling, body limits, persistence and restart/rollback. Capture status codes without credentials in logs.
+- Positive tests: two independent real browser clients, submit a staging proposal, seller explicitly counters, buyer explicitly accepts, final math and status survive physical service restart; confirm the seller can view the offer. Prototype does NOT push automatic seller notifications.
+- Truth: post-restart independent signed installed SHA/source hash and service/HTTPS receipts, not a self-claimed /healthz value. Public announcement only after every acceptance step succeeds.
+
+Upstream references: [Cloudflare Tunnel routing](https://developers.cloudflare.com/tunnel/concepts/routing/), [Windows tunnel service](https://developers.cloudflare.com/tunnel/features/locally-managed-tunnels/as-a-service/windows/), [troubleshooting misleading healthy tunnels](https://developers.cloudflare.com/tunnel/troubleshooting/https-origins/). Store sensitive tunnel and seller credentials solely in protected machine-side configuration, never in source or CI.
+
 ## Architecture and expansion
 
 - `server.mjs`: strict validation, **single-process** atomic JSON file persistence for the tiny initial demo, hashed buyer capabilities, seller bearer secret, origin checks, CSP, body limits and seller/buyer state transitions. Only loopback listener.
@@ -50,18 +72,18 @@ Requires Node.js 22+; zero third-party runtime packages. Keep this product in `H
 ## Build and tests
 
 ```sh
-node --test apps/trader/tests/trader.test.mjs
+node --test apps/trader/tests/trader.test.mjs apps/trader/tests/restart.test.mjs apps/trader/tests/release-preflight.test.mjs
 node --check apps/trader/server.mjs
 node --check apps/trader/app.js
 ```
 
-CI runs Node 22 tests on Linux **and a GitHub-hosted Windows runner** via `.github/workflows/trader.yml`. Windows hosted CI checks portability, **not native Heaven1 acceptance**.
+CI runs Node 22 tests on Linux **and a GitHub-hosted Windows runner** via `.github/workflows/trader.yml`. Windows hosted CI checks portability and exercises a **real child-process stop/start** over an isolated offer store (submission → counter → acceptance → persistence), **not native Heaven1 acceptance**. The release preflight script must never be treated as deployment authority.
 
 A separate, no-credential, read-only HTTPS smoke script exercises the *real* public origin (one deliberately rejected cross-origin request is sent; no real offer is submitted):
 
 ```sh
-TRADER_SMOKE_BASE_URL=https://trader.heaven.gg \\
-TRADER_EXPECT_RELEASE_SHA=<40-character-approved-commit-sha> \\
+TRADER_SMOKE_BASE_URL=https://trader.heaven.gg \
+TRADER_EXPECT_RELEASE_SHA=<40-character-approved-commit-sha> \
 node apps/trader/tests/live-smoke.mjs
 ```
 
