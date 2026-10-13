@@ -73,6 +73,9 @@ class SearchSpec:
     max_nodes: int = 200_000
 
     def __post_init__(self):
+        if (type(self.mount_combinations_verified) is not bool or
+                type(self.allow_uncertain_effects) is not bool):
+            raise ValueError("Search evidence flags must be booleans")
         if not self.metric_basis or len(self.weights) != len(METRICS):
             raise ValueError("A common scenario basis and six objective weights are required")
         if not all(_finite(x) and x >= 0 for x in self.weights) or not any(self.weights):
@@ -187,8 +190,11 @@ def _evaluate(items: tuple[EquipmentCandidate, ...], spec: SearchSpec) -> Loadou
     for item in items:
         for name, count in item.skill_bonus_levels:
             bonus[name] = bonus.get(name, 0) + count
+    score = sum(w * v for w, v in zip(spec.weights, metrics))
+    if not _finite(score) or not all(_finite(v) for v in metrics):
+        raise ValueError("Loadout arithmetic overflow; rescale explicit metrics/weights")
     return LoadoutScore(tuple(x.item_id for x in items),
-                        sum(w * v for w, v in zip(spec.weights, metrics)),
+                        score,
                         sum(_price(it) for it in items),
                         tuple(metrics), tuple(activated),
                         tuple(sorted(bonus.items())),
