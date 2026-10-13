@@ -73,6 +73,27 @@ jobs:
         run: npm run build
       - name: Package portable research beta
         run: node web/offline.mjs
+      - name: Prepare isolated browser acceptance runtime
+        shell: bash
+        run: |
+          command -v google-chrome
+          python3 -m venv "$RUNNER_TEMP/heaven-browser"
+          "$RUNNER_TEMP/heaven-browser/bin/python" -m pip install playwright==1.57.0
+      - name: Verify actual browser interactions on the exact portable artifact
+        shell: bash
+        run: |
+          "$RUNNER_TEMP/heaven-browser/bin/python" web/tests/browser-smoke.py \
+            --artifact dist/Heaven.gg-Research-Beta.html \
+            --output "$RUNNER_TEMP/browser-evidence" \
+            --browser-executable "$(command -v google-chrome)"
+      - name: Preserve browser verification evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: browser-evidence-${{ github.sha }}
+          path: ${{ runner.temp }}/browser-evidence
+          retention-days: 7
+          if-no-files-found: warn
       - name: Check deployed artifact identity
         shell: bash
         run: |
