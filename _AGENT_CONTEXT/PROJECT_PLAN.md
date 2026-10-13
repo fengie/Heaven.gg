@@ -1,109 +1,81 @@
 # Project Plan — Canonical Work Ledger
 
-This file is the repository's durable current-work ledger. It follows the cross-repository contract in `fengie/heaven-toolbox@main:_AGENT_TRAINING/PROJECT_PLAN_CONTRACT.md`.
+Updated October 13, 2026. This branch checkpoint is not a declaration that its changes reached main.
+
+Canonical main observed: `3b0ebb13a06f23943f301fdb2b8e466e07e939e4`.
+Existing repair branch: `feat/web002-evidence-wardrobe-20261009`.
+Core repair and browser-gate checkpoint: `c6f5ea0a1e9e1f7d2ab4a213ab980963c3b2aa20`.
+
+The full prior ledger, original experiments, implementation history and acceptance details remain preserved at [the immutable pre-audit ledger](https://github.com/fengie/Heaven.gg/blob/227974a5d4684937ff086d5059ca0d722e1b2ab2/_AGENT_CONTEXT/PROJECT_PLAN.md). Its historical test counts and WEB-002 implementation-unclaimed label are not current branch status.
 
 ## Operating rules
 
-- Allowed statuses: `PLANNED`, `READY`, `ACTIVE`, `BLOCKED`, `DEFERRED`, `DONE`, `SUPERSEDED`.
-- Nonterminal items record source/evidence, owner or `unclaimed`, acceptance criteria/goal, and one concrete next action.
-- Checkboxes become complete only from canonical-main or exact referenced evidence.
-- Update this ledger after material ownership/status/blocker changes, after integration, and before handoff.
-- Do not fabricate roadmap items to make a quiet repository appear active.
+Statuses: PLANNED, READY, ACTIVE, BLOCKED, DEFERRED, DONE, SUPERSEDED. Source/CI, main integration and actual deployment are separate states. Nonterminal work records its next action and owner or unclaimed. Do not infer an authenticated lease from this ledger, an issue assignee or an assistant-written ownership label.
 
-## Current plans & progress
+Toolbox #849/#664 merge freeze remains active. No merge, main write, new agent, deployment, game-account access or current-game calibration is established by this checkpoint.
+
+## Current work
 
 ### DATA-002 — Reproducible staged scrape pipeline
 
-**Status:** DONE  
-**Owner:** completed via issue #2 / PR #3  
-**Source:** issue #2; current Codex Saved Builds schema; branch implementation  
-**Goal:** make live scraped analysis inputs reproducible, schema-drift safe, validate-before-publish, and bounded in retained source evidence.
+**Status:** DONE on historical canonical main. **Owner:** completed issue #2 / PR #3.
 
-- [x] Select the Saved Builds table by semantic headers instead of first-table position.
-- [x] Fail closed on missing/duplicate/malformed required columns or rows.
-- [x] Retain content-addressed source HTML with bounded snapshot retention.
-- [x] Stage raw/normalized/summary outputs and publish only after validation.
-- [x] Emit a machine-readable manifest with source/output hashes, row counts, parser version, filters, and calibration sources.
-- [x] Add regressions for unrelated leading tables, schema drift, failure preservation, and successful manifest publication.
-- [x] Exact head `b78033f49d254ece4fac7fc82f4a172f93fea260` passed Tests run `37128924361`.
-- [x] Merged as `2b1fd85a4468ce813bd101b5bfa34e6a2a680d8b` and verified remote `main` readback.
+Delivered semantic-header parsing, content-addressed bounded snapshots, staged validation/publication and rollback, and source/output identity manifests. Exact head `b78033f49d254ece4fac7fc82f4a172f93fea260` passed run `37128924361`; integration was `2b1fd85a4468ce813bd101b5bfa34e6a2a680d8b`.
 
-**Execution-path note:** the current ChatGPT session exposes the canonical Toolbox skills and authenticated GitHub mutation surface but no callable Heaven/Agent Control local-runtime namespace, so the mandatory local offload lane could not be exercised. Exact candidate GitHub CI is the mechanical verification path.
+**Next:** retain those invariants when the upstream schema changes. This audit did not perform another network refresh.
 
-**Next action:** none for DATA-002; future schema changes must update parser fixtures/version and preserve the same fail-closed publication contract.
+### DATA-003 — Public Codex listing catalog
 
+**Status:** DONE for the pinned October 8 listing snapshot, not all detail pages. **Owner:** historical implementation.
 
-### DATA-003 — Complete public Codex Saved Builds catalog
+327 source-linked entries, 306 damage and 21 tank listings, with four-page provenance and derived CSV/SQLite support. A listing's modeled DPS does not establish real combat accuracy. See `docs/CODEX_CATALOG.md`.
 
-**Priority:** P1
-**Status:** DONE for public listing metadata; detailed all-build mechanics remain OPEN under OPT-002
-**Source:** 2026-10-08 four-page Codex public Saved Builds listing (327 entries, 100/100/100/27)
-**Acceptance:** unique source URLs, 306 damage + 21 tanks, complete pagination, fail-closed validation and atomic CSV/SQLite publication, 122 existing skill panels retained with provenance.
-**Implementation:** `data/reference/codex_published_build_catalog.json`, `ch_tables/codex_catalog.py`, `docs/CODEX_CATALOG.md`. Raw complete CSV and filtered normalized/class tables published from one snapshot. Existing one-page scraper fails closed when pagination reveals incomplete coverage.
-**Next action:** systematically expand independent detail-page coverage with source/terms review; neither raw modeled DPS nor a copied HTML page establishes real-game DPS accuracy.
+**Next:** detail acquisition continues under DATA-004; never relabel the dated catalog live.
 
-### DATA-004 — Incremental public Codex detail coverage
+### DATA-004 — Incremental detailed evidence
 
-**Priority:** P1
-**Status:** ACTIVE
-**Owner:** unclaimed for future source-compliant collection
-**Source:** complete DATA-003 catalog, existing 12-build / 122-panel source archive
-**Goal:** expand independent per-build skill evidence safely without discarding source identity or prior observations.
-**Delivered:** `ch_tables/codex_detail_refresh.py` provides deterministic class-balanced missing-URL selection, capped rate-limited page requests, no retry on 429, schema-fail-closed incremental merging, independent original snapshot preservation and atomic publication. `tests/test_codex_detail_refresh.py` is entirely offline.
-**Next action:** execute small authorized increments in an internet-enabled trusted runtime, measure successful independent build coverage and parser drift, get publisher/author permission before broad redistribution, then implement separate tank-specific detailed-metric extraction. Do not report all detail pages as ingested.
+**Status:** ACTIVE. **Owner:** unclaimed for source-compliant collection.
 
-### OPT-001 — Equip/mount/consumable feasibility and research benchmark
+`ch_tables/codex_detail_refresh.py` implements class-balanced bounded collection, rate limits, schema-fail-closed merging and prior-snapshot preservation. Existing archive covers 12 builds / 122 modeled skill panels, not every build.
 
-**Priority:** P1  
-**Status:** ACTIVE  
-**Owner:** unclaimed for next implementation phase  
-**Source:** personal user request October 8, 2026; `docs/OPTIMIZATION_ARCHITECTURE_2026_10_08.md`; Heaven Toolbox source `deddf600`.  
-**Goal:** interaction-safe candidate screening and measured fight feasibility including mounts, shield/offhand, sustain, QoL, consumables and acquisition limits.
+**Next:** small authorized increments with independent coverage counts and upstream rights review, followed by separate tank-detail extraction. Do not publish private player data or broad unsanctioned copies.
 
-- [x] Document modular search/simulation/contracts, source uncertainty, legality and bounded phases.
-- [x] Implement candidate interaction signatures and no-false-pruning tests.
-- [x] Implement explicitly optimistic health/energy/potion/haste fight screen and adversarial tests.
-- [ ] Validate mount stat persistence, combat availability and offhand classes/slots against in-game sources.
-- [ ] Calibrate one Rogue and one resource-limited caster encounter before any real-DPS claims.
+### OPT-001 — Equipment and encounter feasibility
 
-**Next action:** collect exact current-patch mount/CG offhand/runic shield, rotation and resource-regen observations, add sourced fixtures, then build a small exact oracle versus constraint solver.
+**Status:** ACTIVE. **Owner:** unclaimed for current-game measurements.
 
-### OPT-002 — Dynamic multi-objective simulator and planner UI
+Interaction-aware candidate screening and optimistic resource feasibility exist. This branch now rejects malformed evidence/ownership flags, boolean measurements, fractional or nonfinite gold, and malformed levels/ranks. Unknown costs and unverified mount applicability remain unknown; ownership does not establish game mechanics.
 
-**Priority:** P1  
-**Status:** ACTIVE  
-**Owner:** simulator and validation slices delivered on verified main; in-game calibration remains unclaimed  
-**Source:** `docs/OPTIMIZATION_ARCHITECTURE_2026_10_08.md`.  
-**Acceptance:** seeded event-simulation fixtures agree with game observations; search agrees with exhaustive oracle for tiny cases; clear Pareto results with safe, priced gear sources and quality indicators.  
-**Implemented slice:** `ch_tables/combat_simulator.py` models deterministic priority-queue events, resource caps, enemy/auto/pet attacks, cast/action occupation, finite potions, swaps, DoT refresh and buff expiry; a planner Choice adapter and paired-seed evaluation are included. `tests/test_combat_simulator.py` has 16 locally passing standard-library regression tests. `data/planner/synthetic_combat_scenario.json` is explicitly NOT real game data. See `docs/COMBAT_SIMULATOR.md`. Full OPT-002 acceptance is still pending.  
-**Validation slice:** `ch_tables/combat_validation.py` provides strict source-identity and frozen-scenario gates, independent-session holdout comparison, seeded expected DPS/potion/death/kill metrics, and an explicitly synthetic CLI fixture (`tests/test_combat_validation.py`, 9 regression tests). It does **not** estimate coefficients or establish real-game accuracy. Targeted simulator+validation tests: 25 passed locally on Python 3.13. Exact implementation commit `81a41e09c6a0c3132cdc95039c531871f09f7fd3` verified on remote main; full GitHub Actions [Tests](https://github.com/fengie/CH-tables/actions/runs/37862267422), [README timestamp](https://github.com/fengie/CH-tables/actions/runs/37862267400), and [Heaven AutoUpdate Contract](https://github.com/fengie/CH-tables/actions/runs/37862267440) all completed successfully. Science acceptance (real-game validation) remains open.
+**Acceptance still open:** current-patch mount persistence, offhand legality, skill/resource rates, and one Rogue plus one resource-limited caster encounter. See `docs/OPTIMIZATION_ARCHITECTURE_2026_10_08.md`.
 
-**Exact loadout search slice (October 8):** `ch_tables/loadout_search.py` introduces bounded, exact top-K weighted equipment search with an independent tiny exhaustive oracle, optimistic interaction-aware branch upper bounds, explicit set/item synergy and incompatibility, gold feasibility, skill bonus traceability, no unknown pricing/effects by default, and explicit `certified_exact=false` on work cap. `tests/test_loadout_search.py` includes 16 local regression tests with 80 deterministic randomized oracle comparisons. See `docs/LOADOUT_SEARCH.md`. **This is not a calibrated actual-DPS optimizer or complete Pareto frontier.**
+**Next:** collect those controlled observations rather than inventing coefficients.
 
-**Evidence acquisition slice (October 8):** `ch_tables/combat_evidence.py` accepts private local recordings and strict timestamped event transcriptions, hashes both original and transcript bytes, derives exact fixed-window combat/potion observations, rejects duplicate/invalid/escaping inputs, and emits the existing holdout validator's schema. `tests/test_combat_evidence.py` adds 18 targeted regressions, and `docs/COMBAT_EVIDENCE.md` supplies a first-party Rogue/caster recording protocol. This is capture/intake infrastructure, not real gameplay calibration.
+### OPT-002 — Simulator, search and personal planner
 
-**Validation-integrity correction (October 8):** the holdout evaluator now compares the actual supplied `Encounter` against the exact SHA-pinned scenario configuration before simulation, eliminating a mismatch that could otherwise produce apparently hash-validated predictions from a different model. Two adversarial regression tests cover changed damage, skills, HP, horizon, and a rehashed scenario with a stale model. Local simulator + validator + evidence-intake tests: 45 passed. Chronology and game-mechanics calibration remain unverified.
+**Status:** ACTIVE; audited source repair is tested on this branch, full science/product acceptance remains open.
+**Owner:** current operator-directed repair checkpoint; no independent controller lease asserted.
 
-**Exact Pareto optimizer slice (October 8):** `ch_tables/loadout_pareto.py` produces a nondominated set across six explicit research metrics (maximized) and known acquisition cost (minimized), not merely a top-K weighted score. Branch-and-bound uses optimistic per-metric slot and conditional-effect bounds, checks compatibility/eligibility/budgets, deduplicates tied vectors deterministically, and refuses optimality claims on node or output caps. `tests/test_loadout_pareto.py` includes an independently coded unpruned oracle over 170 seeded mixed-synergy/negative-effect scenarios plus adversarial sustain, shield, mount, unknown-effects, and budget cases. Local isolated loadout-search/Pareto suite: 29 passed; a separate 500-case randomized cross-check passed. These results certify only **explicit uncalibrated inputs**, not current-patch Celtic Heroes DPS or complete nonlinear simulation objectives.
+Existing modules include discrete-event combat, session-held-out validation, recording/transcript intake, bounded scalar search and seven-objective Pareto search. The audit repaired stale buff expiry, duplicate action wakes, boss-kill survival aggregation, incompatible comparison inputs, canonical Pareto tie pruning and nonfinite arithmetic. The simulator reports `synthetic_discrete_event_v2_UNCALIBRATED`; holdout output now identifies its simulator version.
 
-**Codex empirical surrogate (October 8):** `ch_tables/codex_surrogate.py` models Codex's published per-skill `Avg Damage` conditional on that **same panel's Max Damage**, using a per-skill robust median ratio with global fallback and independent whole-build holdouts. The pinned 12-build, 117-valid-panel retrospective LOBO study gives **4.03% mean absolute percentage error**, versus **5.12%** for a global baseline. Only ~59% of individual predictions meet 5%. Transferring `Max Damage` directly from another build fails badly (~57.25% MAPE on 88 comparable rows): new gear/rank/ability DPS and actual in-game combat remain unverified. See `docs/CODEX_EMPIRICAL_SURROGATE.md`. This is Codex MODEL-on-MODEL inference, not a measured 5%-accurate DPS engine.\n\n**Next action:** collect independently recorded same-patch Rogue and resource-limited caster traces (including source hash, timing, gear and policy); freeze calibrated inputs before holdout inspection, then compare against real sessions and audit model bias. Only after that proceed to the tiny exact solver/oracle.
+**Verified local checkpoint:** 212 Python tests, 33 web tests, 17 browser acceptance groups. Synthetic before/after timing and scope are in `web/AUDIT_HANDOFF.md`. GitHub code checkpoint `c6f5ea0a1e9e1f7d2ab4a213ab980963c3b2aa20` passed Python run `38359647022` and website/browser run `38359647041`. Later commits need their own applicable checks; neither run is merge admission.
 
-### OPT-003 — Tooling case-study feedback
+**Next:** independent exact-source review, then authorized integration after freeze release. Scientific next step remains separately collected same-patch Rogue/caster holdouts with frozen gear, timing and action policy. The Codex surrogate's historical model-on-model fit is not a calibrated actual-DPS engine. A usable research website is not a completed personal BIS optimizer.
 
-**Priority:** P2  
-**Status:** ACTIVE  
-**Owner:** unclaimed  
-**Source:** `fengie/heaven-toolbox` project-training/provenance guidance and October 8 multi-repo user request.  
-**Acceptance:** narrow cross-project evidence/case study saved in Toolbox, without copying CH-specific assumptions or adding broad unvalidated mandatory policies.  
-**Next action:** run measured end-to-end development throughput/rework benchmark from two actual Toolbox projects and promote only verified wins.
+### WEB-002 — Recovered research browser and collector tools
 
+**Status:** BLOCKED for integration/release; implementation is present and tested, not unclaimed or absent.
+**Owner:** existing recovery branch / issue #9; no new competing branch or agent.
 
-### WEB-002 — Competitor-informed decision and collector experience
+Recovered the pre-existing comparison and wardrobe code. Hardened missing-value and provenance handling, exact-cent arithmetic, import consistency, selection focus and keyboard tabs. `web/offline.mjs` packages a portable research HTML with 327 builds, 259 displayed catalog entries and eight historical boss records, plus the existing AION tools. No game login, automatic purchases or invented live values.
 
-**Priority:** P1, following GitHub Pages issue #6  
-**Status:** READY (research authored, implementation unclaimed)  
-**Owner:** unclaimed  
-**Source:** 2026-10-09 competitor and scientific records, root `_AGENT_CONTEXT/RESEARCH_FINDINGS/records/2026/10/`.  
-**Goal:** understandable, feasible, dated, player-specific comparisons without universal tier claims.  
-**Acceptance:** CH compare has assumption/source/encounter evidence with incomplete-state guard; AION compare includes owned cosmetics, dye, expiry and region/binding; negative scenario tests, keyboard and mobile checks pass.  
-**Next action:** implement trust/context badges and scenario-mismatch regression in a separate reviewed PR; validate one sourced cosmetic purchase workflow before adding larger catalog. No scheduled agents or auto-purchase.
+CI now discovers all web tests and exercises the actual portable artifact in Chrome before uploading it. Reports carry artifact SHA-256; source audit snapshots are separate, expiring artifacts, never Pages assets. See `web/FIRST_DELIVERABLE.md` and `web/AUDIT_HANDOFF.md`.
+
+**Next:** retain this candidate, independently review the complete branch, satisfy current release admission, then verify the served revision and real target-browser behavior. The previously recorded Pages-disabled diagnosis is stale: an earlier public research portal was observed serving revision `912fd09f6fc2f79aba5a3070935e2344e1c69077`; that is not this candidate's deployment.
+
+### OPT-003 — Reusable Toolbox feedback
+
+**Status:** ACTIVE. **Owner:** unclaimed for independent cross-project promotion.
+
+Executable prevention is saved with the owning CH source/tests; reusable candidates are summarized in the audit handoff. Factory disposition: `FACTORY_IMPROVEMENT_DEFERRED_TO_OWNER` for global policy/runtime changes. One local benchmark does not establish company-wide throughput improvement.
+
+**Next:** review the portable lessons against existing Toolbox knowledge, deduplicate and promote only independently verified cross-project value through its existing owner. Do not copy game coefficients into generic policy or create a parallel governance system.
