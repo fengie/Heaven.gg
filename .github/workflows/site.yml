@@ -5,22 +5,28 @@ on:
     branches: [main, feat/web002-evidence-wardrobe-20261009]
     paths:
       - 'web/**'
+      - 'ch_tables/**'
+      - 'tests/**'
       - 'apps/aion2-value-atlas/**'
       - 'data/reference/codex_published_build_catalog.json'
       - 'data/reference/raid_boss_resistances_2026_10_08.json'
       - 'data/catalog/priority_gear_lookup.json'
       - 'package.json'
+      - 'requirements.txt'
       - '.github/workflows/site.yml'
       - '.heaven/update-policy.json'
   pull_request:
     branches: [main]
     paths:
       - 'web/**'
+      - 'ch_tables/**'
+      - 'tests/**'
       - 'apps/aion2-value-atlas/**'
       - 'data/reference/codex_published_build_catalog.json'
       - 'data/reference/raid_boss_resistances_2026_10_08.json'
       - 'data/catalog/priority_gear_lookup.json'
       - 'package.json'
+      - 'requirements.txt'
       - '.github/workflows/site.yml'
       - '.heaven/update-policy.json'
   workflow_dispatch:
@@ -42,6 +48,21 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
+      - name: Capture exact tracked source for independent audit
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git archive --format=tar --output="$RUNNER_TEMP/heaven-gg-source.tar" "$GITHUB_SHA"
+          git ls-tree -rz --full-tree "$GITHUB_SHA" > "$RUNNER_TEMP/heaven-gg-tree.bin"
+      - name: Preserve source audit snapshot separately from deployable assets
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: source-audit-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/heaven-gg-source.tar
+            ${{ runner.temp }}/heaven-gg-tree.bin
+          retention-days: 7
+          if-no-files-found: error
       - name: Configure Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
@@ -63,7 +84,7 @@ jobs:
       # Candidate artifacts are inspectable, never evidence of a deployed site.
       - name: Upload tested Pages artifact
         if: github.event_name != 'pull_request'
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
           path: dist
           retention-days: 7
