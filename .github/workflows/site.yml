@@ -2,7 +2,7 @@ name: Heaven.gg Website
 
 on:
   push:
-    branches: [main]
+    branches: [main, feat/web002-evidence-wardrobe-20261009]
     paths:
       - 'web/**'
       - 'apps/aion2-value-atlas/**'
@@ -57,11 +57,13 @@ jobs:
           test -s dist/index.html
           test -s dist/aion2/index.html
           test -s dist/ch/catalog.json
+      # Candidate artifacts are inspectable, never evidence of a deployed site.
       - name: Upload tested Pages artifact
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
+          retention-days: 7
 
   deploy:
     name: Deploy GitHub Pages from verified main
