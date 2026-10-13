@@ -7,3 +7,5 @@
 .comparison-evidence{border:1px solid #947149;border-radius:10px;background:#2c261d;padding:15px;margin:18px 0;color:#eed6b5}.comparison-evidence strong{font-size:13px}.comparison-evidence p,.comparison-evidence li{font-size:11px;line-height:1.7}.comparison-evidence ul{padding-left:18px;margin-bottom:0}
 
 #wardrobe-frame{width:calc(100% - 56px);margin:0 28px;display:block;height:calc(100vh - 180px);min-height:780px;border:1px solid #35505f;border-radius:12px;background:#0a111b}#wardrobe-frame[hidden],#aion-frame[hidden]{display:none!important}@media(max-width:640px){#wardrobe-frame{margin:0 10px;width:calc(100% - 20px);height:86vh;min-height:620px}}
+/* Author display rules must not override native hidden state on controls or panels. */
+[hidden]{display:none!important}
