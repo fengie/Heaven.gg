@@ -42,7 +42,7 @@ class EquipmentCandidate:
     weapon_family: str | None = None
 
     def __post_init__(self):
-        if not self.item_id or self.slot not in SLOTS:
+        if type(self.item_id) is not str or not self.item_id.strip() or self.slot not in SLOTS:
             raise ValueError("Exact item ID and supported canonical slot required")
         if self.class_scope not in ("unknown", "all", "restricted"):
             raise ValueError("Invalid class eligibility evidence")
@@ -50,10 +50,14 @@ class EquipmentCandidate:
             raise ValueError("Restricted class rule needs class names")
         if self.class_scope == "all" and self.classes:
             raise ValueError("Unrestricted class rule cannot have a class whitelist")
-        if self.min_level < 1 or self.cost_gold is not None and self.cost_gold < 0:
-            raise ValueError("Invalid level or price")
+        if (type(self.min_level) is not int or self.min_level < 1 or
+                self.cost_gold is not None and (type(self.cost_gold) is not int or self.cost_gold < 0)):
+            raise ValueError("Level and known gold price must be exact nonnegative integers")
+        if any(type(getattr(self, name)) is not bool for name in
+               ("unknown_effects", "in_combat_effect_verified", "released_documented", "owned")):
+            raise ValueError("Evidence and ownership flags must be booleans")
         if len(self.metrics) != len(METRICS) or any(
-            not isinstance(v, (int, float)) or not (-1e20 < v < 1e20)
+            type(v) not in (int, float) or not (-1e20 < v < 1e20)
             for v in self.metrics
         ):
             raise ValueError("Metrics must be six finite explicitly sourced values")
@@ -69,7 +73,8 @@ class EquipmentCandidate:
             raise ValueError("Main weapon must use mainhand slot")
         if len({name for name, _ in self.skill_bonus_levels}) != len(self.skill_bonus_levels):
             raise ValueError("Duplicate skill bonus name")
-        if any(not name or value < 0 for name, value in self.skill_bonus_levels):
+        if any(type(name) is not str or not name.strip() or
+               type(value) is not int or value < 0 for name, value in self.skill_bonus_levels):
             raise ValueError("Invalid skill bonus")
 
 
@@ -81,8 +86,12 @@ class BuildContext:
     allow_unknown_mount_in_combat: bool = False
 
     def __post_init__(self):
-        if self.level < 1 or not self.player_class:
-            raise ValueError("Class and level required")
+        if (type(self.level) is not int or self.level < 1 or
+                type(self.player_class) is not str or not self.player_class.strip()):
+            raise ValueError("Text class and positive integer level required")
+        if (type(self.include_owned_unverified) is not bool or
+                type(self.allow_unknown_mount_in_combat) is not bool):
+            raise ValueError("Context evidence flags must be booleans")
 
 
 def permitted(item: EquipmentCandidate, context: BuildContext) -> bool:
