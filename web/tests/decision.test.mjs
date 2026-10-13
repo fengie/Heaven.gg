@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import {strict as assert} from 'node:assert';
 import {compareBuilds} from '../decision.mjs';
-const a={characterClass:'Rogue',level:220,buildType:'Damage',snapshotDate:'2026-10-08',benchmarkDps:100};
+const a={sourceUrl:'https://the-codex.ch/damagebuilder/test-fixture',characterClass:'Rogue',level:220,buildType:'Damage',snapshotDate:'2026-10-08',benchmarkDps:100};
 test('same class/date still cannot rank without encounter and gear evidence',()=>{
  const x=compareBuilds(a,{...a,benchmarkDps:150});assert.equal(x.comparable,false);assert.equal(x.modeledDelta,null);assert(x.reasons.some(s=>s.includes('boss')));
 });
