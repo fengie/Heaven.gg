@@ -134,8 +134,12 @@ def pareto_loadouts(spec: SearchSpec, *, max_frontier: int = 2000) -> ParetoResu
             return math.nextafter(v + slack, math.inf)
 
         optimistic = tuple(upper_component(m) for m in range(count_metrics))
+        # Equality cannot prune: a later equal vector may have the canonical
+        # smaller item-ID tuple, particularly when all upper bounds are zero.
         if any(winner.gold_cost <= min_cost and
-               all(x >= bound for x, bound in zip(winner.metrics, optimistic))
+               all(x >= bound for x, bound in zip(winner.metrics, optimistic)) and
+               (winner.gold_cost < min_cost or
+                any(x > bound for x, bound in zip(winner.metrics, optimistic)))
                for winner in frontier):
             pruned += 1
             return
