@@ -125,3 +125,34 @@ export function wardrobeQuote(catalog, opts = {}) {
     mileageIncomplete, costIncomplete, unknown, balanceQuna: wallet + topup.quna - qunaNeed,
     budgetStatus: budget === null ? 'not-set' : costIncomplete ? 'incomplete' : subtotalCents <= budget ? 'within' : 'over'};
 }
+
+/** Parse cents from decimal text, avoiding binary floating-point rejection. */
+export function parseNumericInput(text, scale = 1, blank = null) {
+  if (typeof text !== 'string' || ![1, 100].includes(scale)) return NaN;
+  text = text.trim();
+  if (text === '') return blank;
+  const pattern = scale === 100 ? /^(?:\d+(?:\.\d{0,2})?|\.\d{1,2})$/ : /^\d+$/;
+  if (!pattern.test(text)) return NaN;
+  const [whole, fraction = ''] = text.split('.');
+  const n = Number(whole || '0') * scale + (scale === 100 ? Number(fraction.padEnd(2, '0')) : 0);
+  return Number.isSafeInteger(n) && n >= 0 ? n : NaN;
+}
+
+/** Validate the entire imported plan before changing any controls or selection. */
+export function validateWardrobePlan(plan, catalog) {
+  if (!plan || plan.schema !== 1 || plan.snapshot !== catalog?.as_of || plan.region !== catalog?.region) {
+    throw new Error('Plan snapshot or region does not match this catalog');
+  }
+  if (!Array.isArray(plan.wanted) || !Array.isArray(plan.owned)
+      || !plan.parameters || typeof plan.parameters !== 'object' || Array.isArray(plan.parameters)) {
+    throw new Error('Invalid plan inputs');
+  }
+  const parameters = {
+    walletQuna: plan.parameters.walletQuna ?? 0,
+    dyeChanges: plan.parameters.dyeChanges ?? 0,
+    dyeQunaEach: plan.parameters.dyeQunaEach ?? null,
+    budgetCents: plan.parameters.budgetCents ?? null
+  };
+  wardrobeQuote(catalog, {...parameters, wanted: plan.wanted, owned: plan.owned});
+  return {wanted: [...new Set(plan.wanted)], owned: [...new Set(plan.owned)], parameters};
+}
