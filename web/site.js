@@ -1,9 +1,9 @@
-import {compareBuilds} from './decision.mjs';
+import {compareBuilds,formatMetric} from './decision.mjs';
 'use strict';
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const esc = (value) => String(value == null ? '' : value).replace(/[&<>"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
-const whole = (value) => Number.isFinite(Number(value)) ? Number(value).toLocaleString('en-US') : 'Unknown';
+const whole = formatMetric;
 const makeLink = (value) => {
   try {
     const url = new URL(value);
@@ -19,14 +19,14 @@ let catalog = null;
 function selectGame(game, updateHash = true) {
   state.game = game === 'aion' ? 'aion' : 'ch';
   $$('#view-ch, #view-aion').forEach((el) => { el.hidden = el.id !== (state.game === 'ch' ? 'view-ch' : 'view-aion'); });
-  $$('.game-tab').forEach((el) => { const selected = el.dataset.game === state.game; el.classList.toggle('active', selected); el.setAttribute('aria-selected', String(selected)); });
+  $$('.game-tab').forEach((el) => { const selected = el.dataset.game === state.game; el.classList.toggle('active', selected); el.setAttribute('aria-selected', String(selected)); el.tabIndex = selected ? 0 : -1; });
   if (updateHash) history.replaceState(null, '', state.game === 'ch' ? '#celtic-heroes' : '#aion2');
   document.title = state.game === 'ch' ? 'Heaven.gg · Celtic Heroes' : 'Heaven.gg · AION 2';
 }
 
 function selectSection(name) {
   state.section = ['builds','gear','bosses'].includes(name) ? name : 'builds';
-  $$('.section-tab').forEach((el) => { const selected = el.dataset.section === state.section; el.classList.toggle('active', selected); el.setAttribute('aria-selected', String(selected)); });
+  $$('.section-tab[data-section]').forEach((el) => { const selected = el.dataset.section === state.section; el.classList.toggle('active', selected); el.setAttribute('aria-selected', String(selected)); el.tabIndex = selected ? 0 : -1; });
   $$('.research-panel').forEach((el) => { el.hidden = el.id !== 'research-' + state.section; });
 }
 
@@ -47,7 +47,7 @@ function renderClassFilters() {
 }
 
 function buildCard(build) {
-  const metric = Number.isFinite(build.benchmarkDps) ? whole(build.benchmarkDps) + '<small>modeled DPS</small>' : '<span style="font-size:18px">Tank build</span>';
+  const metric = Number.isFinite(build.benchmarkDps) ? whole(build.benchmarkDps) + '<small>modeled DPS</small>' : '<span style="font-size:18px">' + (build.buildType === 'Tank' ? 'Tank build' : 'DPS unavailable') + '</span>';
   const inList = state.compared.includes(build.id);
   return '<article class="build-card">' +
     '<div class="card-top"><span class="class-tag">' + esc(build.characterClass) + '</span><span class="small-meta">LVL ' + esc(build.level) + ' · ' + esc(build.buildType) + '</span></div>' +
@@ -126,25 +126,62 @@ function applyCatalog(data) {
   $('#gear-count').textContent = whole(data.gear.length);
   renderBuilds(); renderGear(); renderBosses();
 }
+// WAI-ARIA horizontal tabs: one tab stop, arrow keys, Home and End.
+function configureTabLists() {
+  $$('[role="tablist"]').forEach(list => {
+    const tabs = [...list.querySelectorAll('[role="tab"]')];
+    tabs.forEach((tab, index) => {
+      tab.tabIndex = tab.getAttribute('aria-selected') === 'true' ? 0 : -1;
+      if (!tab.id) tab.id = 'tab-' + (tab.dataset.section || 'aion-' + tab.dataset.aionTool);
+      let panel = null;
+      if (tab.dataset.section) panel = $('#research-' + tab.dataset.section);
+      else if (tab.dataset.aionTool) {
+        const frame = $(tab.dataset.aionTool === 'shop' ? '#aion-frame' : '#wardrobe-frame');
+        panel = document.createElement('div');
+        panel.id = 'aion-panel-' + tab.dataset.aionTool;
+        panel.hidden = tab.getAttribute('aria-selected') !== 'true';
+        frame.before(panel); panel.append(frame);
+        tab.addEventListener('click', () => {
+          tabs.forEach(other => { $('#aion-panel-' + other.dataset.aionTool).hidden = other !== tab; });
+        });
+      } else panel = $('#' + tab.getAttribute('aria-controls'));
+      if (panel) {
+        panel.setAttribute('role', 'tabpanel');
+        panel.setAttribute('aria-labelledby', tab.id);
+        tab.setAttribute('aria-controls', panel.id);
+      }
+    });
+    list.addEventListener('keydown', event => {
+      const current = tabs.indexOf(event.target.closest('[role="tab"]'));
+      if (current < 0 || !['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
+      event.preventDefault();
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1
+        : (current + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+      tabs[next].click(); tabs[next].focus();
+    });
+  });
+}
+
 function attachEvents() {
   document.querySelectorAll('[data-aion-tool]').forEach(button=>button.addEventListener('click',()=>{
     const shop=button.dataset.aionTool==='shop';
     document.querySelector('#aion-frame').hidden=!shop;
     document.querySelector('#wardrobe-frame').hidden=shop;
-    document.querySelectorAll('[data-aion-tool]').forEach(b=>{const active=b===button;b.classList.toggle('active',active);b.setAttribute('aria-selected',String(active));});
+    document.querySelectorAll('[data-aion-tool]').forEach(b=>{const active=b===button;b.classList.toggle('active',active);b.setAttribute('aria-selected',String(active));b.tabIndex=active?0:-1;});
   }));
   $$('.game-tab').forEach((button) => button.addEventListener('click', () => selectGame(button.dataset.game)));
-  $$('.section-tab').forEach((button) => button.addEventListener('click', () => selectSection(button.dataset.section)));
+  $$('.section-tab[data-section]').forEach((button) => button.addEventListener('click', () => selectSection(button.dataset.section)));
   $$('[data-ch-goto]').forEach((button) => button.addEventListener('click', () => {selectSection(button.dataset.chGoto);document.querySelector('.section-heading')?.scrollIntoView({behavior:'smooth'});}));
   $('#class-filters').addEventListener('click', (event) => {
     const button = event.target.closest('[data-class]');
     if (!button) return;
     state.classFilter = button.dataset.class;state.shown = 18;renderBuilds();
+    $$('#class-filters [data-class]').find(b=>b.dataset.class===state.classFilter)?.focus({preventScroll:true});
   });
   $('#build-query').addEventListener('input',(event)=>{state.query=event.target.value;state.shown=18;renderBuilds();});
   $('#build-sort').addEventListener('change',(event)=>{state.sort=event.target.value;state.shown=18;renderBuilds();});
   $('#show-more').addEventListener('click',()=>{state.shown+=18;renderBuilds();});
-  $('#build-cards').addEventListener('click',(event)=>{const button=event.target.closest('[data-pick]');if(button)toggleCompare(button.dataset.pick);});
+  $('#build-cards').addEventListener('click',(event)=>{const button=event.target.closest('[data-pick]');if(button){const id=button.dataset.pick;toggleCompare(id);$$('#build-cards [data-pick]').find(b=>b.dataset.pick===id)?.focus({preventScroll:true});}});
   $('#clear-compare').addEventListener('click',()=>{state.compared=[];renderBuilds();});
   $('#gear-query').addEventListener('input',(event)=>{state.gearQuery=event.target.value;state.gearShown=18;renderGear();});
   $('#gear-filters').addEventListener('click',(event)=>{const button=event.target.closest('[data-gear-status]');if(button){state.gearStatus=button.dataset.gearStatus;state.gearShown=18;renderGear();}});
@@ -152,6 +189,7 @@ function attachEvents() {
   window.addEventListener('hashchange',()=>selectGame(location.hash === '#aion2' ? 'aion' : 'ch',false));
 }
 attachEvents();
+configureTabLists();
 selectGame(location.hash === '#aion2' ? 'aion' : 'ch',false);
 fetch('./ch/catalog.json',{cache:'no-cache'}).then((r)=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(applyCatalog).catch((error)=>{
   $('#result-count').textContent='Data could not be loaded';
