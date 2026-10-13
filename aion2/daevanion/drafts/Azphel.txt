@@ -1,0 +1,19 @@
+Azphel | 15x15 | 153 visible nodes
+Legend: .=absent x=gray Y=gold B/b=blue G/g=green O/o=orange S=start
+Uppercase colored tokens are gold-lit. Acquisition state and costs unknown.
+    01 02 03 04 05 06 07 08 09 10 11 12 13 14 15
+01  o  x  x  b  .  g  x  o  .  g  x  b  x  x  o
+02  x  .  .  x  x  x  .  x  .  x  .  .  x  .  x
+03  g  x  x  g  .  x  g  x  x  b  x  x  g  x  g
+04  .  .  x  .  .  .  x  .  x  .  x  .  x  .  .
+05  b  x  x  .  b  x  x  b  x  g  x  x  b  .  .
+06  x  .  g  x  x  .  x  .  .  x  .  .  x  x  g
+07  x  .  .  .  x  x  g  x  x  b  x  x  g  .  x
+08  o  x  x  .  .  x  .  S  .  x  .  .  x  x  o
+09  x  .  g  x  x  b  x  x  g  x  x  .  .  .  x
+10  g  x  x  .  .  x  .  .  x  .  x  x  g  .  x
+11  .  .  b  x  x  g  x  b  x  x  b  .  x  x  b
+12  .  .  x  .  x  .  x  .  x  .  .  .  x  .  .
+13  g  x  g  x  x  b  x  x  g  x  .  g  x  x  g
+14  x  .  x  .  .  x  .  x  .  x  x  x  .  .  x
+15  o  x  x  b  x  g  .  o  x  g  .  b  x  x  o

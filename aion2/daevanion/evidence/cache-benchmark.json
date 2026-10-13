@@ -1,0 +1,46 @@
+{
+  "checked_output_files_including_receipt": 32,
+  "environment": {
+    "platform": "Linux-6.18.44-x86_64-with-glibc2.41",
+    "python": "3.13.5"
+  },
+  "full_median_seconds": 8.114379084999769,
+  "full_render_seconds": [
+    10.09467110599985,
+    6.1340870639996865
+  ],
+  "limits": [
+    "Two full-render and three verified-reuse samples; indicative only, not a statistical confidence interval.",
+    "Same-process warmed local filesystem; not an end-user latency guarantee.",
+    "Reuse still validates evidence, source identity and every required input/output digest. Unknown game costs stay unknown."
+  ],
+  "median_speedup": 23.915597849164715,
+  "outputs_unchanged": true,
+  "producer": {
+    "fonts_sha256": {
+      "DejaVuSans.ttf": "57f73e11f51999432bf7ab22ce55b6f945d5eca1bf824404cfa9ec2e3718c84e",
+      "DejaVuSansMono.ttf": "54bf827eb99404e8f430c330ad30f063334f637eba0109b6a18d4f566a8e9dd8"
+    },
+    "freetype": null,
+    "pillow": "12.3.0",
+    "python": [
+      3,
+      13,
+      5
+    ],
+    "source_sha256": {
+      "game-tools/build_outputs.py": "c7b76241d9776ce0d2029c8192a7675e532e9d0d0de0a13b84d8e28fd61158db",
+      "game-tools/generation_evidence.py": "2b8f7088baffb2f312cfee6fa29fe847368a2f7bf815a261e86005221d3df039",
+      "toolbox/artifact_manifest.py": "cb72102e565128880c2752920b04a626c82385d5da1c794974ebeb24529e2e00",
+      "toolbox/evidence_grid.py": "bced0e297c1cc84601147cbcee51c28f6badc6f2306dca2d817d838121247627",
+      "toolbox/safe_artifacts.py": "63d3f643b61f19583553cddea12125a7a797c68b36315ec218a0673a51bff5a4"
+    }
+  },
+  "reuse_median_seconds": 0.3392923370001881,
+  "schema": "aion2/daevanion-reuse-benchmark/v1",
+  "verified_reuse_seconds": [
+    0.25192362600000706,
+    0.39010899300001256,
+    0.3392923370001881
+  ]
+}

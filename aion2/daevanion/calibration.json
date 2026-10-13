@@ -1,0 +1,72 @@
+{
+  "Azphel": {
+    "rows": 15,
+    "columns": 15,
+    "x0": 217,
+    "dx": 69,
+    "y0": 177,
+    "dy": 69,
+    "coordinate_origin": "one-based top-left",
+    "source_size": [
+      1897,
+      1177
+    ],
+    "source_sha256": "0dc918ca0b8e3da66fe21fb07168b24fb59c87b7a3c7e166e57f0d22a1a7b567"
+  },
+  "Triniel": {
+    "rows": 13,
+    "columns": 13,
+    "x0": 242,
+    "dx": 80,
+    "y0": 178,
+    "dy": 80,
+    "coordinate_origin": "one-based top-left",
+    "source_size": [
+      1851,
+      1166
+    ],
+    "source_sha256": "469e1c387c3bc8a5c78e57fdb25fe43416c6f27409cee3043e017684d538fca9"
+  },
+  "Vaizel": {
+    "rows": 11,
+    "columns": 11,
+    "x0": 250,
+    "dx": 94,
+    "y0": 188,
+    "dy": 94,
+    "coordinate_origin": "one-based top-left",
+    "source_size": [
+      1372,
+      1198
+    ],
+    "source_sha256": "a5ce0faa6fc33438ca40e402ab56957dec166c10872cb7592119fd247ac4d5da"
+  },
+  "Zikel": {
+    "rows": 11,
+    "columns": 11,
+    "x0": 250,
+    "dx": 94,
+    "y0": 190,
+    "dy": 94,
+    "coordinate_origin": "one-based top-left",
+    "source_size": [
+      1432,
+      1198
+    ],
+    "source_sha256": "dcc2f462b67741868d79758b801e6fd194a0535589f2c9eb18efaabdfee85ca4"
+  },
+  "Nezekan": {
+    "rows": 11,
+    "columns": 11,
+    "x0": 250,
+    "dx": 94,
+    "y0": 190,
+    "dy": 94,
+    "coordinate_origin": "one-based top-left",
+    "source_size": [
+      1377,
+      1198
+    ],
+    "source_sha256": "114e793525c93ba8894bc47e081b16fe6e0bac7b778dddd9387b0da09570ad55"
+  }
+}

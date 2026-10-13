@@ -1,0 +1,79 @@
+{
+  "schema": "visual-transcription-pass/v1",
+  "method": "assistant visual transcription, labelled enlarged tile crops, row-major",
+  "independent_observer": false,
+  "alphabet": {".":"absent","x":"gray basic glyph, dark tile","Y":"gold basic glyph, gold-lit tile","b":"blue glyph, dark tile","B":"blue panel, gold-lit tile","g":"green glyph, dark tile","G":"green panel, gold-lit tile","o":"orange glyph, dark tile","O":"orange panel, gold-lit tile","S":"start"},
+  "boards": {
+    "Nezekan": [
+      "Oxx.GYB.GxO",
+      "Y.BYY.YYY.Y",
+      "GYx.xBY.BYG",
+      ".Y..x.Y.x.Y",
+      "YYBYxYYGxxY",
+      "B..Y.S.Y..B",
+      "xxYGYYxYBYY",
+      "x.Y.x.x..Y.",
+      "GYB.xBY.YYG",
+      "Y.Yxx.YYB.Y",
+      "OxG.BYG.xxO"
+    ],
+    "Zikel": [
+      "OYYYBYGYBYO",
+      "Y.G.x..Y..x",
+      "Bxx.YYBYYGx",
+      "x.YYG.Y.x.x",
+      "xYB.x.YGYYB",
+      ".Y..xSY..Y.",
+      "BYYGx.x.BYx",
+      "Y.x.x.GYY.x",
+      "YGYYBxx.YYB",
+      "Y..Y..x.G.Y",
+      "OxBYGYBxxxO"
+    ],
+    "Vaizel": [
+      "oxg.YBYGYxo",
+      "x.YYY.x.Y.x",
+      "xbx.bxxxBYG",
+      ".x..x.G..Y.",
+      "xxxGxxYYBYY",
+      "B..Y.S.Y..B",
+      "YYBYYYYGxxx",
+      ".x..G.Y..x.",
+      "GYBxxxB.xbx",
+      "x.Y.x.Yxx.x",
+      "oxYGYBY.gxo"
+    ],
+    "Triniel": [
+      "oxx..xox..xxo",
+      "x.bxxg.gxxb.x",
+      "x.x..xxx..x.x",
+      "bxxgxx.xbxxxg",
+      "..x.x...x..x.",
+      "xxxxbxxxxxgxx",
+      "b.x.x.S.x.x.b",
+      "xxgxxxxxbxxxx",
+      ".x..x...x.x..",
+      "gxxxbx.xxgxxb",
+      "x.x..xxx..x.x",
+      "x.bxxg.gxxb.x",
+      "oxx..xox..xxo"
+    ],
+    "Azphel": [
+      "oxxb.gxo.gxbxxo",
+      "x..xxx.x.x..x.x",
+      "gxxg.xgxxbxxgxg",
+      "..x...x.x.x.x..",
+      "bxx.bxxbxgxxb..",
+      "x.gxx.x..x..xxg",
+      "x...xxgxxbxxg.x",
+      "oxx..x.S.x..xxo",
+      "x.gxxbxxgxx...x",
+      "gxx..x..x.xxg.x",
+      "..bxxgxbxxb.xxb",
+      "..x.x.x.x...x..",
+      "gxgxxbxxgx.gxxg",
+      "x.x..x.x.xxx..x",
+      "oxxbxg.oxg.bxxo"
+    ]
+  }
+}

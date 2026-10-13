@@ -1,0 +1,42 @@
+[
+  {
+    "baseline_disagreements": 0,
+    "board": "Nezekan",
+    "cells": 121,
+    "occupied_a": 89,
+    "sensitivity_runs": 20,
+    "unstable_cells": 0
+  },
+  {
+    "baseline_disagreements": 0,
+    "board": "Zikel",
+    "cells": 121,
+    "occupied_a": 89,
+    "sensitivity_runs": 20,
+    "unstable_cells": 0
+  },
+  {
+    "baseline_disagreements": 0,
+    "board": "Vaizel",
+    "cells": 121,
+    "occupied_a": 89,
+    "sensitivity_runs": 20,
+    "unstable_cells": 0
+  },
+  {
+    "baseline_disagreements": 0,
+    "board": "Triniel",
+    "cells": 169,
+    "occupied_a": 117,
+    "sensitivity_runs": 20,
+    "unstable_cells": 0
+  },
+  {
+    "baseline_disagreements": 0,
+    "board": "Azphel",
+    "cells": 225,
+    "occupied_a": 153,
+    "sensitivity_runs": 20,
+    "unstable_cells": 0
+  }
+]

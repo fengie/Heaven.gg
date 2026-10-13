@@ -1,0 +1,62 @@
+[
+  {
+    "absent": 32,
+    "board": "Nezekan",
+    "columns": 11,
+    "geometric_pairs": 106,
+    "grid_positions": 121,
+    "known_node_costs": 0,
+    "rows": 11,
+    "start": "r06c06",
+    "verified_game_edges": 0,
+    "visible_nodes": 89
+  },
+  {
+    "absent": 32,
+    "board": "Zikel",
+    "columns": 11,
+    "geometric_pairs": 106,
+    "grid_positions": 121,
+    "known_node_costs": 0,
+    "rows": 11,
+    "start": "r06c06",
+    "verified_game_edges": 0,
+    "visible_nodes": 89
+  },
+  {
+    "absent": 32,
+    "board": "Vaizel",
+    "columns": 11,
+    "geometric_pairs": 106,
+    "grid_positions": 121,
+    "known_node_costs": 0,
+    "rows": 11,
+    "start": "r06c06",
+    "verified_game_edges": 0,
+    "visible_nodes": 89
+  },
+  {
+    "absent": 52,
+    "board": "Triniel",
+    "columns": 13,
+    "geometric_pairs": 138,
+    "grid_positions": 169,
+    "known_node_costs": 0,
+    "rows": 13,
+    "start": "r07c07",
+    "verified_game_edges": 0,
+    "visible_nodes": 117
+  },
+  {
+    "absent": 72,
+    "board": "Azphel",
+    "columns": 15,
+    "geometric_pairs": 180,
+    "grid_positions": 225,
+    "known_node_costs": 0,
+    "rows": 15,
+    "start": "r08c08",
+    "verified_game_edges": 0,
+    "visible_nodes": 153
+  }
+]

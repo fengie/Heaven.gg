@@ -1,0 +1,15 @@
+Zikel | 11x11 | 89 visible nodes
+Legend: .=absent x=gray Y=gold B/b=blue G/g=green O/o=orange S=start
+Uppercase colored tokens are gold-lit. Acquisition state and costs unknown.
+    01 02 03 04 05 06 07 08 09 10 11
+01  O  Y  Y  Y  B  Y  G  Y  B  Y  O
+02  Y  .  G  .  x  .  .  Y  .  .  x
+03  B  x  x  .  Y  Y  B  Y  Y  G  x
+04  x  .  Y  Y  G  .  Y  .  x  .  x
+05  x  Y  B  .  x  .  Y  G  Y  Y  B
+06  .  Y  .  .  x  S  Y  .  .  Y  .
+07  B  Y  Y  G  x  .  x  .  B  Y  x
+08  Y  .  x  .  x  .  G  Y  Y  .  x
+09  Y  G  Y  Y  B  x  x  .  Y  Y  B
+10  Y  .  .  Y  .  .  x  .  G  .  Y
+11  O  x  B  Y  G  Y  B  x  x  x  O

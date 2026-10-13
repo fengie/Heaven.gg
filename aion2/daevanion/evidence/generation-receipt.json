@@ -1,0 +1,209 @@
+{
+  "boards": [
+    "Nezekan",
+    "Zikel",
+    "Vaizel",
+    "Triniel",
+    "Azphel"
+  ],
+  "claim": "local-byte-consistency-only; not authentication or game mechanics",
+  "files": [
+    {
+      "bytes": 92858,
+      "path": "drafts/Azphel-geometric-candidates.png",
+      "sha256": "fea1bab4de2f5a938b151a8a44fa8857c80340789f814236a055bc523b9df86b"
+    },
+    {
+      "bytes": 92153,
+      "path": "drafts/Azphel.png",
+      "sha256": "a54507e98a35f9ffe0265e88b6df8e7706f269f4b38174b9fe348dada834d3c2"
+    },
+    {
+      "bytes": 41977,
+      "path": "drafts/Azphel.svg",
+      "sha256": "a07640436674e6e2c7694a49e9b0e4b1a2c345ee5c4862fd224e744fc7ef951f"
+    },
+    {
+      "bytes": 949,
+      "path": "drafts/Azphel.txt",
+      "sha256": "11c030a70c51e3ca473ef39b3501f6aeb490555bb4a773fd508b411a9a3ead1a"
+    },
+    {
+      "bytes": 78545,
+      "path": "drafts/Nezekan-geometric-candidates.png",
+      "sha256": "056db1994a7f6780d3517151652e4e197921fde8afcbffa6722ef1fa6bdc0be0"
+    },
+    {
+      "bytes": 77847,
+      "path": "drafts/Nezekan.png",
+      "sha256": "b0eae0c6cd7442872c1235f6f39b4241079dd892b183aaffb7c322c673a3560b"
+    },
+    {
+      "bytes": 24566,
+      "path": "drafts/Nezekan.svg",
+      "sha256": "610e4af4a0e5269fcfcddf6a65c1ab139961667e4a265f45bc29dba36daf2aeb"
+    },
+    {
+      "bytes": 613,
+      "path": "drafts/Nezekan.txt",
+      "sha256": "dd56a4beea38c024481dec745026a320b2ee317560cf44d3a12d3a51cb6398df"
+    },
+    {
+      "bytes": 77045,
+      "path": "drafts/Triniel-geometric-candidates.png",
+      "sha256": "613291f0610119e418c29b988fdc23dbdd153b0c7dd5db960312f2cecc434ed9"
+    },
+    {
+      "bytes": 76554,
+      "path": "drafts/Triniel.png",
+      "sha256": "09e20e69f7a05625c214928723819ec4b0bbd268a45e70de047f0bc275f12c12"
+    },
+    {
+      "bytes": 32170,
+      "path": "drafts/Triniel.svg",
+      "sha256": "1b5428650b503165390b43375680dd679e05d3f95bce396d469ddbf35aaca64e"
+    },
+    {
+      "bytes": 770,
+      "path": "drafts/Triniel.txt",
+      "sha256": "1a541040f9d963ea958c3d0b0bb07436b47e652ced97e8be0825696020805d27"
+    },
+    {
+      "bytes": 79870,
+      "path": "drafts/Vaizel-geometric-candidates.png",
+      "sha256": "a7bf9a2f291d56e18ab53943e36c3b6123a333ef3239d03d6f7cccd77153cb93"
+    },
+    {
+      "bytes": 79173,
+      "path": "drafts/Vaizel.png",
+      "sha256": "fa50fa032e559daa612d78d212ba1d528e4897445d7a66ef1883fa909434ab34"
+    },
+    {
+      "bytes": 24567,
+      "path": "drafts/Vaizel.svg",
+      "sha256": "7e968329967869562ad4e5b2580224f4c659376896eda73cb8cb8b261fd3c884"
+    },
+    {
+      "bytes": 612,
+      "path": "drafts/Vaizel.txt",
+      "sha256": "3f396a34fd591d7b7e3e72a054628d714ba6174d0e8bad183d727ca6882ab702"
+    },
+    {
+      "bytes": 79734,
+      "path": "drafts/Zikel-geometric-candidates.png",
+      "sha256": "786cec1c26cf79be67035518b35affc4ac39e1144628af9ef8ed8c2f49c376b0"
+    },
+    {
+      "bytes": 79031,
+      "path": "drafts/Zikel.png",
+      "sha256": "222db46e44f8169b92e968daf78cf9970d239c7c1ba98c52a0232a002c70aaee"
+    },
+    {
+      "bytes": 24561,
+      "path": "drafts/Zikel.svg",
+      "sha256": "4db86b6de01861578b72154668355917901fd8d1dd75e4b4ffdd4d21cc089b50"
+    },
+    {
+      "bytes": 611,
+      "path": "drafts/Zikel.txt",
+      "sha256": "90f51b45b94a3cf385e39b7f2ea7fa679b67b5fd1b72df5521e2097fa32bcc49"
+    },
+    {
+      "bytes": 1226,
+      "path": "evidence/board-summary.json",
+      "sha256": "ce06d058008279d175b90123ddda881715d3b5dc70a3b40b9b0aac7eb15a6f01"
+    },
+    {
+      "bytes": 199384,
+      "path": "graphs/Azphel.json",
+      "sha256": "0ab807a1237319f57b5203e48a6bf7bd57bbcc51d7737799f3eeadbace6d9ff0"
+    },
+    {
+      "bytes": 110240,
+      "path": "graphs/Nezekan.json",
+      "sha256": "5fa6392cc37a356b42ee69aa2bd099e5a3b05d5875e794caaf80df9abd28298f"
+    },
+    {
+      "bytes": 151697,
+      "path": "graphs/Triniel.json",
+      "sha256": "c3711cac78ac7ea38099ce5c4c9add720360a1b55de6d0ca8cbebd567eb00bf6"
+    },
+    {
+      "bytes": 110257,
+      "path": "graphs/Vaizel.json",
+      "sha256": "1770686796c84b8c29fbf514738207951de3d96eeaddf19c7d0acdfd43717067"
+    },
+    {
+      "bytes": 110234,
+      "path": "graphs/Zikel.json",
+      "sha256": "e744d1059eeb083b8d97f843faf5dbc05451b81ea5b1633ba47f3edeb63de07a"
+    },
+    {
+      "bytes": 957532,
+      "path": "overlays/Azphel.png",
+      "sha256": "2f409cfcd8b698280c21d8074213fa0f3e1e100783d679d3eb321bae099abc7b"
+    },
+    {
+      "bytes": 999794,
+      "path": "overlays/Nezekan.png",
+      "sha256": "73b07b5e26144f05f8db681dd751aae1522838cd0c96b3285a25b50f3a3f5d87"
+    },
+    {
+      "bytes": 1022380,
+      "path": "overlays/Triniel.png",
+      "sha256": "e201901acba4a23c6fb4002169958c622f18d01aae41db89ac318fd2b5a95731"
+    },
+    {
+      "bytes": 995972,
+      "path": "overlays/Vaizel.png",
+      "sha256": "3855f852f9721354599234489377e1c0439d87bf36ddf8fac572708e0c6291a4"
+    },
+    {
+      "bytes": 1017618,
+      "path": "overlays/Zikel.png",
+      "sha256": "2ab2a52740093ff23b78af1c09ca2f350eb8b45f3e49409c3b1d24f22b2a7518"
+    }
+  ],
+  "input_sha256": {
+    "calibration.json": "0f430e8fe11530fb351133cf9f3af81ec81e9fd4926582c194b195cf444f6c2e",
+    "enhanced/Azphel.png": "cc261bb552fe4a5b602e3e8a18ef68456470dbad487ad3a32109ec0074625fdf",
+    "enhanced/Nezekan.png": "ffd22979d2191cac9510652a534533b43c6874685ed55c7d655d9686815716b9",
+    "enhanced/Triniel.png": "f256dd802fed8211c0a07fec282a8c94f30ddafb1f355fd68d9ceff32fddd1ee",
+    "enhanced/Vaizel.png": "918419f22cbebb96d13a07354869eeeab81bac9275741cae4731df0d97463a9f",
+    "enhanced/Zikel.png": "f82e2c80798c82cc92c6ea37c843416a22ef7995ea475dc0c5efdd589b9c39c0",
+    "evidence/Azphel-reconciliation.json": "e215c3223e0ede47e9841116d1cdc6ecd64cc2020938f0e5066515209b302dd6",
+    "evidence/Nezekan-reconciliation.json": "fce4f5e6b2dd5b5222a99ae0151e5fbba72561eeb41dc1a3460b0d1fafee652e",
+    "evidence/Triniel-reconciliation.json": "0e8aec692c9b479a1be80dcc3950bf8cdebe8aa13ca4c48713d178174dfb154f",
+    "evidence/Vaizel-reconciliation.json": "a456cd139162f78ddda8a0859a0cb249aa4850aa51324fc9fc43635f97f06908",
+    "evidence/Zikel-reconciliation.json": "4c32ab37a0df743154ea2470d481bc7d73c743550210ce0aa87a46f4a7b8a17c",
+    "evidence/perturbation-design.json": "2867ee0362c807c32a71408dbae4427e6d45e26b9bbae5fd7d0e92473e3769ad",
+    "originals/Azphel.png": "0dc918ca0b8e3da66fe21fb07168b24fb59c87b7a3c7e166e57f0d22a1a7b567",
+    "originals/Nezekan.png": "114e793525c93ba8894bc47e081b16fe6e0bac7b778dddd9387b0da09570ad55",
+    "originals/Triniel.png": "469e1c387c3bc8a5c78e57fdb25fe43416c6f27409cee3043e017684d538fca9",
+    "originals/Vaizel.png": "a5ce0faa6fc33438ca40e402ab56957dec166c10872cb7592119fd247ac4d5da",
+    "originals/Zikel.png": "dcc2f462b67741868d79758b801e6fd194a0535589f2c9eb18efaabdfee85ca4",
+    "transcriptions/pass-a.json": "4d8b782084f7b389f2c788a4e072a7756d7710cc544e659514cb637cc65d409b",
+    "transcriptions/pass-b.json": "065396aee398c4fcee604dd3f73ab2dd9116bb7c7a165a56dc8b8ed527b3f467"
+  },
+  "producer": {
+    "fonts_sha256": {
+      "DejaVuSans.ttf": "57f73e11f51999432bf7ab22ce55b6f945d5eca1bf824404cfa9ec2e3718c84e",
+      "DejaVuSansMono.ttf": "54bf827eb99404e8f430c330ad30f063334f637eba0109b6a18d4f566a8e9dd8"
+    },
+    "freetype": null,
+    "pillow": "12.3.0",
+    "python": [
+      3,
+      13,
+      5
+    ],
+    "source_sha256": {
+      "game-tools/build_outputs.py": "c7b76241d9776ce0d2029c8192a7675e532e9d0d0de0a13b84d8e28fd61158db",
+      "game-tools/generation_evidence.py": "2b8f7088baffb2f312cfee6fa29fe847368a2f7bf815a261e86005221d3df039",
+      "toolbox/artifact_manifest.py": "cb72102e565128880c2752920b04a626c82385d5da1c794974ebeb24529e2e00",
+      "toolbox/evidence_grid.py": "bced0e297c1cc84601147cbcee51c28f6badc6f2306dca2d817d838121247627",
+      "toolbox/safe_artifacts.py": "63d3f643b61f19583553cddea12125a7a797c68b36315ec218a0673a51bff5a4"
+    }
+  },
+  "schema": "aion2/daevanion-generation/v1"
+}

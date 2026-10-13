@@ -1,0 +1,78 @@
+{
+  "blinded_to_cell_labels_in_code": true,
+  "boards": {
+    "Azphel": [
+      "oxxb.gxo.gxbxxo",
+      "x..xxx.x.x..x.x",
+      "gxxg.xgxxbxxgxg",
+      "..x...x.x.x.x..",
+      "bxx.bxxbxgxxb..",
+      "x.gxx.x..x..xxg",
+      "x...xxgxxbxxg.x",
+      "oxx..x.S.x..xxo",
+      "x.gxxbxxgxx...x",
+      "gxx..x..x.xxg.x",
+      "..bxxgxbxxb.xxb",
+      "..x.x.x.x...x..",
+      "gxgxxbxxgx.gxxg",
+      "x.x..x.x.xxx..x",
+      "oxxbxg.oxg.bxxo"
+    ],
+    "Nezekan": [
+      "Oxx.GYB.GxO",
+      "Y.BYY.YYY.Y",
+      "GYx.xBY.BYG",
+      ".Y..x.Y.x.Y",
+      "YYBYxYYGxxY",
+      "B..Y.S.Y..B",
+      "xxYGYYxYBYY",
+      "x.Y.x.x..Y.",
+      "GYB.xBY.YYG",
+      "Y.Yxx.YYB.Y",
+      "OxG.BYG.xxO"
+    ],
+    "Triniel": [
+      "oxx..xox..xxo",
+      "x.bxxg.gxxb.x",
+      "x.x..xxx..x.x",
+      "bxxgxx.xbxxxg",
+      "..x.x...x..x.",
+      "xxxxbxxxxxgxx",
+      "b.x.x.S.x.x.b",
+      "xxgxxxxxbxxxx",
+      ".x..x...x.x..",
+      "gxxxbx.xxgxxb",
+      "x.x..xxx..x.x",
+      "x.bxxg.gxxb.x",
+      "oxx..xox..xxo"
+    ],
+    "Vaizel": [
+      "oxg.YBYGYxo",
+      "x.YYY.x.Y.x",
+      "xbx.bxxxBYG",
+      ".x..x.G..Y.",
+      "xxxGxxYYBYY",
+      "B..Y.S.Y..B",
+      "YYBYYYYGxxx",
+      ".x..G.Y..x.",
+      "GYBxxxB.xbx",
+      "x.Y.x.Yxx.x",
+      "oxYGYBY.gxo"
+    ],
+    "Zikel": [
+      "OYYYBYGYBYO",
+      "Y.G.x..Y..x",
+      "Bxx.YYBYYGx",
+      "x.YYG.Y.x.x",
+      "xYB.x.YGYYB",
+      ".Y..xSY..Y.",
+      "BYYGx.x.BYx",
+      "Y.x.x.GYY.x",
+      "YGYYBxx.YYB",
+      "Y..Y..x.G.Y",
+      "OxBYGYBxxxO"
+    ]
+  },
+  "independent_observer": false,
+  "method": "pixel features, reverse traversal"
+}

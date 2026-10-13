@@ -1,0 +1,15 @@
+Vaizel | 11x11 | 89 visible nodes
+Legend: .=absent x=gray Y=gold B/b=blue G/g=green O/o=orange S=start
+Uppercase colored tokens are gold-lit. Acquisition state and costs unknown.
+    01 02 03 04 05 06 07 08 09 10 11
+01  o  x  g  .  Y  B  Y  G  Y  x  o
+02  x  .  Y  Y  Y  .  x  .  Y  .  x
+03  x  b  x  .  b  x  x  x  B  Y  G
+04  .  x  .  .  x  .  G  .  .  Y  .
+05  x  x  x  G  x  x  Y  Y  B  Y  Y
+06  B  .  .  Y  .  S  .  Y  .  .  B
+07  Y  Y  B  Y  Y  Y  Y  G  x  x  x
+08  .  x  .  .  G  .  Y  .  .  x  .
+09  G  Y  B  x  x  x  B  .  x  b  x
+10  x  .  Y  .  x  .  Y  x  x  .  x
+11  o  x  Y  G  Y  B  Y  .  g  x  o

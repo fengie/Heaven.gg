@@ -1,0 +1,22 @@
+{
+  "schema": "local-rebuild-check/v1",
+  "files_compared": 38,
+  "changed_paths": [],
+  "identical": true,
+  "commands": [
+    {
+      "script": "verify_pixels.py",
+      "return_code": 0,
+      "duration_seconds": 11.363,
+      "stdout": "{'board': 'Nezekan', 'cells': 121, 'occupied_a': 89, 'baseline_disagreements': 0, 'unstable_cells': 0, 'sensitivity_runs': 20}\n{'board': 'Zikel', 'cells': 121, 'occupied_a': 89, 'baseline_disagreements': 0, 'unstable_cells': 0, 'sensitivity_runs': 20}\n{'board': 'Vaizel', 'cells': 121, 'occupied_a': 89, 'baseline_disagreements': 0, 'unstable_cells': 0, 'sensitivity_runs': 20}\n{'board': 'Triniel', 'cells': 169, 'occupied_a': 117, 'baseline_disagreements': 0, 'unstable_cells': 0, 'sensitivity_runs': 20}\n{'board': 'Azphel', 'cells': 225, 'occupied_a': 153, 'baseline_disagreements': 0, 'unstable_cells': 0, 'sensitivity_runs': 20}\n",
+      "stderr": ""
+    },
+    {
+      "script": "build_outputs.py",
+      "return_code": 0,
+      "duration_seconds": 3.432,
+      "stdout": "[\n  {\n    \"absent\": 32,\n    \"board\": \"Nezekan\",\n    \"columns\": 11,\n    \"geometric_pairs\": 106,\n    \"grid_positions\": 121,\n    \"known_node_costs\": 0,\n    \"rows\": 11,\n    \"start\": \"r06c06\",\n    \"verified_game_edges\": 0,\n    \"visible_nodes\": 89\n  },\n  {\n    \"absent\": 32,\n    \"board\": \"Zikel\",\n    \"columns\": 11,\n    \"geometric_pairs\": 106,\n    \"grid_positions\": 121,\n    \"known_node_costs\": 0,\n    \"rows\": 11,\n    \"start\": \"r06c06\",\n    \"verified_game_edges\": 0,\n    \"visible_nodes\": 89\n  },\n  {\n    \"absent\": 32,\n    \"board\": \"Vaizel\",\n    \"columns\": 11,\n    \"geometric_pairs\": 106,\n    \"grid_positions\": 121,\n    \"known_node_costs\": 0,\n    \"rows\": 11,\n    \"start\": \"r06c06\",\n    \"verified_game_edges\": 0,\n    \"visible_nodes\": 89\n  },\n  {\n    \"absent\": 52,\n    \"board\": \"Triniel\",\n    \"columns\": 13,\n    \"geometric_pairs\": 138,\n    \"grid_positions\": 169,\n    \"known_node_costs\": 0,\n    \"rows\": 13,\n    \"start\": \"r07c07\",\n    \"verified_game_edges\": 0,\n    \"visible_nodes\": 117\n  },\n  {\n    \"absent\": 72,\n    \"board\": \"Azphel\",\n    \"columns\": 15,\n    \"geometric_pairs\": 180,\n    \"grid_positions\": 225,\n    \"known_node_costs\": 0,\n    \"rows\": 15,\n    \"start\": \"r08c08\",\n    \"verified_game_edges\": 0,\n    \"visible_nodes\": 153\n  }\n]\n\n",
+      "stderr": ""
+    }
+  ]
+}

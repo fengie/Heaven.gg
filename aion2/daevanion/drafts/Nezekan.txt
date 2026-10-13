@@ -1,0 +1,15 @@
+Nezekan | 11x11 | 89 visible nodes
+Legend: .=absent x=gray Y=gold B/b=blue G/g=green O/o=orange S=start
+Uppercase colored tokens are gold-lit. Acquisition state and costs unknown.
+    01 02 03 04 05 06 07 08 09 10 11
+01  O  x  x  .  G  Y  B  .  G  x  O
+02  Y  .  B  Y  Y  .  Y  Y  Y  .  Y
+03  G  Y  x  .  x  B  Y  .  B  Y  G
+04  .  Y  .  .  x  .  Y  .  x  .  Y
+05  Y  Y  B  Y  x  Y  Y  G  x  x  Y
+06  B  .  .  Y  .  S  .  Y  .  .  B
+07  x  x  Y  G  Y  Y  x  Y  B  Y  Y
+08  x  .  Y  .  x  .  x  .  .  Y  .
+09  G  Y  B  .  x  B  Y  .  Y  Y  G
+10  Y  .  Y  x  x  .  Y  Y  B  .  Y
+11  O  x  G  .  B  Y  G  .  x  x  O

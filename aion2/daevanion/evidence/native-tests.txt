@@ -1,0 +1,20 @@
+test_complete_coordinates (test_boards.BoardTests.test_complete_coordinates) ... ok
+test_correct_dimensions_not_legacy_assumption (test_boards.BoardTests.test_correct_dimensions_not_legacy_assumption) ... ok
+test_drafts_and_row_crops (test_boards.BoardTests.test_drafts_and_row_crops) ... ok
+test_full_coverage_757_not_605 (test_boards.BoardTests.test_full_coverage_757_not_605) ... ok
+test_geometric_pairs_not_game_edges (test_boards.BoardTests.test_geometric_pairs_not_game_edges) ... ok
+test_no_invented_weights_or_verified_edges (test_boards.BoardTests.test_no_invented_weights_or_verified_edges) ... ok
+test_no_statistical_confidence_fabricated (test_boards.BoardTests.test_no_statistical_confidence_fabricated) ... ok
+test_official_nonstart_count_corroboration (test_boards.BoardTests.test_official_nonstart_count_corroboration) ... ok
+test_one_center_start (test_boards.BoardTests.test_one_center_start) ... ok
+test_original_hashes (test_boards.BoardTests.test_original_hashes) ... ok
+test_per_board_node_counts (test_boards.BoardTests.test_per_board_node_counts) ... ok
+test_pixel_visual_agreement (test_boards.BoardTests.test_pixel_visual_agreement) ... ok
+test_twenty_sensitivity_trials (test_boards.BoardTests.test_twenty_sensitivity_trials) ... ok
+test_unsafe_optimization_rejected (test_boards.BoardTests.test_unsafe_optimization_rejected) ... ok
+test_visible_nodes_537 (test_boards.BoardTests.test_visible_nodes_537) ... ok
+
+----------------------------------------------------------------------
+Ran 15 tests in 0.131s
+
+OK
