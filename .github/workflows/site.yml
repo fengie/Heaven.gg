@@ -50,6 +50,8 @@ jobs:
         run: npm run test:web
       - name: Generate static website from this exact commit
         run: npm run build
+      - name: Package portable research beta
+        run: node web/offline.mjs
       - name: Check deployed artifact identity
         shell: bash
         run: |
@@ -57,6 +59,7 @@ jobs:
           test -s dist/index.html
           test -s dist/aion2/index.html
           test -s dist/ch/catalog.json
+          test -s dist/Heaven.gg-Research-Beta.html
       # Candidate artifacts are inspectable, never evidence of a deployed site.
       - name: Upload tested Pages artifact
         if: github.event_name != 'pull_request'
