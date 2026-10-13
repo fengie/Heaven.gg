@@ -17,9 +17,11 @@ import json
 import math
 from pathlib import Path
 import random
+from statistics import mean
 
 EPS = 1e-9
 MAX_EVENTS = 500_000
+MODEL_VERSION = "synthetic_discrete_event_v2_UNCALIBRATED"
 
 
 def _nonnegative(*values: float) -> None:
@@ -71,7 +73,7 @@ class TimedEffect:
 
     def __post_init__(self):
         _nonnegative(self.duration_s, self.outgoing_multiplier, self.incoming_multiplier)
-        if not self.name or self.duration_s <= 0:
+        if type(self.name) is not str or not self.name.strip() or self.duration_s <= 0:
             raise ValueError("Effect name and positive duration required")
 
 
@@ -83,7 +85,8 @@ class SwapDelay:
     restore_s: float
 
     def __post_init__(self):
-        if not self.item_id or not self.slot:
+        if (type(self.item_id) is not str or not self.item_id.strip() or
+                type(self.slot) is not str or not self.slot.strip()):
             raise ValueError("Swap item and slot required")
         _nonnegative(self.equip_s, self.restore_s)
 
@@ -103,7 +106,7 @@ class SimSkill:
     swaps: tuple[SwapDelay, ...] = ()
 
     def __post_init__(self):
-        if not self.name or type(self.priority) is not int:
+        if type(self.name) is not str or not self.name.strip() or type(self.priority) is not int:
             raise ValueError("Skill name and integer priority required")
         _nonnegative(self.damage, self.cooldown_s, self.cast_s,
                      self.energy_cost, self.heal)
@@ -130,7 +133,8 @@ class Potion:
     def __post_init__(self):
         _nonnegative(self.restore, self.action_s, self.cooldown_s)
         _chance(self.threshold_fraction)
-        if type(self.charges) is not int or self.charges < 0 or self.gold_each < 0:
+        if (type(self.charges) is not int or self.charges < 0 or
+                type(self.gold_each) is not int or self.gold_each < 0):
             raise ValueError("Invalid potion charges/cost")
         if self.charges and self.restore <= 0:
             raise ValueError("Potion with charges must restore a resource")
@@ -144,6 +148,8 @@ class MountBonus:
 
     def __post_init__(self):
         _nonnegative(self.max_hp, self.max_energy)
+        if type(self.verified_in_combat) is not bool:
+            raise ValueError("Mount verification must be a boolean, not a truthy value")
         if (self.max_hp or self.max_energy) and not self.verified_in_combat:
             raise ValueError("Unverified mount effects cannot alter combat resources")
 
@@ -222,10 +228,17 @@ def simulate(encounter: Encounter, *, seed: int = 0, trace_limit: int = 0) -> di
         raise ValueError("Integer seed and trace limit 0..500 required")
     queue: list[tuple[float, int, int, str, object]] = []
     seq = 0
+    pending_actions: set[float] = set()
 
     def put(t: float, order: int, kind: str, data: object = None) -> None:
         nonlocal seq
         if t <= encounter.duration_s + EPS:
+            # Identical wake-ups carry no payload. Coalesce while queued, not
+            # forever: zero-time actions may legitimately wake again after pop.
+            if kind == "act":
+                if t in pending_actions:
+                    return
+                pending_actions.add(t)
             seq += 1
             heapq.heappush(queue, (t, order, seq, kind, data))
 
@@ -239,6 +252,7 @@ def simulate(encounter: Encounter, *, seed: int = 0, trace_limit: int = 0) -> di
 
     p = encounter
     maxhp, maxen = p.max_hp + p.mount.max_hp, p.max_energy + p.mount.max_energy
+    _nonnegative(maxhp, maxen)
     hp, energy = maxhp, maxen
     boss_left = p.boss_hp
     now = 0.0
@@ -249,6 +263,9 @@ def simulate(encounter: Encounter, *, seed: int = 0, trace_limit: int = 0) -> di
     potion_left = {"hp": p.hp_potion.charges if p.hp_potion else 0,
                    "energy": p.energy_potion.charges if p.energy_potion else 0}
     effects: dict[str, tuple[int, TimedEffect]] = {}
+    # Never recycle a generation after expiry: an older scheduled expiry can
+    # outlive a shorter replacement and must not remove a later application.
+    effect_generations: dict[str, int] = {}
     dots: dict[str, int] = {}
     damage = {"auto": 0.0, "skills": 0.0, "dots": 0.0, "pet": 0.0}
     attempted_hits = 0
@@ -277,7 +294,7 @@ def simulate(encounter: Encounter, *, seed: int = 0, trace_limit: int = 0) -> di
 
     def deal(amount: float, part: str) -> bool:
         nonlocal boss_left
-        amount = max(0.0, amount)
+        _nonnegative(amount)  # Finite inputs can still overflow on multiplication.
         if boss_left is not None:
             amount = min(amount, boss_left)
             boss_left = max(0.0, boss_left - amount)
@@ -301,6 +318,8 @@ def simulate(encounter: Encounter, *, seed: int = 0, trace_limit: int = 0) -> di
         if count > MAX_EVENTS:
             raise RuntimeError("Event cap exceeded; inspect scenario intervals")
         t, _, _, event, payload = heapq.heappop(queue)
+        if event == "act":
+            pending_actions.discard(t)
         if t > p.duration_s + EPS:
             break
         dt = max(0.0, t - last)
@@ -314,6 +333,7 @@ def simulate(encounter: Encounter, *, seed: int = 0, trace_limit: int = 0) -> di
                 log("effect_expired", name=name)
         elif event == "enemy":
             hit = sampled(p.enemy, "enemy") * incoming()
+            _nonnegative(hit)
             hp = max(0.0, hp - hit)
             log("enemy_hit", damage=round(hit, 4), hp=round(hp, 4))
             put(t + p.enemy.interval_s, 1, "enemy")
@@ -348,7 +368,8 @@ def simulate(encounter: Encounter, *, seed: int = 0, trace_limit: int = 0) -> di
                     put(t + skill.dot.tick_interval_s, 2, "dot", (skill, gen, 1))
             hp = min(maxhp, hp + skill.heal)
             if skill.effect:
-                gen = effects.get(skill.effect.name, (0, skill.effect))[0] + 1
+                gen = effect_generations.get(skill.effect.name, 0) + 1
+                effect_generations[skill.effect.name] = gen
                 effects[skill.effect.name] = (gen, skill.effect)
                 put(t + skill.effect.duration_s, 0, "expire", (skill.effect.name, gen))
             log("skill_done", name=skill.name, hp=round(hp, 4))
@@ -439,10 +460,11 @@ def simulate(encounter: Encounter, *, seed: int = 0, trace_limit: int = 0) -> di
     gold = ((p.hp_potion.gold_each if p.hp_potion else 0) * potion_uses["hp"] +
             (p.energy_potion.gold_each if p.energy_potion else 0) * potion_uses["energy"])
     total = sum(damage.values())
+    _nonnegative(total, total / p.duration_s, total / stop if stop > EPS else 0.0)
     return {
         "input_evidence": p.evidence,
         "source_url": p.source_url or None,
-        "model": "synthetic_discrete_event_v1_UNCALIBRATED",
+        "model": MODEL_VERSION,
         "seed": seed,
         "target_duration_s": p.duration_s,
         "elapsed_s": round(stop, 6),
@@ -497,18 +519,25 @@ def compare_candidates(candidates: dict[str, Encounter], seeds: tuple[int, ...])
     """Paired-seed horizon comparisons; observational uncertainty not inferred."""
     if not candidates or not seeds or len(seeds) > 1000 or len(set(seeds)) != len(seeds):
         raise ValueError("Need candidate scenarios and 1..1000 unique seeds")
+    reference = next(iter(candidates.values()))
+    context = lambda case: (case.duration_s, case.enemy, case.boss_hp, case.evidence)
+    if any(context(case) != context(reference) for case in candidates.values()):
+        raise ValueError("Paired candidates must use the same encounter duration, enemy, boss HP and evidence kind")
     rows = {}
     for name, case in candidates.items():
         outcomes = [simulate(case, seed=s) for s in seeds]
         rows[name] = {
-            "mean_fixed_window_dps": sum(x["fixed_window_dps"] for x in outcomes) / len(outcomes),
-            "survival_fraction": sum(x["survived_full_window"] for x in outcomes) / len(outcomes),
-            "mean_potion_gold": sum(x["consumable_gold"] for x in outcomes) / len(outcomes),
-            "mean_swap_operations": sum(x["swap_operations"] for x in outcomes) / len(outcomes),
+            "mean_fixed_window_dps": mean(x["fixed_window_dps"] for x in outcomes),
+            "survival_fraction": mean(x["end_reason"] != "player_died" for x in outcomes),
+            "full_window_fraction": mean(x["survived_full_window"] for x in outcomes),
+            "boss_kill_fraction": mean(x["end_reason"] == "boss_killed" for x in outcomes),
+            "mean_potion_gold": mean(x["consumable_gold"] for x in outcomes),
+            "mean_swap_operations": mean(x["swap_operations"] for x in outcomes),
             "per_seed": [{"seed": x["seed"], "dps": x["fixed_window_dps"],
                           "end_reason": x["end_reason"]} for x in outcomes],
         }
     return {"method": "paired_per_source_seed_comparison_UNCALIBRATED",
+            "model": MODEL_VERSION,
             "seeds": list(seeds), "candidates": rows}
 
 
