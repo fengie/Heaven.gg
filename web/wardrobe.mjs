@@ -1,55 +1,127 @@
-/* Tested pure arithmetic for a dated shop snapshot; currency and unknowns stay separate. */
-const valid=(n,max)=>Number.isSafeInteger(n)&&n>=0&&n<=max;
-const gcd=(a,b)=>b?gcd(b,a%b):a;
-export function cheapestQuna(packs,target){
- if(!valid(target,100000))throw RangeError('Invalid Quna target');
- if(!target)return {costCents:0,quna:0,mileage:0,packs:{},transactions:0};
- if(!Array.isArray(packs)||!packs.length||packs.some(p=>!valid(p.quna,100000)||p.quna===0||!valid(p.usd_cents,1000000)||p.usd_cents===0||!valid(p.mileage,1000000)))throw Error('Invalid pack catalog');
- const unit=packs.map(p=>p.quna).reduce(gcd);
- const maxQ=Math.ceil((target+Math.max(...packs.map(p=>p.quna))-1)/unit);
- const dp=Array(maxQ+1).fill(null);
- dp[0]={cost:0,count:0,mileage:0,steps:[]};
- for(let q=0;q<=maxQ;q++){
-   if(!dp[q])continue;
-   for(let i=0;i<packs.length;i++){
-     const next=q+packs[i].quna/unit;if(next>maxQ)continue;
-     const prev=dp[q],v={cost:prev.cost+packs[i].usd_cents,count:prev.count+1,mileage:prev.mileage+packs[i].mileage,steps:[...prev.steps,i]};
-     if(!dp[next]||v.cost<dp[next].cost||(v.cost===dp[next].cost&&v.count<dp[next].count))dp[next]=v;
-   }
- }
- let winner=null;
- for(let q=Math.ceil(target/unit);q<=maxQ;q++){
-   const v=dp[q];if(!v)continue;
-   if(!winner||v.cost<winner.cost||(v.cost===winner.cost&&(q*unit<winner.quna||(q*unit===winner.quna&&v.count<winner.count))))
-     winner={...v,quna:q*unit};
- }
- if(!winner)throw Error('Cannot satisfy desired Quna');
- const quantities={};
- for(const i of winner.steps)quantities[packs[i].id]=(quantities[packs[i].id]||0)+1;
- return {costCents:winner.cost,quna:winner.quna,mileage:winner.mileage,packs:quantities,transactions:winner.count};
+/* Exact arithmetic for an explicitly dated shop snapshot, not a live-price claim. */
+const valid = (n, max) => Number.isSafeInteger(n) && n >= 0 && n <= max;
+const gcd = (a, b) => b ? gcd(b, a % b) : a;
+const unsafeIds = new Set(['__proto__', 'constructor', 'prototype']);
+const idIsValid = id => typeof id === 'string' && id.trim().length > 0
+  && id.length <= 200 && !unsafeIds.has(id);
+
+function checkIds(records, label, maximum) {
+  if (!Array.isArray(records) || records.length > maximum) throw new Error('Invalid ' + label + ' catalog');
+  const ids = new Set();
+  for (const record of records) {
+    if (!record || !idIsValid(record.id)) throw new Error('Invalid ' + label + ' identifier');
+    if (ids.has(record.id)) throw new Error('Duplicate ' + label + ' identifier: ' + record.id);
+    ids.add(record.id);
+  }
+  return ids;
 }
-export function wardrobeQuote(catalog,opts={}){
- if(!catalog||!Array.isArray(catalog.products)||!Array.isArray(catalog.packs))throw Error('Shop data missing');
- const wanted=new Set(opts.wanted||[]),owned=new Set(opts.owned||[]);
- const wallet=opts.walletQuna??0,changes=opts.dyeChanges??0,perDye=opts.dyeQunaEach??null,budget=opts.budgetCents??null;
- if(!valid(wallet,100000)||!valid(changes,50)||!(perDye===null||valid(perDye,10000))||!(budget===null||valid(budget,10000000)))throw RangeError('Invalid inputs');
- const ids=new Set(catalog.products.map(p=>p.id));for(const id of [...wanted,...owned])if(!ids.has(id))throw Error('Unknown item '+id);
- const remaining=catalog.products.filter(p=>wanted.has(p.id)&&!owned.has(p.id));
- let cashDirect=0,qunaNeed=0,knownMileage=0,unknown=[];
- for(const p of remaining){
-   if(p.category==='Earned in-game'){unknown.push(p.name+': Kina cost / offer not verified');continue;}
-   if(p.usd_cents===null&&p.quna===null){unknown.push(p.name+': price unknown');continue;}
-   if(p.usd_cents!==null){if(!valid(p.usd_cents,1000000))throw Error('Invalid price');cashDirect+=p.usd_cents;}
-   if(p.quna!==null){if(!valid(p.quna,100000))throw Error('Invalid Quna');qunaNeed+=p.quna;}
-   if(p.mileage===null)unknown.push(p.name+': Mileage not verified');
-   else if(valid(p.mileage,1000000))knownMileage+=p.mileage;
-   else throw Error('Invalid Mileage');
- }
- if(changes){if(perDye===null)unknown.push('Dye costs not entered');else qunaNeed+=changes*perDye;}
- const topup=cheapestQuna(catalog.packs,Math.max(0,qunaNeed-wallet));
- const subtotalCents=cashDirect+topup.costCents;
- return {wanted:[...wanted],owned:[...owned],remaining:remaining.map(p=>p.id),cashDirect,qunaNeed,topup,subtotalCents,
-   knownMileage:knownMileage+topup.mileage,mileageIncomplete:unknown.some(x=>x.includes('Mileage')),unknown,
-   balanceQuna:wallet+topup.quna-qunaNeed,
-   budgetStatus:budget===null?'not-set':unknown.some(x=>/price unknown|Dye costs/.test(x))?'incomplete':subtotalCents<=budget?'within':'over'};
+
+/** Minimum cents, then minimum excess Quna, then fewest transactions.
+ * Positive pack prices bound the search below target + largest pack.
+ * Store one predecessor per amount, not a copy of the entire purchase history.
+ */
+export function cheapestQuna(packs, target) {
+  if (!valid(target, 100000)) throw new RangeError('Invalid Quna target');
+  checkIds(packs, 'pack', 128);
+  if (packs.some(p => !valid(p.quna, 100000) || p.quna === 0
+      || !valid(p.usd_cents, 1000000) || p.usd_cents === 0
+      || !valid(p.mileage, 1000000))) throw new Error('Invalid pack catalog');
+  if (target === 0) return {costCents: 0, quna: 0, mileage: 0, packs: {}, transactions: 0};
+  if (!packs.length) throw new Error('Cannot satisfy desired Quna: no packs');
+  const unit = packs.map(p => p.quna).reduce(gcd);
+  const maxAmount = Math.ceil((target + Math.max(...packs.map(p => p.quna)) - 1) / unit);
+  const costs = new Float64Array(maxAmount + 1).fill(Infinity);
+  const counts = new Uint32Array(maxAmount + 1);
+  const previousPack = new Int16Array(maxAmount + 1).fill(-1);
+  costs[0] = 0;
+  for (let q = 0; q <= maxAmount; q++) {
+    if (!Number.isFinite(costs[q])) continue;
+    for (let i = 0; i < packs.length; i++) {
+      const next = q + packs[i].quna / unit;
+      if (next > maxAmount) continue;
+      const cost = costs[q] + packs[i].usd_cents, count = counts[q] + 1;
+      if (cost < costs[next] || (cost === costs[next] && count < counts[next])) {
+        costs[next] = cost;
+        counts[next] = count;
+        previousPack[next] = i;
+      }
+    }
+  }
+  let winner = -1;
+  for (let q = Math.ceil(target / unit); q <= maxAmount; q++) {
+    if (!Number.isFinite(costs[q])) continue;
+    // Iteration is ascending, so equal-cost winners already minimize excess.
+    if (winner < 0 || costs[q] < costs[winner]) winner = q;
+  }
+  if (winner < 0) throw new Error('Cannot satisfy desired Quna');
+  const quantities = {};
+  let mileage = 0, q = winner;
+  while (q > 0) {
+    const p = packs[previousPack[q]];
+    if (!p) throw new Error('Invalid top-up reconstruction');
+    quantities[p.id] = (Object.hasOwn(quantities, p.id) ? quantities[p.id] : 0) + 1;
+    mileage += p.mileage;
+    q -= p.quna / unit;
+  }
+  return {costCents: costs[winner], quna: winner * unit, mileage,
+    packs: quantities, transactions: counts[winner]};
+}
+
+export function wardrobeQuote(catalog, opts = {}) {
+  if (!catalog || !Array.isArray(catalog.products) || !Array.isArray(catalog.packs)) throw new Error('Shop data missing');
+  if (!opts || typeof opts !== 'object' || Array.isArray(opts)) throw new Error('Invalid inputs');
+  const ids = checkIds(catalog.products, 'product', 10000);
+  const selection = name => {
+    const values = opts[name] ?? [];
+    if (!Array.isArray(values) || values.length > 10000 || values.some(id => !idIsValid(id))) {
+      throw new Error('Invalid selection input: ' + name);
+    }
+    for (const id of values) if (!ids.has(id)) throw new Error('Unknown item ' + id);
+    return new Set(values);
+  };
+  const wanted = selection('wanted'), owned = selection('owned');
+  const wallet = opts.walletQuna ?? 0, changes = opts.dyeChanges ?? 0;
+  const perDye = opts.dyeQunaEach ?? null, budget = opts.budgetCents ?? null;
+  if (!valid(wallet, 100000) || !valid(changes, 50)
+      || !(perDye === null || valid(perDye, 10000))
+      || !(budget === null || valid(budget, 10000000))) throw new RangeError('Invalid inputs');
+  const remaining = catalog.products.filter(p => wanted.has(p.id) && !owned.has(p.id));
+  let cashDirect = 0, qunaNeed = 0, knownMileage = 0, costIncomplete = false, mileageIncomplete = false;
+  const unknown = [];
+  for (const p of remaining) {
+    if (p.category === 'Earned in-game') {
+      costIncomplete = true;
+      unknown.push(p.name + ': Kina cost / offer not verified');
+      continue;
+    }
+    const cash = p.usd_cents ?? null, quna = p.quna ?? null;
+    if (cash === null && quna === null) {
+      costIncomplete = true;
+      unknown.push(p.name + ': price unknown');
+    } else {
+      if (cash !== null) {
+        if (!valid(cash, 1000000)) throw new Error('Invalid price');
+        cashDirect += cash;
+      }
+      if (quna !== null) {
+        if (!valid(quna, 100000)) throw new Error('Invalid Quna');
+        qunaNeed += quna;
+      }
+    }
+    if (p.mileage == null) {
+      mileageIncomplete = true;
+      unknown.push(p.name + ': Mileage not verified');
+    } else if (valid(p.mileage, 1000000)) knownMileage += p.mileage;
+    else throw new Error('Invalid Mileage');
+  }
+  if (changes) {
+    if (perDye === null) { costIncomplete = true; unknown.push('Dye costs not entered'); }
+    else qunaNeed += changes * perDye;
+  }
+  const topup = cheapestQuna(catalog.packs, Math.max(0, qunaNeed - wallet));
+  const subtotalCents = cashDirect + topup.costCents;
+  return {wanted: [...wanted], owned: [...owned], remaining: remaining.map(p => p.id),
+    cashDirect, qunaNeed, topup, subtotalCents, knownMileage: knownMileage + topup.mileage,
+    mileageIncomplete, costIncomplete, unknown, balanceQuna: wallet + topup.quna - qunaNeed,
+    budgetStatus: budget === null ? 'not-set' : costIncomplete ? 'incomplete' : subtotalCents <= budget ? 'within' : 'over'};
 }
