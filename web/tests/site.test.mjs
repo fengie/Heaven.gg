@@ -59,3 +59,75 @@ test('browser catalog includes explicit uncertainty and source-identity metadata
     assert.match(src,/aria-selected/);
   } finally {await rm(tmp,{recursive:true,force:true});}
 });
+
+import { verifyServedRelease, retryServedRelease } from '../verify-deployment.mjs';
+
+const liveSha = 'a'.repeat(40);
+const baseUrl = 'https://fengie.github.io/Heaven.gg/';
+function goodPages(sha = liveSha) {
+  return new Map([
+    ['version.json', { repository:'fengie/Heaven.gg',revision:sha,games:['celtic-heroes','aion2'] }],
+    ['index.html', '<button data-game="ch"></button><button data-game="aion"></button>'],
+    ['aion2/index.html', '<title>ATREIA ATLAS</title><a href="./profile.html">My character</a>'],
+    ['aion2/profile.html', '<main data-engine="PROFILE_EDITOR"><input id="profile-upload"></main>'],
+    ['ch/catalog.json', {builds:Array(327).fill({id:'demo'}),gear:Array(259).fill({id:1}),bosses:Array(8).fill({id:1})}]
+  ]);
+}
+function responseFor(pages) {
+  return async url => {
+    const parsed = new URL(url);
+    assert.equal(parsed.origin, 'https://fengie.github.io');
+    const path = parsed.pathname.replace('/Heaven.gg/','');
+    const value = pages.get(path);
+    if (value === undefined) return new Response('absent', { status:404 });
+    return new Response(typeof value === 'string' ? value : JSON.stringify(value), {
+      status:200,
+      headers: { 'content-type': path.endsWith('.json') ? 'application/json' : 'text/html' }
+    });
+  };
+}
+test('served release verifies exact source SHA and every public product route',async()=>{
+  const receipt=await verifyServedRelease({baseUrl,expectedSha:liveSha,fetchImpl:responseFor(goodPages())});
+  assert.equal(receipt.status,'SERVED_OBSERVED');
+  assert.equal(receipt.sourceSha,liveSha);
+  assert.equal(receipt.repository,'fengie/Heaven.gg');
+  assert.equal(receipt.paths.length,5);
+  assert.equal(receipt.authoritative,false);
+});
+test('served release rejects stale SHA even when every HTML route responds',async()=>{
+  await assert.rejects(
+    ()=>verifyServedRelease({baseUrl,expectedSha:liveSha,fetchImpl:responseFor(goodPages('b'.repeat(40)))}),
+    /SERVED_REVISION_MISMATCH/
+  );
+});
+test('served release rejects wrong repository, stale or missing page and external redirect',async()=>{
+  const wrong=goodPages();wrong.set('version.json',{repository:'other/site',revision:liveSha});
+  await assert.rejects(()=>verifyServedRelease({baseUrl,expectedSha:liveSha,fetchImpl:responseFor(wrong)}),/SERVED_REPOSITORY_MISMATCH/);
+  const absent=goodPages();absent.delete('aion2/profile.html');
+  await assert.rejects(()=>verifyServedRelease({baseUrl,expectedSha:liveSha,fetchImpl:responseFor(absent)}),/SERVED_ROUTE_UNAVAILABLE/);
+  const broken=goodPages();broken.set('aion2/profile.html','<main>missing import controls</main>');
+  await assert.rejects(()=>verifyServedRelease({baseUrl,expectedSha:liveSha,fetchImpl:responseFor(broken)}),/SERVED_PROFILE_INCOMPLETE/);
+  await assert.rejects(()=>verifyServedRelease({baseUrl,expectedSha:liveSha,fetchImpl:async()=>new Response(null,{status:302,headers:{location:'https://evil.example/'}})}),/SERVED_ROUTE_UNAVAILABLE/);
+});
+test('served release does not allow an arbitrary host or invalid commit identity',async()=>{
+  await assert.rejects(()=>verifyServedRelease({baseUrl:'http://127.0.0.1/',expectedSha:liveSha,fetchImpl:responseFor(goodPages())}),/INVALID_SITE_ORIGIN/);
+  await assert.rejects(()=>verifyServedRelease({baseUrl:'https://example.org/app/',expectedSha:liveSha,fetchImpl:responseFor(goodPages())}),/INVALID_SITE_ORIGIN/);
+  await assert.rejects(()=>verifyServedRelease({baseUrl,expectedSha:'latest',fetchImpl:responseFor(goodPages())}),/INVALID_SOURCE_SHA/);
+});
+test('bounded retries handle Pages propagation and preserve final failure',async()=>{
+  let tries=0;
+  const change=async url=>{tries++;return responseFor(tries===1?goodPages('b'.repeat(40)):goodPages())(url)};
+  const res=await retryServedRelease({baseUrl,expectedSha:liveSha,fetchImpl:change,retries:2,sleep:async()=>{}});
+  assert.equal(res.status,'SERVED_OBSERVED');
+  let no=0;
+  await assert.rejects(()=>retryServedRelease({baseUrl,expectedSha:liveSha,fetchImpl:async url=>{no++;return responseFor(goodPages('c'.repeat(40)))(url)},retries:2,sleep:async()=>{}}),/SERVED_REVISION_MISMATCH/);
+  assert.equal(no,2);
+});
+test('release workflow emits a separate main-only HTTP observation after Pages publication',async()=>{
+  const yml=await readFile(join(root,'.github/workflows/site.yml'),'utf8');
+  assert.match(yml,/\n  verify-served:\n/);
+  assert.match(yml,/needs:\s*deploy/);
+  assert.match(yml,/node web\/verify-deployment\.mjs/);
+  assert.match(yml,/EXPECTED_SHA/);
+  assert.match(yml,/SITE_URL/);
+});
