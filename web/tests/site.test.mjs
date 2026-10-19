@@ -20,6 +20,10 @@ test('build produces both game tabs, copied AION dashboard and source-pinned CH 
     const aion=await readFile(join(tmp,'aion2','index.html'),'utf8');
     assert.equal(aion,await readFile(join(root,'apps/aion2-value-atlas/index.html'),'utf8'));
     assert.match(aion,/Quna/i);
+    const profilePage=await readFile(join(tmp,'aion2','profile.html'),'utf8');
+    assert.match(profilePage,/data-engine="PROFILE_EDITOR"/);
+    assert.match(profilePage,/id="profile-upload"/);
+    assert.match(page,/Plan my character/);
     const catalog=JSON.parse(await readFile(join(tmp,'ch','catalog.json'),'utf8'));
     assert.equal(catalog.builds.length,327);
     assert(catalog.builds.every((x)=>x.sourceUrl.startsWith('https://the-codex.ch/')));

@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="Personal offline AION 2 gear and progression tracker with local JSON/CSV import and transparent Kina/upgrade planning.">
+<title>My Character · Heaven.gg AION 2</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;--bg:#070e17;--panel:#13202f;--surface:#172738;--border:#2b4355;--ink:#e8f4f8;--muted:#abc2cf;--mint:#9deacb;--accent:#85b8fa;--warn:#f3cb8a}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(circle at 75% -10%,#1a3d45 0,transparent 40%),var(--bg);color:var(--ink);line-height:1.45}
+a{color:var(--mint)}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+button,.action{padding:10px 14px;border:1px solid var(--border);border-radius:10px;background:#20384a;color:var(--ink);text-decoration:none}
+button:hover,.action:hover{border-color:var(--mint);background:#254356}
+button:focus-visible,input:focus-visible,select:focus-visible,.action:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
+header{border-bottom:1px solid var(--border);background:#0b1622ee;position:sticky;top:0;z-index:10}
+.head-inner{max-width:1280px;margin:auto;padding:14px 22px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{font-weight:800;letter-spacing:0.1em;color:var(--mint);text-decoration:none}
+.brand small{font-size:12px;color:var(--muted);letter-spacing:normal;display:block;font-weight:500}
+.button-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#profile-upload{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.profile-upload-label{display:inline-flex;cursor:pointer;padding:10px 14px;border:1px solid var(--border);border-radius:10px;background:#20384a}
+.primary{background:var(--mint);color:#0a2530;border-color:var(--mint);font-weight:750}
+.primary:hover{background:#c3ffec;color:#071924}
+main{max-width:1280px;margin:auto;padding:24px 22px 72px}
+.hero{display:flex;justify-content:space-between;gap:22px;align-items:flex-start;margin-bottom:21px}
+.hero h1{font-size:clamp(29px,4vw,48px);line-height:1.1;margin:4px 0 8px}
+.hero p{color:var(--muted);max-width:720px;margin:0}
+.kicker{color:var(--mint);font-size:12px;font-weight:750;letter-spacing:0.12em}
+.local-tag{border:1px solid #40745f;background:#143b36;color:#c5ffdd;border-radius:12px;padding:9px 12px;font-size:12px;font-weight:bold;white-space:nowrap}
+.summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px;margin-bottom:17px}
+.panel,.metric{background:linear-gradient(160deg,#132537,#101c2a);border:1px solid var(--border);border-radius:16px;padding:18px;min-width:0}
+.metric label{font-size:12px;color:var(--muted);display:block}
+.metric strong{font-size:clamp(19px,2vw,29px);font-variant-numeric:tabular-nums}
+.grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px;margin-bottom:15px;align-items:start}
+h2{margin:0 0 7px;font-size:20px}
+h3{margin:0 0 10px;font-size:15px}
+.help{color:var(--muted);font-size:13px;margin:6px 0}
+.wide{margin-bottom:15px}
+.formgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+.control-wrap{display:block;min-width:0}
+.control-wrap span{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+.profile-control{width:100%;background:#091722;border:1px solid #344e60;color:var(--ink);border-radius:9px;padding:9px 10px;min-width:0}
+.profile-control::placeholder{color:#718a99}
+.checks{display:flex;flex-wrap:wrap;gap:13px;margin-top:12px}
+.checks label{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink)}
+input[type=checkbox]{accent-color:var(--mint);width:17px;height:17px}
+.profile-status{padding:9px 12px;border:1px solid var(--border);border-radius:9px;color:var(--muted);margin-bottom:16px}
+.profile-status[data-kind=warn]{color:var(--warn);border-color:#8e613d}
+.recommend-row{padding:12px 0;border-bottom:1px solid var(--border)}
+.recommend-row:last-child{border-bottom:0}
+.recommend-row strong{font-size:14px}
+.recommend-row p{margin:5px 0}
+.strategy-badge{display:inline-block;margin-left:9px;padding:3px 7px;border-radius:8px;background:#253d44;color:#b5e5d1;font-size:10px;letter-spacing:.04em;font-weight:700}
+.profile-note{color:var(--warn);font-size:12px;margin-top:10px}
+details summary{font-weight:700;cursor:pointer;font-size:18px;margin-bottom:10px}
+.details-note{color:var(--muted);font-size:12px;margin-bottom:14px}
+.gear-head,.gear-row{display:grid;grid-template-columns:180px minmax(160px,2fr) minmax(100px,.8fr) repeat(4,70px);gap:8px;align-items:center;min-width:890px;padding:9px 5px}
+.gear-head{font-size:12px;font-weight:700;color:var(--muted);border-bottom:1px solid var(--border)}
+.gear-row{border-bottom:1px solid #254052}
+.gear-slot{font-size:13px;font-weight:700}
+.gear-slot small{display:block;font-size:11px;font-weight:400;color:var(--muted)}
+.run-row,.upgrade-row{display:grid;grid-template-columns:minmax(170px,1.5fr) repeat(4,minmax(92px,1fr));gap:8px;align-items:center;min-width:650px;padding:9px 3px;border-bottom:1px solid var(--border)}
+.upgrade-row{grid-template-columns:minmax(180px,2fr) minmax(110px,1fr) minmax(110px,1fr) minmax(160px,1fr) 85px;min-width:690px}
+.scroll{overflow-x:auto;max-width:100%}
+.mini-button{padding:9px 10px;font-size:12px}
+.footerline{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;color:var(--muted);font-size:12px;padding-top:18px}
+ul.warnings{padding-left:20px;color:var(--warn);font-size:12px}
+ul.warnings li{margin:5px 0}
+.data-links{font-size:12px;color:var(--muted)}
+.data-links a{margin-right:12px;display:inline-block}
+@media(max-width:900px){.formgrid{grid-template-columns:repeat(2,minmax(0,1fr))}.summary{grid-template-columns:repeat(2,minmax(0,1fr))}.grid-2{grid-template-columns:1fr}}
+@media(max-width:520px){main{padding:15px 12px 45px}.head-inner{padding:12px}.hero{display:block}.local-tag{display:inline-block;margin-top:12px}.formgrid{grid-template-columns:1fr}.panel{padding:14px}.button-row{width:100%}.button-row button,.button-row label{flex:1;text-align:center}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <div class="head-inner">
+    <a class="brand" href="./index.html">ATREIA ATLAS <small>HEAVEN.GG · MY CHARACTER</small></a>
+    <div class="button-row">
+      <label class="profile-upload-label" for="profile-upload">Import JSON / gear CSV</label>
+      <input id="profile-upload" type="file" accept=".json,.csv,application/json,text/csv" aria-label="Import profile or gear CSV">
+      <button id="profile-export" class="primary" type="button">Export profile JSON</button>
+      <button id="profile-reset" type="button">Reset local profile</button>
+    </div>
+  </div>
+</header>
+<main id="profile-editor" data-engine="PROFILE_EDITOR">
+  <div class="hero">
+    <div><span class="kicker">PERSONAL PROGRESSION · RECOMPUTED ON EDIT</span>
+    <h1>Your gear. Your income. Your next move.</h1>
+    <p>Track actual equipment, Soul Binding, quests, currency and dungeon runs. Compare verified costs and what unlocks the next profitable tier. Suggestions are conditional until you enter your own observations.</p></div>
+    <span class="local-tag">PRIVATE · LOCAL ONLY</span>
+  </div>
+  <div id="profile-status" class="profile-status" role="status" aria-live="polite">No account or game-client access. Saved in this browser when available. Export JSON to move or back up your data.</div>
+  <div class="summary" aria-live="polite">
+    <div class="metric"><label>Total character item level</label><strong id="summary-il">—</strong></div>
+    <div class="metric"><label>Tradable Kina</label><strong id="summary-trade">—</strong></div>
+    <div class="metric"><label>Recorded equipment slots</label><strong id="summary-gear">—</strong></div>
+    <div class="metric"><label>Best measured net farming rate</label><strong id="summary-farm">—</strong></div>
+  </div>
+
+  <div class="grid-2">
+    <section class="panel" aria-labelledby="identity-title">
+      <h2 id="identity-title">Character & capital</h2>
+      <div class="formgrid">
+        <label class="control-wrap"><span>Class</span><select class="profile-control" data-profile-field="className">
+          <option value="">Choose class</option><option>Spiritmaster</option><option>Sorcerer</option><option>Assassin</option><option>Ranger</option><option>Gladiator</option><option>Templar</option><option>Chanter</option><option>Cleric</option>
+        </select></label>
+        <label class="control-wrap"><span>Character level</span><input class="profile-control" data-profile-field="characterLevel" type="number" min="0" max="100" inputmode="numeric"></label>
+        <label class="control-wrap"><span>Total item level (not piece tier)</span><input class="profile-control" data-profile-field="itemLevel" type="number" min="0" max="10000" inputmode="numeric"></label>
+        <label class="control-wrap"><span>Bound Kina</span><input class="profile-control" data-profile-field="boundKina" type="number" min="0" inputmode="numeric"></label>
+        <label class="control-wrap"><span>Tradable Kina</span><input class="profile-control" data-profile-field="tradableKina" type="number" min="0" inputmode="numeric"></label>
+        <label class="control-wrap"><span>Quna</span><input class="profile-control" data-profile-field="quna" type="number" min="0" inputmode="numeric"></label>
+        <label class="control-wrap"><span>Current Odyle</span><input class="profile-control" data-profile-field="odyle" type="number" min="0" inputmode="numeric"></label>
+        <label class="control-wrap"><span>Vendor refills already bought this week</span><input class="profile-control" data-profile-field="vendorBought" type="number" min="0" max="100" inputmode="numeric"></label>
+      </div>
+      <div class="checks">
+        <label><input type="checkbox" data-profile-field="membership"> Membership active</label>
+        <label><input type="checkbox" data-profile-field="vendorConfirmed"> Vendor price & limit checked in-game</label>
+      </div>
+      <p id="vendor-estimate" class="help">Verify current vendor eligibility.</p>
+    </section>
+    <section class="panel" aria-labelledby="progress-title">
+      <h2 id="progress-title">Progress & low-cost upgrades</h2>
+      <div class="checks">
+        <label><input type="checkbox" data-profile-field="mainQuestDone"> Main quest complete</label>
+        <label><input type="checkbox" data-profile-field="regionalQuestsDone"> Regional quests done</label>
+        <label><input type="checkbox" data-profile-field="feathersDone"> Feather / resonance progression checked</label>
+      </div>
+      <h3 style="margin-top:21px">Best verified farm route</h3>
+      <p id="summary-farm-info" class="help">Add dungeon observations to compare Kina/hour.</p>
+      <h3 style="margin-top:21px">Conditional weekly model</h3>
+      <p id="weekly-estimate" class="help">Enter your run times.</p>
+      <p class="profile-note">Weekly values use estimated natural Odyle and the temporary vendor model. They exclude server-wide payout tapering, RNG, queueing and downtime. They are not guaranteed profits.</p>
+    </section>
+  </div>
+
+  <div class="grid-2">
+    <section class="panel" aria-labelledby="actions-title">
+      <h2 id="actions-title">Next best actions</h2>
+      <p class="help">Sorted from missing essentials and highest-confidence progress to conditional investments.</p>
+      <div id="strategy-list" aria-live="polite"></div>
+    </section>
+    <section class="panel" aria-labelledby="upgrades-title">
+      <h2 id="upgrades-title">Upgrade payback</h2>
+      <p class="help">Actual quoted cost and your projected resulting total item level are required. No item-specific stat gains are invented.</p>
+      <div id="upgrade-rankings" aria-live="polite"></div>
+    </section>
+  </div>
+  <details class="panel wide" open>
+    <summary>Dungeons & run measurements</summary>
+    <p class="details-note">Enter clear minutes and your actual Kina reward per 40 Odyle; zero reward uses the explicitly modeled community reference. Variable costs and failure rate are incorporated when possible. Rank by net Kina/hour, not headline reward.</p>
+    <div class="scroll"><div class="run-row" aria-hidden="true"><span>Activity</span><span>Minutes</span><span>Cube Kina</span><span>Variable cost</span><span>Success %</span></div><div id="run-tracker"></div></div>
+  </details>
+  <details class="panel wide">
+    <summary>Equipped gear tracker (25 slots)</summary>
+    <p class="details-note">Track the item's printed tier (e.g. 54), separate from your character's total level (e.g. 2,100). Slot suggestions come from a small October 16 public Spiritmaster sample—not BIS, current ownership or correct rolls. Verify names and enhancement caps inside your Global client. <button id="gear-template" class="mini-button" type="button">Download gear CSV template</button></p>
+    <div class="scroll">
+      <div class="gear-head"><span>Slot</span><span>Item name / ID</span><span>Grade</span><span>Piece IL</span><span>+Enchant</span><span>Soul bind</span><span>Stones</span></div>
+      <div id="gear-tracker"></div>
+    </div>
+    <p class="help">Need a particular item? Consult <a href="https://lum.gg/aion-2/items" target="_blank" rel="noopener noreferrer">Global gear index</a> or <a href="https://aion2builds.com/builds/spiritmaster/" target="_blank" rel="noopener noreferrer">public Spiritmaster sample</a>. Do not assume sampled players' gear is optimal for you.</p>
+  </details>
+  <section class="panel wide" aria-labelledby="upgrade-input-title">
+    <h2 id="upgrade-input-title">Candidates to buy, craft or unlock</h2>
+    <p class="help">Add actual options: market gear, an enhancement path, Arcana, or a quest. Enter the whole Kina cost, your expected total item level after the change and whether the cost needs tradable Kina.</p>
+    <div class="scroll"><div class="upgrade-row" aria-hidden="true"><span>Upgrade</span><span>Total cost</span><span>Projected total IL</span><span>Funding</span><span></span></div><div id="upgrade-tracker"></div></div>
+    <button id="upgrade-add" type="button">+ Add upgrade option</button>
+  </section>
+  <section class="panel wide" aria-labelledby="market-input-title">
+    <h2 id="market-input-title">Quna exchange assumptions</h2>
+    <p class="help">Lowest asks from your October 19 screenshot, editable for your server. The site cannot read live prices or determine completed-sale liquidity. A 10% morph premium and 10% displayed exchange tax are assumptions until confirmed in-client.</p>
+    <div class="formgrid">
+      <label class="control-wrap"><span>400K Kina chest · ask Quna</span><input id="ask-400000" type="number" class="profile-control" min="0"></label>
+      <label class="control-wrap"><span>2M Kina chest · ask Quna</span><input id="ask-2000000" type="number" class="profile-control" min="0"></label>
+      <label class="control-wrap"><span>10M Kina chest · ask Quna</span><input id="ask-10000000" type="number" class="profile-control" min="0"></label>
+      <label class="control-wrap"><span>When these asks were observed</span><input id="market-date" type="date" class="profile-control"></label>
+    </div>
+    <p id="exchange-result" class="help">No current sale advice without your tradable balance and recent prices.</p>
+  </section>
+  <section class="panel wide" aria-labelledby="evidence-title">
+    <h2 id="evidence-title">Evidence and limits</h2>
+    <p class="help" id="recalc-date">Nothing fetched from your account.</p>
+    <ul id="warnings" class="warnings"></ul>
+    <div class="data-links"><a href="https://lounge.plaync.com/feed/84134?country=US&amp;locale=en-US" target="_blank" rel="noopener noreferrer">NCSOFT Oct 14 patch</a>
+    <a href="https://aion2builds.com/guides/gear/" target="_blank" rel="noopener noreferrer">Global gear mechanics (client-derived)</a>
+    <a href="https://github.com/fengie/Heaven.gg/blob/main/apps/aion2-value-atlas/_AGENT_CONTEXT/RESEARCH_FINDINGS/records/2026/10/2026-10-19-exchange-reinvestment.md" target="_blank" rel="noopener noreferrer">Farming methodology</a></div>
+    <p class="help">Local-only storage is scoped to this browser and website origin. Reopen this page to recalculate on your last saved inputs; it does not sync with AION 2 or automatically observe game updates. Import only JSON you trust. This app never submits character data to Heaven.gg.</p>
+  </section>
+  <footer class="footerline"><span>Heaven.gg · AION 2 independent fan planner · Versioned evidence 2026-10-19</span><a href="./index.html">Return to Atreia Atlas</a></footer>
+</main>
+<script id="progression-data" type="application/json">{"schema":"heaven-gg/aion2-progression-catalog/v1","asOf":"2026-10-19","game":"AION 2","region":"Global","profileDataSource":"user-entered","notice":"Gear examples describe a dated public character sample, not best-in-slot, a shop inventory, player ownership, or an official upgrade recommendation.","sources":[{"id":"nc-patch-oct14","grade":"primary","date":"2026-10-14","title":"NCSOFT Global Oct. 13/14 patch - temporary Odyle Energy purchase limits","url":"https://lounge.plaync.com/feed/84134?country=US&locale=en-US"},{"id":"nc-transfers","grade":"primary","date":"2026-10-14","title":"NCSOFT Global server transfer schedule and limits","url":"https://lounge.plaync.com/feed/83614?country=US&locale=en-US"},{"id":"nc-ncer-gear","grade":"provisional","date":"2026-10-05","title":"NCER Soul Binding slot/property overview (publisher-hosted but explicitly AI-generated)","url":"https://lounge.plaync.com/feed/83022?country=US&locale=en-US"},{"id":"client-gear","grade":"client/community","date":"2026-10-14","title":"AION 2 Builds: Global item/character item level and gear enhancement overview","url":"https://aion2builds.com/guides/gear/"},{"id":"spirit-sample","grade":"sample","date":"2026-10-16","title":"200 public level-45 Spiritmaster profiles, sampled equipment (selection-biased, not BIS)","url":"https://aion2builds.com/builds/spiritmaster/"},{"id":"client-dungeon","grade":"client/community","date":"2026-10-18","title":"Player/client estimates of Global 40-Odyle payout and farming limits","url":"https://raidrelay.com/aion-2-kina-guide"},{"id":"gear-index","grade":"client/community","date":"2026-10-17","title":"LUM.GG Global searchable item categories (equipment IDs and source must be checked in client)","url":"https://lum.gg/aion-2/items"}],"gearSlots":[{"id":"weapon","label":"Main weapon","property":"Combat speed (provisional)","propertySourceId":"nc-ncer-gear"},{"id":"guard","label":"Guard / offhand","property":"Combat speed (provisional)","propertySourceId":"nc-ncer-gear"},{"id":"helmet","label":"Helm","property":"Incoming heal (provisional)","propertySourceId":"nc-ncer-gear"},{"id":"shoulders","label":"Pauldrons","property":"Critical damage boost (provisional)","propertySourceId":"nc-ncer-gear"},{"id":"torso","label":"Top / chest","property":"Damage boost (provisional)","propertySourceId":"nc-ncer-gear"},{"id":"legs","label":"Legs","property":"PvE damage tolerance (provisional)","propertySourceId":"nc-ncer-gear"},{"id":"gloves","label":"Gloves","property":"Combat speed (provisional)","propertySourceId":"nc-ncer-gear"},{"id":"boots","label":"Shoes","property":"Movement speed (provisional)","propertySourceId":"nc-ncer-gear"},{"id":"cloak","label":"Cloak","property":"Critical damage tolerance (provisional)","propertySourceId":"nc-ncer-gear"},{"id":"necklace","label":"Necklace","property":"Passive skill level (provisional)","propertySourceId":"nc-ncer-gear"},{"id":"earring1","label":"Earring 1","property":"Passive skill level (provisional)","propertySourceId":"nc-ncer-gear"},{"id":"earring2","label":"Earring 2","property":"Passive skill level (provisional)","propertySourceId":"nc-ncer-gear"},{"id":"ring1","label":"Ring 1","property":"Active skill level (provisional)","propertySourceId":"nc-ncer-gear"},{"id":"ring2","label":"Ring 2","property":"Active skill level (provisional)","propertySourceId":"nc-ncer-gear"},{"id":"bracelet1","label":"Bracelet 1","property":"Roll-dependent","propertySourceId":"nc-ncer-gear"},{"id":"bracelet2","label":"Bracelet 2","property":"Roll-dependent","propertySourceId":"nc-ncer-gear"},{"id":"belt","label":"Belt","property":"Enhancement cost exception","propertySourceId":"nc-ncer-gear"},{"id":"amulet","label":"Amulet","property":"Enhancement cost exception","propertySourceId":"nc-ncer-gear"},{"id":"rune1","label":"Clash Rune 1","property":"Special system","propertySourceId":"nc-ncer-gear"},{"id":"rune2","label":"Clash Rune 2","property":"Special system","propertySourceId":"nc-ncer-gear"},{"id":"arcana1","label":"Arcana 1","property":"Set / combination dependent","propertySourceId":"nc-ncer-gear"},{"id":"arcana2","label":"Arcana 2","property":"Set / combination dependent","propertySourceId":"nc-ncer-gear"},{"id":"arcana3","label":"Arcana 3","property":"Set / combination dependent","propertySourceId":"nc-ncer-gear"},{"id":"arcana4","label":"Arcana 4","property":"Set / combination dependent","propertySourceId":"nc-ncer-gear"},{"id":"arcana5","label":"Arcana 5","property":"Set / combination dependent","propertySourceId":"nc-ncer-gear"}],"gearExamples":[{"slot":"weapon","name":"Spiritforged Orb","grade":"Unique","itemTier":45,"sourceId":"spirit-sample"},{"slot":"guard","name":"Spiritforged Guard","grade":"Unique","itemTier":45,"sourceId":"spirit-sample"},{"slot":"helmet","name":"Liberator Helm","grade":"Legend","itemTier":null,"sourceId":"spirit-sample"},{"slot":"shoulders","name":"Liberator Pauldrons","grade":"Legend","itemTier":null,"sourceId":"spirit-sample"},{"slot":"torso","name":"Bakarma Breastplate","grade":"Unique","itemTier":54,"sourceId":"spirit-sample"},{"slot":"legs","name":"Anguish Greaves","grade":"Legend","itemTier":null,"sourceId":"spirit-sample"},{"slot":"gloves","name":"Bakarma Gloves","grade":"Unique","itemTier":54,"sourceId":"spirit-sample"},{"slot":"boots","name":"Bakarma Boots","grade":"Unique","itemTier":54,"sourceId":"spirit-sample"},{"slot":"cloak","name":"Bakarma Cloak","grade":"Unique","itemTier":54,"sourceId":"spirit-sample"},{"slot":"necklace","name":"Pilgrim Necklace","grade":"Legend","itemTier":null,"sourceId":"spirit-sample"},{"slot":"earring1","name":"Liberator Earrings","grade":"Legend","itemTier":null,"sourceId":"spirit-sample"},{"slot":"ring1","name":"Aulamus Ring","grade":"Unique","itemTier":null,"sourceId":"spirit-sample"},{"slot":"bracelet1","name":"Ascension Bracelet","grade":"Unique","itemTier":null,"sourceId":"spirit-sample"},{"slot":"belt","name":"Noble Belt","grade":"Unique","itemTier":null,"sourceId":"spirit-sample"},{"slot":"amulet","name":"Revelation Amulet","grade":"Unique","itemTier":null,"sourceId":"spirit-sample"},{"slot":"rune1","name":"Clash Rune","grade":"Special","itemTier":null,"sourceId":"spirit-sample"},{"slot":"arcana1","name":"Chalice of Vigor","grade":"Unique","itemTier":null,"sourceId":"spirit-sample"}],"activities":[{"id":"conquest1","name":"Conquest 1-star","requiredItemLevel":700,"referenceRewardKina":200000,"odylePerClaim":40,"confidence":"client/community","sourceId":"client-dungeon"},{"id":"conquest2","name":"Conquest 2-star","requiredItemLevel":1400,"referenceRewardKina":300000,"odylePerClaim":40,"confidence":"client/community","sourceId":"client-dungeon"},{"id":"conquest3","name":"Conquest 3-star","requiredItemLevel":2100,"referenceRewardKina":400000,"odylePerClaim":40,"confidence":"client/community","sourceId":"client-dungeon"},{"id":"transcendence4","name":"Transcendence 4","requiredItemLevel":2500,"referenceRewardKina":480000,"odylePerClaim":40,"confidence":"client/community","sourceId":"client-dungeon"}],"naturalClaimsPerWeekEstimate":21,"vendorEnergy":{"offersPerCharacter":20,"priceKinaPerClaimEstimate":100000,"odylePerClaim":40,"temporaryFrom":"2026-10-14","temporaryThrough":"2026-10-28","sourceId":"nc-patch-oct14","priceSourceId":"client-dungeon","conditions":"20-per-character during the server-transfer period; price, account eligibility and effective dates require in-game verification."},"exchangeNote":"The October 19 user screenshot is a dated asking-price snapshot, not a transaction feed."}</script>
+<script id="exchange-data" type="application/json">{"schema":"heaven-gg/aion2-exchange-observation/v1","observed_date":"2026-10-19","region":"unknown","server":"unknown","source":"User-provided in-game exchange screenshot in private conversation; numerical observation only, no image or account data committed","price_kind":"lowest_listing","sold_quantity_known":false,"displayed_tax_basis_points":1000,"morph_fee_basis_points_assumed":1000,"morph_fee_basis_points_source":"https://aion2.gg/guides/kina-and-market-guide","seller_tax_settlement_rounding":"unverified","offers":[{"kina":400000,"quna":217,"listings":54},{"kina":2000000,"quna":950,"listings":88},{"kina":10000000,"quna":5699,"listings":22}],"caveats":["Asking prices do not establish executed trades, fill rate or depth at quoted price.","The 10% tax is displayed in the screenshot; fee application and integer settlement rounding require in-client confirmation.","Morphing fee is based on a third-party Global client guide, not this screenshot.","Snapshot is one point in time and is not a live market feed."]}</script>
+<script type="module">
+// Pure, versioned, offline calculations plus an optional browser UI; no game-client access.
+export const PROFILE_SCHEMA = 'heaven-gg/aion2-profile/v1';
+export const STORAGE_KEY = 'heaven-gg:aion2:character-v1';
+const MONEY_LIMIT = 1_000_000_000_000;
+const SLOT_LIMIT = 40;
+const allowedFunds = new Set(['market','all']);
+const number = (value, label, max = MONEY_LIMIT) => {
+  const n = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
+  if (!Number.isSafeInteger(n) || n < 0 || n > max) throw new Error(label + ' must be an integer from 0 to ' + max);
+  return n;
+};
+const boundedText = (value, label, max = 120) => {
+  if (typeof value !== 'string' || value.length > max || /[\u0000-\u0008\u000e-\u001f]/.test(value))
+    throw new Error(label + ' must be a short text value');
+  return value.trim();
+};
+const bool = (value, label) => {
+  if (typeof value !== 'boolean') throw new Error(label + ' must be true or false');
+  return value;
+};
+const object = (value, label) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(label + ' must be an object');
+  return value;
+};
+function slotIds(catalog) {
+  return new Set(catalog.gearSlots.map(x=>x.id));
+}
+export function emptyProfile() {
+  return {
+    schema:PROFILE_SCHEMA, className:'', characterLevel:0, itemLevel:0,
+    boundKina:0, tradableKina:0, quna:0, odyle:0, membership:false,
+    vendorBought:0, vendorConfirmed:false, mainQuestDone:false,
+    regionalQuestsDone:false, feathersDone:false,
+    gear:{}, runs:{}, upgrades:[], exchangeAsks:{}, exchangeObservedDate:''
+  };
+}
+function normalizeGear(input, catalog) {
+  const allowed=slotIds(catalog);
+  const raw=object(input,'gear');
+  if (Object.keys(raw).length > SLOT_LIMIT) throw new Error('too many gear slots');
+  const out={};
+  for(const [slot,item] of Object.entries(raw)){
+    if (!allowed.has(slot)) throw new Error('unknown gear slot: '+slot);
+    const g=object(item,'gear item');
+    const name=boundedText(g.name ?? '',slot+' name');
+    if (!name) continue;
+    out[slot]={
+      name, grade:boundedText(g.grade ?? '',slot+' grade',40),
+      itemTier:number(g.itemTier ?? 0,slot+' itemTier',500),
+      enchant:number(g.enchant ?? 0,slot+' enchant',50),
+      soulBinding:number(g.soulBinding ?? 0,slot+' soulBinding',50),
+      stones:number(g.stones ?? 0,slot+' stones',12),
+      notes:boundedText(g.notes ?? '',slot+' notes',250)
+    };
+  }
+  return out;
+}
+export function normalizeProfile(input, catalog) {
+  const src=object(input,'profile');
+  if (src.schema !== PROFILE_SCHEMA) throw new Error('unsupported profile schema; import Heaven.gg profile v1 JSON or a gear CSV');
+  const p=emptyProfile();
+  p.className=boundedText(src.className ?? '', 'className', 64);
+  p.characterLevel=number(src.characterLevel ?? 0,'characterLevel',100);
+  p.itemLevel=number(src.itemLevel ?? 0,'itemLevel',10_000);
+  for(const key of ['boundKina','tradableKina','quna','odyle']) p[key]=number(src[key] ?? 0,key);
+  p.membership=bool(src.membership ?? false,'membership');
+  p.vendorBought=number(src.vendorBought ?? 0,'vendorBought',100);
+  p.vendorConfirmed=bool(src.vendorConfirmed ?? false,'vendorConfirmed');
+  for(const key of ['mainQuestDone','regionalQuestsDone','feathersDone']) p[key]=bool(src[key] ?? false,key);
+  p.gear=normalizeGear(src.gear ?? {},catalog);
+  const validActivityIds=new Set(catalog.activities.map(x=>x.id));
+  for(const [id,run] of Object.entries(object(src.runs ?? {},'runs'))){
+    if(!validActivityIds.has(id)) throw new Error('unknown activity: '+id);
+    const row=object(run,'run '+id);
+    p.runs[id]={
+      minutes:number(row.minutes ?? 0,id+' minutes',1440),
+      rewardKina:number(row.rewardKina ?? 0,id+' rewardKina'),
+      variableCostKina:number(row.variableCostKina ?? 0,id+' variableCostKina'),
+      successPct:number(row.successPct ?? 100,id+' successPct',100)
+    };
+  }
+  if(!Array.isArray(src.upgrades)||src.upgrades.length>20) throw new Error('upgrades must contain at most 20 rows');
+  const ids=new Set();
+  p.upgrades=src.upgrades.map((item,i)=>{
+    const row=object(item,'upgrade');
+    const id=boundedText(row.id ?? '', 'upgrade id',32);
+    if(!/^[A-Za-z0-9_-]{1,32}$/.test(id)) throw new Error('invalid upgrade id');
+    if(ids.has(id)) throw new Error('duplicate upgrade id'); ids.add(id);
+    const slot=boundedText(row.slot ?? '', 'upgrade slot',40);
+    if(slot && !slotIds(catalog).has(slot)) throw new Error('unknown upgrade slot: '+slot);
+    const funds=boundedText(row.funds ?? 'all','upgrade funds',20);
+    if(!allowedFunds.has(funds)) throw new Error('invalid upgrade funds');
+    return {
+      id, name:boundedText(row.name ?? '', 'upgrade name',120),
+      slot, costKina:number(row.costKina ?? 0,'upgrade costKina'),
+      targetItemLevel:number(row.targetItemLevel ?? 0,'upgrade targetItemLevel',10_000),
+      funds
+    };
+  });
+  for (const [size,quote] of Object.entries(object(src.exchangeAsks ?? {},'exchangeAsks'))) {
+    if(!/^\d+$/.test(size)|| ![400000,2000000,10000000].includes(Number(size))) throw new Error('invalid exchange chest denomination');
+    p.exchangeAsks[size]=number(quote,'exchange ask',1_000_000);
+  }
+  p.exchangeObservedDate=boundedText(src.exchangeObservedDate ?? '','exchangeObservedDate',10);
+  if(p.exchangeObservedDate && !/^\d{4}-\d{2}-\d{2}$/.test(p.exchangeObservedDate)) throw new Error('exchangeObservedDate must be YYYY-MM-DD');
+  return p;
+}
+function splitCsv(text) {
+  if(typeof text !== 'string'|| text.length>65536) throw new Error('CSV is too large (64 KB limit)');
+  const rows=[];let row=[],cell='',quoted=false,closed=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(quoted){
+      if(ch==='"' && text[i+1]==='"'){cell+='"';i++;}
+      else if(ch==='"'){quoted=false;closed=true;}
+      else cell+=ch;
+    } else if(ch==='"' && cell==='' && !closed){quoted=true;}
+    else if(ch==='"'){throw new Error('invalid CSV quoting');}
+    else if(ch===','){row.push(cell);cell='';closed=false;}
+    else if(ch==='\n'){row.push(cell.replace(/\r$/,''));rows.push(row);row=[];cell='';closed=false;}
+    else if(closed && ch!=='\r'){throw new Error('invalid CSV text after closing quote');}
+    else if(ch!=='\r')cell+=ch;
+  }
+  if(quoted) throw new Error('unclosed CSV quote');
+  if(cell!==''||row.length){row.push(cell);rows.push(row);}
+  return rows.filter(r=>r.some(c=>c.trim()));
+}
+export function parseGearCsv(csv, catalog) {
+  const rows=splitCsv(csv.replace(/^\ufeff/,''));
+  if(rows.length<2||rows.length>100) throw new Error('CSV needs header and 1-98 item rows');
+  const header=rows.shift().map(x=>x.trim());
+  if(new Set(header).size!==header.length || !['slot','name'].every(x=>header.includes(x)))throw new Error('CSV requires unique slot,name headers');
+  if(header.some(x=>!['slot','name','grade','itemTier','enchant','soulBinding','stones','notes'].includes(x)))throw new Error('unsupported CSV header');
+  const out={};
+  for (const raw of rows){
+    if(raw.length!==header.length)throw new Error('CSV column count mismatch');
+    const item=Object.fromEntries(header.map((field,i)=>[field,raw[i].trim()]));
+    if(!slotIds(catalog).has(item.slot))throw new Error('unknown gear slot: '+item.slot);
+    if(Object.hasOwn(out,item.slot))throw new Error('duplicate gear slot: '+item.slot);
+    if(!item.name) throw new Error('gear item name required');
+    const obj={
+      name:item.name, grade:item.grade || '',
+      itemTier:item.itemTier || 0, enchant:item.enchant || 0,
+      soulBinding:item.soulBinding || 0, stones:item.stones || 0,notes:item.notes || ''
+    };
+    out[item.slot]=normalizeGear({[item.slot]:obj},catalog)[item.slot];
+  }
+  return out;
+}
+export function sourceFreshness(observedDate, today, maximumAgeDays=7) {
+  const before=Date.parse(String(observedDate)+'T00:00:00Z');
+  const after=Date.parse(String(today)+'T00:00:00Z');
+  if(!Number.isFinite(before)||!Number.isFinite(after)) return {stale:true,days:null};
+  const days=Math.floor((after-before)/86400000);
+  return {stale:days>maximumAgeDays||days<0,days};
+}
+function activeVendor(catalog, today){
+  return today >= catalog.vendorEnergy.temporaryFrom && today <= catalog.vendorEnergy.temporaryThrough;
+}
+function projectedPayout(activity,run) {
+  const reward=run?.rewardKina>0?run.rewardKina:activity.referenceRewardKina;
+  const costs=run?.variableCostKina??0, chance=(run?.successPct??100)/100;
+  return Math.max(0, reward*chance-costs);
+}
+export function evaluateProfile(input,catalog,snapshot,today) {
+  const p=normalizeProfile(input,catalog), warnings=[],actions=[];
+  const ready=p.characterLevel>=45 && p.itemLevel>0;
+  if(!ready) actions.push({id:'need-level',priority:0,title:'Enter character level and item level; finish core progression',detail:'No dungeon eligibility can be inferred until level 45 and total item level are known.'});
+  for(const [key,id,title] of [
+    ['mainQuestDone','main-quest','Finish your main storyline for initial Unique gear'],
+    ['regionalQuestsDone','regional-quests','Complete regional quests / Daevanion rewards'],
+    ['feathersDone','feathers','Collect Empyrean Trace feathers and resonance']
+  ]) if(!p[key]) actions.push({id,priority:2,title,detail:'Low-cost progression to check in client; exact item-level gain is not modeled.'});
+  if(Object.keys(p.gear).length<8) actions.push({id:'record-gear',priority:1,title:'Record equipment, enchants, stones and Soul Binding',detail:'Player gear rolls are not in public item catalogs; enter your actual equipment before comparing upgrades.'});
+  const eligibleActivities = ready ? catalog.activities.filter(x=>p.itemLevel>=x.requiredItemLevel).map(a=>{
+    const run=p.runs[a.id];
+    const minutes=run?.minutes>0?run.minutes:null;
+    const netPerClaim=projectedPayout(a,run);
+    return {
+      id:a.id,name:a.name,requiredItemLevel:a.requiredItemLevel,
+      referenceRewardKina:a.referenceRewardKina,
+      effectiveRewardKina:run?.rewardKina>0?run.rewardKina:a.referenceRewardKina,
+      netPerClaim, minutes, netKinaPerHour:minutes===null?null:Math.round(netPerClaim*60/minutes),
+      measurement:run?.rewardKina>0?'user-entered':'community-model'
+    };
+  }):[];
+  const measured=eligibleActivities.filter(x=>x.minutes!==null);
+  measured.sort((a,b)=>b.netKinaPerHour-a.netKinaPerHour||b.netPerClaim-a.netPerClaim||a.id.localeCompare(b.id));
+  const bestFarm=measured[0]||null;
+  if(measured.length===0)actions.push({id:'measure-runs',priority:0,title:'Measure at least three successful dungeon clears',detail:'Enter clear minutes, cube Kina, cost and success rate to rank real net Kina/hour. Community payout tables alone cannot establish your best run.'});
+  const insideVendor=activeVendor(catalog,today);
+  const vendorOffersRemaining=insideVendor?Math.max(0,catalog.vendorEnergy.offersPerCharacter-p.vendorBought):0;
+  const vendorExtraClaims=insideVendor&&p.membership&&p.vendorConfirmed?vendorOffersRemaining:0;
+  if(!insideVendor) warnings.push('Temporary Odyle purchase-limit window has expired; verify current patch before buying.');
+  else if(!p.vendorConfirmed) warnings.push('Confirm current vendor price, account eligibility and limits in-game before planning extra Odyle purchases.');
+  if(p.odyle<40)actions.push({id:'odyle',priority:3,title:'Check Odyle regeneration / vendor eligibility',detail:'Do not leave regeneration capped; purchased energy is worthwhile only when incremental net reward beats the verified purchase cost.'});
+  const currentMaxReward=ready?Math.max(0,...eligibleActivities.map(a=>a.referenceRewardKina)):0;
+  const upgrades=p.upgrades.map(u=>{
+    const reachable=ready?catalog.activities.filter(x=>u.targetItemLevel>=x.requiredItemLevel):[];
+    const proposedMax=Math.max(0,...reachable.map(x=>x.referenceRewardKina));
+    const gain=Math.max(0,proposedMax-currentMaxReward);
+    const paybackClaims= u.targetItemLevel>p.itemLevel && gain>0
+      ?Math.ceil(u.costKina/gain):null;
+    const affordable=(u.funds==='market'?p.tradableKina:p.tradableKina+p.boundKina)>=u.costKina;
+    return {...u,affordable,modelGainKinaPerClaim:gain,paybackClaims,confidence:'modeled'};
+  }).sort((a,b)=>(a.paybackClaims??Infinity)-(b.paybackClaims??Infinity)||a.costKina-b.costKina);
+  for(const item of upgrades)if(item.name&&item.paybackClaims!==null)actions.push({
+    id:'upgrade-'+item.id, priority:item.affordable?1:4,
+    title:(item.affordable?'Evaluate ':'Save for ')+item.name,
+    detail:'Modeled +' + Math.round(item.modelGainKinaPerClaim).toLocaleString('en-US')+
+      ' Kina/claim and '+item.paybackClaims+' claims to repay; ignores queue time, failure and fees. '+(item.affordable?'Budget available.':'Insufficient eligible Kina for this funding type.')
+  });
+  const offers=(snapshot.offers||[]).map(x=>({...x,quna:p.exchangeAsks[String(x.kina)]??x.quna}));
+  const stamp=p.exchangeObservedDate||snapshot.observed_date;
+  const fresh=sourceFreshness(stamp,today);
+  let exchangeAdvice={kind:'unverified',observedDate:stamp,stale:fresh.stale,bestNominalSellerChestKina:null,qunaNet:null};
+  if(fresh.stale)exchangeAdvice.kind='stale';
+  else if(p.tradableKina>0){
+    const tax=snapshot.displayed_tax_basis_points/10000;
+    const morph=snapshot.morph_fee_basis_points_assumed/10000;
+    const affordable=offers.filter(o=>p.tradableKina>=Math.ceil(o.kina*(1+morph)));
+    if(affordable.length) {
+      const best=affordable.sort((a,b)=>(b.quna*(1-tax)/(b.kina*(1+morph)))-(a.quna*(1-tax)/(a.kina*(1+morph))))[0];
+      exchangeAdvice={kind:'snapshot-only',observedDate:stamp,stale:false,
+        bestNominalSellerChestKina:best.kina,qunaNet:Math.floor(best.quna*(1-tax))};
+    }
+  }
+  warnings.push('Exchange quotes are manual asking prices, not completed sales; fees and settlement rounding must be confirmed.');
+  const weeklyEstimate=bestFarm?
+    Math.round(bestFarm.netPerClaim*(catalog.naturalClaimsPerWeekEstimate+vendorExtraClaims)-vendorExtraClaims*catalog.vendorEnergy.priceKinaPerClaimEstimate):null;
+  return {eligibleActivities,bestFarm,upgrades,
+    actions:actions.sort((a,b)=>a.priority-b.priority||a.id.localeCompare(b.id)),
+    warnings,gearCoverage:Object.keys(p.gear).length,
+    vendorOffersRemaining,vendorExtraClaims,
+    weeklyEstimate,exchangeAdvice};
+}
+
+// Browser-only local character editor; module is inlined into the offline HTML.
+if(typeof document!=='undefined') {
+  function installProfileEditor(){
+    const el=id=>document.getElementById(id);
+    if(!el('profile-editor'))return;
+    const catalog=JSON.parse(el('progression-data').textContent);
+    const snapshot=JSON.parse(el('exchange-data').textContent);
+    const $=s=>document.querySelector(s);
+    const asToday=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');};
+    const printable=n=>Number(n).toLocaleString('en-US');
+    let memory=emptyProfile(), storageAvailable=true;
+    function notice(message,kind='ok'){el('profile-status').textContent=message;el('profile-status').dataset.kind=kind;}
+    try {
+      const raw=localStorage.getItem(STORAGE_KEY);
+      if(raw && raw.length<=65536)memory=normalizeProfile(JSON.parse(raw),catalog);
+    } catch {
+      storageAvailable=false;
+      notice('Browser storage unavailable; use Export JSON to keep progress.','warn');
+    }
+    function persist(){
+      try {
+        memory=normalizeProfile(memory,catalog);
+        localStorage.setItem(STORAGE_KEY,JSON.stringify(memory));
+        if(!storageAvailable){storageAvailable=true;notice('Local browser save restored.');}
+      }catch(error){storageAvailable=false;notice('Local save is unavailable: '+String(error.message).slice(0,170)+'. Export a JSON backup.','warn');}
+    }
+    function create(tag,cls,text){
+      const node=document.createElement(tag);
+      if(cls)node.className=cls;
+      if(text!==undefined)node.textContent=String(text);
+      return node;
+    }
+    function field(type,slot,key,value,opts={}){
+      const input=create('input','profile-control');
+      input.type=type;
+      input.dataset.gearSlot=slot;
+      input.dataset.gearField=key;
+      input.setAttribute('aria-label',slot+' '+key);
+      if(type==='number'){input.min='0';input.max=String(opts.max??1000000);input.step='1';}
+      input.value=String(value??'');
+      return input;
+    }
+    function gearRows(){
+      const container=el('gear-tracker');container.replaceChildren();
+      for(const slot of catalog.gearSlots){
+        const row=create('div','gear-row');const item=memory.gear[slot.id]||{};
+        const title=create('div','gear-slot',slot.label);
+        title.appendChild(create('small','gear-hint',slot.property));
+        row.appendChild(title);
+        const name=field('text',slot.id,'name',item.name||'');
+        name.placeholder='Name / item ID';
+        const suggestions=catalog.gearExamples.filter(x=>x.slot===slot.id||((slot.id.startsWith('ring')&&x.slot.startsWith('ring'))||(slot.id.startsWith('earring')&&x.slot.startsWith('earring'))||(slot.id.startsWith('arcana')&&x.slot.startsWith('arcana'))));
+        if(suggestions.length){
+          const list=create('datalist');
+          list.id='sample-'+slot.id;
+          for(const example of suggestions){const option=create('option');option.value=example.name;list.append(option);}
+          name.setAttribute('list',list.id);
+          row.append(name,list);
+        }else row.append(name);
+        const grade=create('select','profile-control');
+        grade.dataset.gearSlot=slot.id;grade.dataset.gearField='grade';grade.setAttribute('aria-label',slot.label+' grade');
+        for(const variant of ['','Common','Rare','Epic','Unique','Legend','Special','Other']){
+          const option=create('option',null,variant||'Grade?');option.value=variant;grade.append(option);
+        }
+        grade.value=item.grade||'';
+        row.append(grade,field('number',slot.id,'itemTier',item.itemTier??0,{max:500}),field('number',slot.id,'enchant',item.enchant??0,{max:50}),field('number',slot.id,'soulBinding',item.soulBinding??0,{max:50}),field('number',slot.id,'stones',item.stones??0,{max:12}));
+        container.append(row);
+      }
+    }
+    function runRows(){
+      const container=el('run-tracker');container.replaceChildren();
+      for(const activity of catalog.activities){
+        const row=create('div','run-row');
+        row.append(create('div','gear-slot',activity.name+' (IL '+printable(activity.requiredItemLevel)+')'));
+        for(const [key,label,max] of [['minutes','Minutes',1440],['rewardKina','Cube Kina',MONEY_LIMIT],['variableCostKina','Variable cost',MONEY_LIMIT],['successPct','Success %',100]]){
+          const input=create('input','profile-control');input.type='number';input.min='0';input.max=String(max);input.placeholder=label;
+          input.dataset.runId=activity.id;input.dataset.runField=key;
+          input.setAttribute('aria-label',activity.name+' '+label);
+          input.value=String(memory.runs[activity.id]?.[key]??(key==='rewardKina'?0:key==='successPct'?100:0));
+          row.append(input);
+        }
+        container.append(row);
+      }
+    }
+    function upgradeRows(){
+      const container=el('upgrade-tracker');container.replaceChildren();
+      for(const upgrade of memory.upgrades){
+        const row=create('div','upgrade-row');
+        for(const [key,label,max] of [['name','Upgrade description',null],['costKina','Cost in Kina',MONEY_LIMIT],['targetItemLevel','Projected total IL',10000]]){
+          const node=create('input','profile-control');node.type=max?'number':'text';node.placeholder=label;node.value=String(upgrade[key]??'');
+          node.dataset.upgradeId=upgrade.id;node.dataset.upgradeField=key;
+          node.setAttribute('aria-label',label);
+          if(max){node.min='0';node.max=String(max);}
+          row.append(node);
+        }
+        const funds=create('select','profile-control');
+        for(const [value,label] of [['all','Any eligible Kina'],['market','Market / tradable only']]){
+          const option=create('option',null,label);option.value=value;funds.append(option);
+        }
+        funds.value=upgrade.funds;funds.dataset.upgradeId=upgrade.id;funds.dataset.upgradeField='funds';funds.setAttribute('aria-label','Upgrade funding type');
+        row.append(funds);
+        const remove=create('button','mini-button','Remove');remove.type='button';remove.dataset.removeUpgrade=upgrade.id;
+        row.append(remove);container.append(row);
+      }
+    }
+    function fields(){
+      for(const node of document.querySelectorAll('[data-profile-field]')){
+        const value=memory[node.dataset.profileField];
+        if(node.type==='checkbox')node.checked=Boolean(value);
+        else node.value=String(value??'');
+      }
+      for(const chest of snapshot.offers){
+        const node=el('ask-'+chest.kina);if(node)node.value=String(memory.exchangeAsks[String(chest.kina)]??chest.quna);
+      }
+      el('market-date').value=memory.exchangeObservedDate||snapshot.observed_date;
+      gearRows();runRows();upgradeRows();render();
+    }
+    function appendAction(parent,title,detail,badge){
+      const card=create('div','recommend-row');
+      card.append(create('strong',null,title));
+      if(badge)card.append(create('span','strategy-badge',badge));
+      card.append(create('p','help',detail));
+      parent.append(card);
+    }
+    function render(){
+      let result;
+      try {result=evaluateProfile(memory,catalog,snapshot,asToday());}
+      catch(error){notice('Check the latest field: '+String(error.message).slice(0,200),'warn');return;}
+      el('summary-il').textContent=printable(memory.itemLevel);
+      el('summary-trade').textContent=printable(memory.tradableKina);
+      el('summary-gear').textContent=result.gearCoverage+' / '+catalog.gearSlots.length;
+      el('summary-farm').textContent=result.bestFarm?printable(result.bestFarm.netKinaPerHour)+' / hr':'Not measured';
+      el('summary-farm-info').textContent=result.bestFarm?
+        result.bestFarm.name+' · '+result.bestFarm.measurement+' reward · '+result.bestFarm.minutes+' min / claim':
+        'Add your clear time and reward to compare actual routes';
+      el('vendor-estimate').textContent=result.vendorExtraClaims?
+        result.vendorExtraClaims+' confirmed eligible vendor claims remain (estimated)':
+        'No verified extra vendor claims; check current membership/patch';
+      el('weekly-estimate').textContent=result.weeklyEstimate===null?'Not measured':
+        printable(result.weeklyEstimate)+' modeled Kina/week before weekly reward caps and downtime';
+      el('exchange-result').textContent=result.exchangeAdvice.kind==='snapshot-only'?
+        'Best nominal seller chest: '+printable(result.exchangeAdvice.bestNominalSellerChestKina)+' Kina; up to '+printable(result.exchangeAdvice.qunaNet)+' Quna after assumed tax, before unknown rounding or fill':
+        result.exchangeAdvice.kind==='stale'?
+        'Quotes expired. Re-enter current server asking prices and observation date.':
+        'Not enough tradable Kina for a supported chest analysis.';
+      el('recalc-date').textContent='Calculated '+asToday()+' from locally saved inputs; no live game access';
+      const actions=el('strategy-list');actions.replaceChildren();
+      for(const action of result.actions.slice(0,8))appendAction(actions,action.title,action.detail,action.priority<2?'NEXT':'FOLLOW-UP');
+      const upgrades=el('upgrade-rankings');upgrades.replaceChildren();
+      for(const item of result.upgrades){
+        appendAction(upgrades,item.name||'Unnamed upgrade',
+          item.paybackClaims===null?'No confirmed profitable gate; enter a higher projected IL and actual quote.':
+            printable(item.costKina)+' Kina cost · +'+printable(item.modelGainKinaPerClaim)+' modeled Kina/claim · '+item.paybackClaims+' claims to repay. '+
+            (item.affordable?'Eligible budget available.':'Not enough eligible '+(item.funds==='market'?'tradable':'total')+' Kina.'),
+          item.affordable?'BUDGET OK':'NEEDS CAPITAL');
+      }
+      if(!result.upgrades.length)appendAction(upgrades,'No upgrade candidates yet','Add an actual item/stone/quest option, its total cost and projected character item level, then compare payback.','NEED INPUT');
+      const warn=el('warnings');warn.replaceChildren();
+      for(const warning of result.warnings)warn.append(create('li',null,warning));
+      if(!storageAvailable)warn.append(create('li',null,'Browser saving unavailable: export JSON to keep your profile.'));
+    }
+    const boolFields=new Set(['membership','vendorConfirmed','mainQuestDone','regionalQuestsDone','feathersDone']);
+    const textFields=new Set(['className']);
+    function changeField(event){
+      const node=event.target;let changed=false;
+      if(node.dataset.profileField){
+        const key=node.dataset.profileField;
+        memory[key]=boolFields.has(key)?node.checked:textFields.has(key)?node.value:Number(node.value||0);
+        changed=true;
+      }else if(node.dataset.gearSlot){
+        const slot=node.dataset.gearSlot,key=node.dataset.gearField;
+        const existing=memory.gear[slot]||{name:'',grade:'',itemTier:0,enchant:0,soulBinding:0,stones:0,notes:''};
+        existing[key]=['name','grade','notes'].includes(key)?node.value:Number(node.value||0);
+        if(!existing.name.trim())delete memory.gear[slot];else memory.gear[slot]=existing;
+        changed=true;
+      }else if(node.dataset.runId){
+        const id=node.dataset.runId;
+        const existing=memory.runs[id]||{minutes:0,rewardKina:0,variableCostKina:0,successPct:100};
+        existing[node.dataset.runField]=Number(node.value||0);
+        memory.runs[id]=existing;changed=true;
+      }else if(node.dataset.upgradeId){
+        const item=memory.upgrades.find(x=>x.id===node.dataset.upgradeId);
+        if(item){const key=node.dataset.upgradeField;item[key]=['name','funds','slot'].includes(key)?node.value:Number(node.value||0);changed=true;}
+      }
+      if(changed){persist();render();}
+    }
+    el('profile-editor').addEventListener('input',changeField);
+    el('profile-editor').addEventListener('change',changeField);
+    el('upgrade-add').addEventListener('click',()=>{
+      if(memory.upgrades.length>=20)return notice('Maximum 20 upgrade options.','warn');
+      let n=1;while(memory.upgrades.some(x=>x.id==='upgrade'+n))n++;
+      memory.upgrades.push({id:'upgrade'+n,name:'',slot:'',costKina:0,targetItemLevel:0,funds:'all'});
+      persist();upgradeRows();render();
+    });
+    el('upgrade-tracker').addEventListener('click',event=>{
+      const id=event.target.dataset.removeUpgrade;
+      if(!id)return;
+      memory.upgrades=memory.upgrades.filter(x=>x.id!==id);persist();upgradeRows();render();
+    });
+    for(const chest of snapshot.offers)el('ask-'+chest.kina).addEventListener('change',event=>{
+      const next=Number(event.target.value);
+      const candidate={...memory,exchangeAsks:{...memory.exchangeAsks,[String(chest.kina)]:next},exchangeObservedDate:asToday()};
+      try{memory=normalizeProfile(candidate,catalog);persist();fields();notice('Manually observed quote saved. Not a completed-sale price.');}
+      catch(error){notice(String(error.message),'warn');}
+    });
+    el('market-date').addEventListener('change',event=>{
+      try{memory=normalizeProfile({...memory,exchangeObservedDate:event.target.value},catalog);persist();render();}
+      catch(error){notice(String(error.message),'warn');}
+    });
+    const download=(name,contents,type)=>{
+      const url=URL.createObjectURL(new Blob([contents],{type}));
+      const anchor=create('a');anchor.href=url;anchor.download=name;document.body.append(anchor);anchor.click();anchor.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),3000);
+    };
+    el('profile-export').addEventListener('click',()=>download('heaven-gg-aion2-profile.json',JSON.stringify(normalizeProfile(memory,catalog),null,2)+'\n','application/json'));
+    el('gear-template').addEventListener('click',()=>download('heaven-gg-gear-template.csv','slot,name,grade,itemTier,enchant,soulBinding,stones\nweapon,Spiritforged Orb,Unique,45,10,0,0\n','text/csv'));
+    el('profile-upload').addEventListener('change',async event=>{
+      const file=event.target.files?.[0];event.target.value='';
+      if(!file)return;
+      if(file.size>65536)return notice('Import exceeds the 64 KB limit.','warn');
+      try{
+        const text=await file.text();
+        let next;
+        if(file.name.toLowerCase().endsWith('.csv')){
+          const gear=parseGearCsv(text,catalog);
+          next=normalizeProfile({...memory,gear:{...memory.gear,...gear}},catalog);
+        }else if(file.name.toLowerCase().endsWith('.json')){
+          next=normalizeProfile(JSON.parse(text),catalog);
+        }else throw new Error('Only .json Heaven.gg profiles and .csv gear tables are supported');
+        if(!window.confirm('Apply this '+(file.name.endsWith('.csv')?'gear update':'complete profile')+' to your locally saved profile?'))return;
+        memory=next;persist();fields();notice('Import validated and applied locally.');
+      } catch(error){notice('Import rejected: '+String(error.message).slice(0,160),'warn');}
+    });
+    el('profile-reset').addEventListener('click',()=>{
+      if(!window.confirm('Reset all locally saved character progress? Export a backup first.'))return;
+      memory=emptyProfile();persist();fields();notice('Profile reset locally.');
+    });
+    fields();
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',installProfileEditor,{once:true});
+  else installProfileEditor();
+}
+</script>
+</body></html>
