@@ -61,12 +61,14 @@ export async function verifyServedRelease({baseUrl,expectedSha,fetchImpl=fetch})
   const site=assertOrigin(baseUrl,expectedSha);
   if (typeof fetchImpl!=='function') throw new TypeError('fetchImpl is required');
   const content = new Map();
-  for(const path of PATHS) content.set(path,await download(path,site,fetchImpl));
+  // Fail fast on a stale CDN revision instead of downloading and validating other routes.
+  content.set('version.json',await download('version.json',site,fetchImpl));
   let version, catalog;
   try { version=JSON.parse(content.get('version.json')); }
   catch { throw new Error('SERVED_VERSION_INVALID'); }
   if (version?.repository !== EXPECTED_REPO) throw new Error('SERVED_REPOSITORY_MISMATCH');
   if (version?.revision !== expectedSha) throw new Error('SERVED_REVISION_MISMATCH');
+  for(const path of PATHS.slice(1)) content.set(path,await download(path,site,fetchImpl));
   const portal=content.get('index.html');
   if (!portal.includes('data-game="ch"') || !portal.includes('data-game="aion"')) throw new Error('SERVED_PORTAL_INCOMPLETE');
   const atlas=content.get('aion2/index.html');
