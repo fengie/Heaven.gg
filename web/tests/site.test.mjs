@@ -68,7 +68,7 @@ function goodPages(sha = liveSha) {
   return new Map([
     ['version.json', { repository:'fengie/Heaven.gg',revision:sha,games:['celtic-heroes','aion2'] }],
     ['index.html', '<button data-game="ch"></button><button data-game="aion"></button>'],
-    ['aion2/index.html', '<title>Atreia Atlas</title><a href="./profile.html">My character</a>'],
+    ['aion2/index.html', '<title>ATREIA ATLAS</title><a href="./profile.html">My character</a>'],
     ['aion2/profile.html', '<main data-engine="PROFILE_EDITOR"><input id="profile-upload"></main>'],
     ['ch/catalog.json', {builds:Array(327).fill({id:'demo'}),gear:Array(259).fill({id:1}),bosses:Array(8).fill({id:1})}]
   ]);
