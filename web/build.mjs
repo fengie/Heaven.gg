@@ -34,6 +34,7 @@ async function build(outputDir) {
   await mkdir(join(outputDir,'aion2'),{recursive:true});
   for(const file of ['index.html','site.css','site.js'])await copyFile(join(root,'web',file),join(outputDir,file));
   await copyFile(join(root,'apps/aion2-value-atlas/index.html'),join(outputDir,'aion2/index.html'));
+  await copyFile(join(root,'apps/aion2-value-atlas/profile.html'),join(outputDir,'aion2/profile.html'));
   await writeFile(join(outputDir,'ch/catalog.json'),JSON.stringify(catalog,null,2)+'\n','utf8');
   const sha=process.env.GITHUB_SHA;
   const revision=/^[a-f0-9]{40}$/.test(sha || '') ? sha : 'local-unverified';

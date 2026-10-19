@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="Personal offline AION 2 gear and progression tracker with local JSON/CSV import and transparent Kina/upgrade planning.">
+<title>My Character · Heaven.gg AION 2</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;--bg:#070e17;--panel:#13202f;--surface:#172738;--border:#2b4355;--ink:#e8f4f8;--muted:#abc2cf;--mint:#9deacb;--accent:#85b8fa;--warn:#f3cb8a}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(circle at 75% -10%,#1a3d45 0,transparent 40%),var(--bg);color:var(--ink);line-height:1.45}
+a{color:var(--mint)}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+button,.action{padding:10px 14px;border:1px solid var(--border);border-radius:10px;background:#20384a;color:var(--ink);text-decoration:none}
+button:hover,.action:hover{border-color:var(--mint);background:#254356}
+button:focus-visible,input:focus-visible,select:focus-visible,.action:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
+header{border-bottom:1px solid var(--border);background:#0b1622ee;position:sticky;top:0;z-index:10}
+.head-inner{max-width:1280px;margin:auto;padding:14px 22px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{font-weight:800;letter-spacing:0.1em;color:var(--mint);text-decoration:none}
+.brand small{font-size:12px;color:var(--muted);letter-spacing:normal;display:block;font-weight:500}
+.button-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#profile-upload{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.profile-upload-label{display:inline-flex;cursor:pointer;padding:10px 14px;border:1px solid var(--border);border-radius:10px;background:#20384a}
+.primary{background:var(--mint);color:#0a2530;border-color:var(--mint);font-weight:750}
+.primary:hover{background:#c3ffec;color:#071924}
+main{max-width:1280px;margin:auto;padding:24px 22px 72px}
+.hero{display:flex;justify-content:space-between;gap:22px;align-items:flex-start;margin-bottom:21px}
+.hero h1{font-size:clamp(29px,4vw,48px);line-height:1.1;margin:4px 0 8px}
+.hero p{color:var(--muted);max-width:720px;margin:0}
+.kicker{color:var(--mint);font-size:12px;font-weight:750;letter-spacing:0.12em}
+.local-tag{border:1px solid #40745f;background:#143b36;color:#c5ffdd;border-radius:12px;padding:9px 12px;font-size:12px;font-weight:bold;white-space:nowrap}
+.summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px;margin-bottom:17px}
+.panel,.metric{background:linear-gradient(160deg,#132537,#101c2a);border:1px solid var(--border);border-radius:16px;padding:18px;min-width:0}
+.metric label{font-size:12px;color:var(--muted);display:block}
+.metric strong{font-size:clamp(19px,2vw,29px);font-variant-numeric:tabular-nums}
+.grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px;margin-bottom:15px;align-items:start}
+h2{margin:0 0 7px;font-size:20px}
+h3{margin:0 0 10px;font-size:15px}
+.help{color:var(--muted);font-size:13px;margin:6px 0}
+.wide{margin-bottom:15px}
+.formgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+.control-wrap{display:block;min-width:0}
+.control-wrap span{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+.profile-control{width:100%;background:#091722;border:1px solid #344e60;color:var(--ink);border-radius:9px;padding:9px 10px;min-width:0}
+.profile-control::placeholder{color:#718a99}
+.checks{display:flex;flex-wrap:wrap;gap:13px;margin-top:12px}
+.checks label{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink)}
+input[type=checkbox]{accent-color:var(--mint);width:17px;height:17px}
+.profile-status{padding:9px 12px;border:1px solid var(--border);border-radius:9px;color:var(--muted);margin-bottom:16px}
+.profile-status[data-kind=warn]{color:var(--warn);border-color:#8e613d}
+.recommend-row{padding:12px 0;border-bottom:1px solid var(--border)}
+.recommend-row:last-child{border-bottom:0}
+.recommend-row strong{font-size:14px}
+.recommend-row p{margin:5px 0}
+.strategy-badge{display:inline-block;margin-left:9px;padding:3px 7px;border-radius:8px;background:#253d44;color:#b5e5d1;font-size:10px;letter-spacing:.04em;font-weight:700}
+.profile-note{color:var(--warn);font-size:12px;margin-top:10px}
+details summary{font-weight:700;cursor:pointer;font-size:18px;margin-bottom:10px}
+.details-note{color:var(--muted);font-size:12px;margin-bottom:14px}
+.gear-head,.gear-row{display:grid;grid-template-columns:180px minmax(160px,2fr) minmax(100px,.8fr) repeat(4,70px);gap:8px;align-items:center;min-width:890px;padding:9px 5px}
+.gear-head{font-size:12px;font-weight:700;color:var(--muted);border-bottom:1px solid var(--border)}
+.gear-row{border-bottom:1px solid #254052}
+.gear-slot{font-size:13px;font-weight:700}
+.gear-slot small{display:block;font-size:11px;font-weight:400;color:var(--muted)}
+.run-row,.upgrade-row{display:grid;grid-template-columns:minmax(170px,1.5fr) repeat(4,minmax(92px,1fr));gap:8px;align-items:center;min-width:650px;padding:9px 3px;border-bottom:1px solid var(--border)}
+.upgrade-row{grid-template-columns:minmax(180px,2fr) minmax(110px,1fr) minmax(110px,1fr) minmax(160px,1fr) 85px;min-width:690px}
+.scroll{overflow-x:auto;max-width:100%}
+.mini-button{padding:9px 10px;font-size:12px}
+.footerline{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;color:var(--muted);font-size:12px;padding-top:18px}
+ul.warnings{padding-left:20px;color:var(--warn);font-size:12px}
+ul.warnings li{margin:5px 0}
+.data-links{font-size:12px;color:var(--muted)}
+.data-links a{margin-right:12px;display:inline-block}
+@media(max-width:900px){.formgrid{grid-template-columns:repeat(2,minmax(0,1fr))}.summary{grid-template-columns:repeat(2,minmax(0,1fr))}.grid-2{grid-template-columns:1fr}}
+@media(max-width:520px){main{padding:15px 12px 45px}.head-inner{padding:12px}.hero{display:block}.local-tag{display:inline-block;margin-top:12px}.formgrid{grid-template-columns:1fr}.panel{padding:14px}.button-row{width:100%}.button-row button,.button-row label{flex:1;text-align:center}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <div class="head-inner">
+    <a class="brand" href="./index.html">ATREIA ATLAS <small>HEAVEN.GG · MY CHARACTER</small></a>
+    <div class="button-row">
+      <label class="profile-upload-label" for="profile-upload">Import JSON / gear CSV</label>
+      <input id="profile-upload" type="file" accept=".json,.csv,application/json,text/csv" aria-label="Import profile or gear CSV">
+      <button id="profile-export" class="primary" type="button">Export profile JSON</button>
+      <button id="profile-reset" type="button">Reset local profile</button>
+    </div>
+  </div>
+</header>
+<main id="profile-editor" data-engine="PROFILE_EDITOR">
+  <div class="hero">
+    <div><span class="kicker">PERSONAL PROGRESSION · RECOMPUTED ON EDIT</span>
+    <h1>Your gear. Your income. Your next move.</h1>
+    <p>Track actual equipment, Soul Binding, quests, currency and dungeon runs. Compare verified costs and what unlocks the next profitable tier. Suggestions are conditional until you enter your own observations.</p></div>
+    <span class="local-tag">PRIVATE · LOCAL ONLY</span>
+  </div>
+  <div id="profile-status" class="profile-status" role="status" aria-live="polite">No account or game-client access. Saved in this browser when available. Export JSON to move or back up your data.</div>
+  <div class="summary" aria-live="polite">
+    <div class="metric"><label>Total character item level</label><strong id="summary-il">—</strong></div>
+    <div class="metric"><label>Tradable Kina</label><strong id="summary-trade">—</strong></div>
+    <div class="metric"><label>Recorded equipment slots</label><strong id="summary-gear">—</strong></div>
+    <div class="metric"><label>Best measured net farming rate</label><strong id="summary-farm">—</strong></div>
+  </div>
+
+  <div class="grid-2">
+    <section class="panel" aria-labelledby="identity-title">
+      <h2 id="identity-title">Character & capital</h2>
+      <div class="formgrid">
+        <label class="control-wrap"><span>Class</span><select class="profile-control" data-profile-field="className">
+          <option value="">Choose class</option><option>Spiritmaster</option><option>Sorcerer</option><option>Assassin</option><option>Ranger</option><option>Gladiator</option><option>Templar</option><option>Chanter</option><option>Cleric</option>
+        </select></label>
+        <label class="control-wrap"><span>Character level</span><input class="profile-control" data-profile-field="characterLevel" type="number" min="0" max="100" inputmode="numeric"></label>
+        <label class="control-wrap"><span>Total item level (not piece tier)</span><input class="profile-control" data-profile-field="itemLevel" type="number" min="0" max="10000" inputmode="numeric"></label>
+        <label class="control-wrap"><span>Bound Kina</span><input class="profile-control" data-profile-field="boundKina" type="number" min="0" inputmode="numeric"></label>
+        <label class="control-wrap"><span>Tradable Kina</span><input class="profile-control" data-profile-field="tradableKina" type="number" min="0" inputmode="numeric"></label>
+        <label class="control-wrap"><span>Quna</span><input class="profile-control" data-profile-field="quna" type="number" min="0" inputmode="numeric"></label>
+        <label class="control-wrap"><span>Current Odyle</span><input class="profile-control" data-profile-field="odyle" type="number" min="0" inputmode="numeric"></label>
+        <label class="control-wrap"><span>Vendor refills already bought this week</span><input class="profile-control" data-profile-field="vendorBought" type="number" min="0" max="100" inputmode="numeric"></label>
+      </div>
+      <div class="checks">
+        <label><input type="checkbox" data-profile-field="membership"> Membership active</label>
+        <label><input type="checkbox" data-profile-field="vendorConfirmed"> Vendor price & limit checked in-game</label>
+      </div>
+      <p id="vendor-estimate" class="help">Verify current vendor eligibility.</p>
+    </section>
+    <section class="panel" aria-labelledby="progress-title">
+      <h2 id="progress-title">Progress & low-cost upgrades</h2>
+      <div class="checks">
+        <label><input type="checkbox" data-profile-field="mainQuestDone"> Main quest complete</label>
+        <label><input type="checkbox" data-profile-field="regionalQuestsDone"> Regional quests done</label>
+        <label><input type="checkbox" data-profile-field="feathersDone"> Feather / resonance progression checked</label>
+      </div>
+      <h3 style="margin-top:21px">Best verified farm route</h3>
+      <p id="summary-farm-info" class="help">Add dungeon observations to compare Kina/hour.</p>
+      <h3 style="margin-top:21px">Conditional weekly model</h3>
+      <p id="weekly-estimate" class="help">Enter your run times.</p>
+      <p class="profile-note">Weekly values use estimated natural Odyle and the temporary vendor model. They exclude server-wide payout tapering, RNG, queueing and downtime. They are not guaranteed profits.</p>
+    </section>
+  </div>
+
+  <div class="grid-2">
+    <section class="panel" aria-labelledby="actions-title">
+      <h2 id="actions-title">Next best actions</h2>
+      <p class="help">Sorted from missing essentials and highest-confidence progress to conditional investments.</p>
+      <div id="strategy-list" aria-live="polite"></div>
+    </section>
+    <section class="panel" aria-labelledby="upgrades-title">
+      <h2 id="upgrades-title">Upgrade payback</h2>
+      <p class="help">Actual quoted cost and your projected resulting total item level are required. No item-specific stat gains are invented.</p>
+      <div id="upgrade-rankings" aria-live="polite"></div>
+    </section>
+  </div>
+  <details class="panel wide" open>
+    <summary>Dungeons & run measurements</summary>
+    <p class="details-note">Enter clear minutes and your actual Kina reward per 40 Odyle; zero reward uses the explicitly modeled community reference. Variable costs and failure rate are incorporated when possible. Rank by net Kina/hour, not headline reward.</p>
+    <div class="scroll"><div class="run-row" aria-hidden="true"><span>Activity</span><span>Minutes</span><span>Cube Kina</span><span>Variable cost</span><span>Success %</span></div><div id="run-tracker"></div></div>
+  </details>
+  <details class="panel wide">
+    <summary>Equipped gear tracker (25 slots)</summary>
+    <p class="details-note">Track the item's printed tier (e.g. 54), separate from your character's total level (e.g. 2,100). Slot suggestions come from a small October 16 public Spiritmaster sample—not BIS, current ownership or correct rolls. Verify names and enhancement caps inside your Global client. <button id="gear-template" class="mini-button" type="button">Download gear CSV template</button></p>
+    <div class="scroll">
+      <div class="gear-head"><span>Slot</span><span>Item name / ID</span><span>Grade</span><span>Piece IL</span><span>+Enchant</span><span>Soul bind</span><span>Stones</span></div>
+      <div id="gear-tracker"></div>
+    </div>
+    <p class="help">Need a particular item? Consult <a href="https://lum.gg/aion-2/items" target="_blank" rel="noopener noreferrer">Global gear index</a> or <a href="https://aion2builds.com/builds/spiritmaster/" target="_blank" rel="noopener noreferrer">public Spiritmaster sample</a>. Do not assume sampled players' gear is optimal for you.</p>
+  </details>
+  <section class="panel wide" aria-labelledby="upgrade-input-title">
+    <h2 id="upgrade-input-title">Candidates to buy, craft or unlock</h2>
+    <p class="help">Add actual options: market gear, an enhancement path, Arcana, or a quest. Enter the whole Kina cost, your expected total item level after the change and whether the cost needs tradable Kina.</p>
+    <div class="scroll"><div class="upgrade-row" aria-hidden="true"><span>Upgrade</span><span>Total cost</span><span>Projected total IL</span><span>Funding</span><span></span></div><div id="upgrade-tracker"></div></div>
+    <button id="upgrade-add" type="button">+ Add upgrade option</button>
+  </section>
+  <section class="panel wide" aria-labelledby="market-input-title">
+    <h2 id="market-input-title">Quna exchange assumptions</h2>
+    <p class="help">Lowest asks from your October 19 screenshot, editable for your server. The site cannot read live prices or determine completed-sale liquidity. A 10% morph premium and 10% displayed exchange tax are assumptions until confirmed in-client.</p>
+    <div class="formgrid">
+      <label class="control-wrap"><span>400K Kina chest · ask Quna</span><input id="ask-400000" type="number" class="profile-control" min="0"></label>
+      <label class="control-wrap"><span>2M Kina chest · ask Quna</span><input id="ask-2000000" type="number" class="profile-control" min="0"></label>
+      <label class="control-wrap"><span>10M Kina chest · ask Quna</span><input id="ask-10000000" type="number" class="profile-control" min="0"></label>
+      <label class="control-wrap"><span>When these asks were observed</span><input id="market-date" type="date" class="profile-control"></label>
+    </div>
+    <p id="exchange-result" class="help">No current sale advice without your tradable balance and recent prices.</p>
+  </section>
+  <section class="panel wide" aria-labelledby="evidence-title">
+    <h2 id="evidence-title">Evidence and limits</h2>
+    <p class="help" id="recalc-date">Nothing fetched from your account.</p>
+    <ul id="warnings" class="warnings"></ul>
+    <div class="data-links"><a href="https://lounge.plaync.com/feed/84134?country=US&amp;locale=en-US" target="_blank" rel="noopener noreferrer">NCSOFT Oct 14 patch</a>
+    <a href="https://aion2builds.com/guides/gear/" target="_blank" rel="noopener noreferrer">Global gear mechanics (client-derived)</a>
+    <a href="https://github.com/fengie/Heaven.gg/blob/main/apps/aion2-value-atlas/_AGENT_CONTEXT/RESEARCH_FINDINGS/records/2026/10/2026-10-19-exchange-reinvestment.md" target="_blank" rel="noopener noreferrer">Farming methodology</a></div>
+    <p class="help">Local-only storage is scoped to this browser and website origin. Reopen this page to recalculate on your last saved inputs; it does not sync with AION 2 or automatically observe game updates. Import only JSON you trust. This app never submits character data to Heaven.gg.</p>
+  </section>
+  <footer class="footerline"><span>Heaven.gg · AION 2 independent fan planner · Versioned evidence 2026-10-19</span><a href="./index.html">Return to Atreia Atlas</a></footer>
+</main>
+<script id="progression-data" type="application/json">/* PROFILE_DATA_INSERT */</script>
+<script id="exchange-data" type="application/json">/* EXCHANGE_DATA_INSERT */</script>
+<script type="module">
+/* PROFILE_ENGINE_INSERT */
+</script>
+</body></html>

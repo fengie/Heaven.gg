@@ -1,0 +1,382 @@
+{
+  "schema": "heaven-gg/aion2-progression-catalog/v1",
+  "asOf": "2026-10-19",
+  "game": "AION 2",
+  "region": "Global",
+  "profileDataSource": "user-entered",
+  "notice": "Gear examples describe a dated public character sample, not best-in-slot, a shop inventory, player ownership, or an official upgrade recommendation.",
+  "sources": [
+    {
+      "id": "nc-patch-oct14",
+      "grade": "primary",
+      "date": "2026-10-14",
+      "title": "NCSOFT Global Oct. 13/14 patch - temporary Odyle Energy purchase limits",
+      "url": "https://lounge.plaync.com/feed/84134?country=US&locale=en-US"
+    },
+    {
+      "id": "nc-transfers",
+      "grade": "primary",
+      "date": "2026-10-14",
+      "title": "NCSOFT Global server transfer schedule and limits",
+      "url": "https://lounge.plaync.com/feed/83614?country=US&locale=en-US"
+    },
+    {
+      "id": "nc-ncer-gear",
+      "grade": "provisional",
+      "date": "2026-10-05",
+      "title": "NCER Soul Binding slot/property overview (publisher-hosted but explicitly AI-generated)",
+      "url": "https://lounge.plaync.com/feed/83022?country=US&locale=en-US"
+    },
+    {
+      "id": "client-gear",
+      "grade": "client/community",
+      "date": "2026-10-14",
+      "title": "AION 2 Builds: Global item/character item level and gear enhancement overview",
+      "url": "https://aion2builds.com/guides/gear/"
+    },
+    {
+      "id": "spirit-sample",
+      "grade": "sample",
+      "date": "2026-10-16",
+      "title": "200 public level-45 Spiritmaster profiles, sampled equipment (selection-biased, not BIS)",
+      "url": "https://aion2builds.com/builds/spiritmaster/"
+    },
+    {
+      "id": "client-dungeon",
+      "grade": "client/community",
+      "date": "2026-10-18",
+      "title": "Player/client estimates of Global 40-Odyle payout and farming limits",
+      "url": "https://raidrelay.com/aion-2-kina-guide"
+    },
+    {
+      "id": "gear-index",
+      "grade": "client/community",
+      "date": "2026-10-17",
+      "title": "LUM.GG Global searchable item categories (equipment IDs and source must be checked in client)",
+      "url": "https://lum.gg/aion-2/items"
+    }
+  ],
+  "gearSlots": [
+    {
+      "id": "weapon",
+      "label": "Main weapon",
+      "property": "Combat speed (provisional)",
+      "propertySourceId": "nc-ncer-gear"
+    },
+    {
+      "id": "guard",
+      "label": "Guard / offhand",
+      "property": "Combat speed (provisional)",
+      "propertySourceId": "nc-ncer-gear"
+    },
+    {
+      "id": "helmet",
+      "label": "Helm",
+      "property": "Incoming heal (provisional)",
+      "propertySourceId": "nc-ncer-gear"
+    },
+    {
+      "id": "shoulders",
+      "label": "Pauldrons",
+      "property": "Critical damage boost (provisional)",
+      "propertySourceId": "nc-ncer-gear"
+    },
+    {
+      "id": "torso",
+      "label": "Top / chest",
+      "property": "Damage boost (provisional)",
+      "propertySourceId": "nc-ncer-gear"
+    },
+    {
+      "id": "legs",
+      "label": "Legs",
+      "property": "PvE damage tolerance (provisional)",
+      "propertySourceId": "nc-ncer-gear"
+    },
+    {
+      "id": "gloves",
+      "label": "Gloves",
+      "property": "Combat speed (provisional)",
+      "propertySourceId": "nc-ncer-gear"
+    },
+    {
+      "id": "boots",
+      "label": "Shoes",
+      "property": "Movement speed (provisional)",
+      "propertySourceId": "nc-ncer-gear"
+    },
+    {
+      "id": "cloak",
+      "label": "Cloak",
+      "property": "Critical damage tolerance (provisional)",
+      "propertySourceId": "nc-ncer-gear"
+    },
+    {
+      "id": "necklace",
+      "label": "Necklace",
+      "property": "Passive skill level (provisional)",
+      "propertySourceId": "nc-ncer-gear"
+    },
+    {
+      "id": "earring1",
+      "label": "Earring 1",
+      "property": "Passive skill level (provisional)",
+      "propertySourceId": "nc-ncer-gear"
+    },
+    {
+      "id": "earring2",
+      "label": "Earring 2",
+      "property": "Passive skill level (provisional)",
+      "propertySourceId": "nc-ncer-gear"
+    },
+    {
+      "id": "ring1",
+      "label": "Ring 1",
+      "property": "Active skill level (provisional)",
+      "propertySourceId": "nc-ncer-gear"
+    },
+    {
+      "id": "ring2",
+      "label": "Ring 2",
+      "property": "Active skill level (provisional)",
+      "propertySourceId": "nc-ncer-gear"
+    },
+    {
+      "id": "bracelet1",
+      "label": "Bracelet 1",
+      "property": "Roll-dependent",
+      "propertySourceId": "nc-ncer-gear"
+    },
+    {
+      "id": "bracelet2",
+      "label": "Bracelet 2",
+      "property": "Roll-dependent",
+      "propertySourceId": "nc-ncer-gear"
+    },
+    {
+      "id": "belt",
+      "label": "Belt",
+      "property": "Enhancement cost exception",
+      "propertySourceId": "nc-ncer-gear"
+    },
+    {
+      "id": "amulet",
+      "label": "Amulet",
+      "property": "Enhancement cost exception",
+      "propertySourceId": "nc-ncer-gear"
+    },
+    {
+      "id": "rune1",
+      "label": "Clash Rune 1",
+      "property": "Special system",
+      "propertySourceId": "nc-ncer-gear"
+    },
+    {
+      "id": "rune2",
+      "label": "Clash Rune 2",
+      "property": "Special system",
+      "propertySourceId": "nc-ncer-gear"
+    },
+    {
+      "id": "arcana1",
+      "label": "Arcana 1",
+      "property": "Set / combination dependent",
+      "propertySourceId": "nc-ncer-gear"
+    },
+    {
+      "id": "arcana2",
+      "label": "Arcana 2",
+      "property": "Set / combination dependent",
+      "propertySourceId": "nc-ncer-gear"
+    },
+    {
+      "id": "arcana3",
+      "label": "Arcana 3",
+      "property": "Set / combination dependent",
+      "propertySourceId": "nc-ncer-gear"
+    },
+    {
+      "id": "arcana4",
+      "label": "Arcana 4",
+      "property": "Set / combination dependent",
+      "propertySourceId": "nc-ncer-gear"
+    },
+    {
+      "id": "arcana5",
+      "label": "Arcana 5",
+      "property": "Set / combination dependent",
+      "propertySourceId": "nc-ncer-gear"
+    }
+  ],
+  "gearExamples": [
+    {
+      "slot": "weapon",
+      "name": "Spiritforged Orb",
+      "grade": "Unique",
+      "itemTier": 45,
+      "sourceId": "spirit-sample"
+    },
+    {
+      "slot": "guard",
+      "name": "Spiritforged Guard",
+      "grade": "Unique",
+      "itemTier": 45,
+      "sourceId": "spirit-sample"
+    },
+    {
+      "slot": "helmet",
+      "name": "Liberator Helm",
+      "grade": "Legend",
+      "itemTier": null,
+      "sourceId": "spirit-sample"
+    },
+    {
+      "slot": "shoulders",
+      "name": "Liberator Pauldrons",
+      "grade": "Legend",
+      "itemTier": null,
+      "sourceId": "spirit-sample"
+    },
+    {
+      "slot": "torso",
+      "name": "Bakarma Breastplate",
+      "grade": "Unique",
+      "itemTier": 54,
+      "sourceId": "spirit-sample"
+    },
+    {
+      "slot": "legs",
+      "name": "Anguish Greaves",
+      "grade": "Legend",
+      "itemTier": null,
+      "sourceId": "spirit-sample"
+    },
+    {
+      "slot": "gloves",
+      "name": "Bakarma Gloves",
+      "grade": "Unique",
+      "itemTier": 54,
+      "sourceId": "spirit-sample"
+    },
+    {
+      "slot": "boots",
+      "name": "Bakarma Boots",
+      "grade": "Unique",
+      "itemTier": 54,
+      "sourceId": "spirit-sample"
+    },
+    {
+      "slot": "cloak",
+      "name": "Bakarma Cloak",
+      "grade": "Unique",
+      "itemTier": 54,
+      "sourceId": "spirit-sample"
+    },
+    {
+      "slot": "necklace",
+      "name": "Pilgrim Necklace",
+      "grade": "Legend",
+      "itemTier": null,
+      "sourceId": "spirit-sample"
+    },
+    {
+      "slot": "earring1",
+      "name": "Liberator Earrings",
+      "grade": "Legend",
+      "itemTier": null,
+      "sourceId": "spirit-sample"
+    },
+    {
+      "slot": "ring1",
+      "name": "Aulamus Ring",
+      "grade": "Unique",
+      "itemTier": null,
+      "sourceId": "spirit-sample"
+    },
+    {
+      "slot": "bracelet1",
+      "name": "Ascension Bracelet",
+      "grade": "Unique",
+      "itemTier": null,
+      "sourceId": "spirit-sample"
+    },
+    {
+      "slot": "belt",
+      "name": "Noble Belt",
+      "grade": "Unique",
+      "itemTier": null,
+      "sourceId": "spirit-sample"
+    },
+    {
+      "slot": "amulet",
+      "name": "Revelation Amulet",
+      "grade": "Unique",
+      "itemTier": null,
+      "sourceId": "spirit-sample"
+    },
+    {
+      "slot": "rune1",
+      "name": "Clash Rune",
+      "grade": "Special",
+      "itemTier": null,
+      "sourceId": "spirit-sample"
+    },
+    {
+      "slot": "arcana1",
+      "name": "Chalice of Vigor",
+      "grade": "Unique",
+      "itemTier": null,
+      "sourceId": "spirit-sample"
+    }
+  ],
+  "activities": [
+    {
+      "id": "conquest1",
+      "name": "Conquest 1-star",
+      "requiredItemLevel": 700,
+      "referenceRewardKina": 200000,
+      "odylePerClaim": 40,
+      "confidence": "client/community",
+      "sourceId": "client-dungeon"
+    },
+    {
+      "id": "conquest2",
+      "name": "Conquest 2-star",
+      "requiredItemLevel": 1400,
+      "referenceRewardKina": 300000,
+      "odylePerClaim": 40,
+      "confidence": "client/community",
+      "sourceId": "client-dungeon"
+    },
+    {
+      "id": "conquest3",
+      "name": "Conquest 3-star",
+      "requiredItemLevel": 2100,
+      "referenceRewardKina": 400000,
+      "odylePerClaim": 40,
+      "confidence": "client/community",
+      "sourceId": "client-dungeon"
+    },
+    {
+      "id": "transcendence4",
+      "name": "Transcendence 4",
+      "requiredItemLevel": 2500,
+      "referenceRewardKina": 480000,
+      "odylePerClaim": 40,
+      "confidence": "client/community",
+      "sourceId": "client-dungeon"
+    }
+  ],
+  "naturalClaimsPerWeekEstimate": 21,
+  "vendorEnergy": {
+    "offersPerCharacter": 20,
+    "priceKinaPerClaimEstimate": 100000,
+    "odylePerClaim": 40,
+    "temporaryFrom": "2026-10-14",
+    "temporaryThrough": "2026-10-28",
+    "sourceId": "nc-patch-oct14",
+    "priceSourceId": "client-dungeon",
+    "conditions": "20-per-character during the server-transfer period; price, account eligibility and effective dates require in-game verification."
+  },
+  "exchangeNote": "The October 19 user screenshot is a dated asking-price snapshot, not a transaction feed."
+}
