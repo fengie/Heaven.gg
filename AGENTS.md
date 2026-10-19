@@ -1,0 +1,11 @@
+# Agent instructions — Heaven.gg (game research and product implementation)
+
+Canonical repository: `fengie/Heaven.gg@main`. This repository owns the **AION 2 / Atreia Atlas** and **Celtic Heroes** products, their product-specific research, designs, evidence, data, source, tests, decisions and implementation. It is not a scratchpad for generic agent-platform development.
+
+Before work, verify the live target repository, current branches/PRs and ownership; read the current `fengie/heaven-toolbox@main` `AGENTS.md`, `GLOBAL_GIT_DIRECTIVE.md` and applicable shared training. Higher-priority policies and the user's current explicit instructions prevail. Do not rely on stale snapshots as live market facts.
+
+For AION 2, use `apps/aion2-value-atlas/` for product source and research and `tests/` for repository-wide integration/regression coverage. For Celtic Heroes, use `ch_tables/`, `data/`, `docs/` and root `tests/` according to existing structure. Preserve current provenance and original source references. Material findings should be dated, clearly separate official/client/user observations from community estimates, and never expose private screenshots, account details or credentials in this public repository.
+
+Shared, independently reusable engineering-process lessons, generic enforcement, agent/Bridge/tooling infrastructure and bootstrap logic belong in `fengie/heaven-toolbox`, **not** in Heaven.gg. Promote only source-linked, transferable improvements to the existing Toolbox lesson catalog/control, with a linked product precedent. Do not copy game mechanics, market values, active product status or unverified claims into Toolbox's training files.
+
+Check actual source, tests and guards before implementation. For every meaningful authorized change: research and compare → implement the narrowest solution → add tests → verify relevant gates → push/checkpoint in the owning repo → reconcile against fresh main and applicable admission → record exact result and remaining uncertainty. A source branch or PR is not an integrated or deployed feature. No unsolicited trades, purchases, external disclosures, recurring agents, scheduled collectors or machine execution. User authorization does not waive cross-repository ownership, privacy, security or protected merge requirements.
