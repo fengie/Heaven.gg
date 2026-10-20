@@ -42,7 +42,8 @@ jobs:
           )
           foreach($fixture in $fixtures) {
             $script = Join-Path 'tools/windows-game-utils' $fixture
-            & (Resolve-Path $script).Path
-            if ($LASTEXITCODE -ne 0 -or -not $?) { throw "GAME_NATIVE_FIXTURE_FAILED: $fixture" }
+            $resolved = (Resolve-Path $script).Path
+            & (Join-Path $PSHOME 'powershell.exe') -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $resolved
+            if ($LASTEXITCODE -ne 0) { throw "GAME_NATIVE_FIXTURE_FAILED: $fixture (exit=$LASTEXITCODE)" }
             Write-Output "WINDOWS_GAME_FIXTURE_OK $fixture"
           }
