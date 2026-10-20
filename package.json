@@ -6,7 +6,7 @@
   "description": "GitHub-sourced Celtic Heroes and AION 2 research portal",
   "scripts": {
     "build": "node web/build.mjs",
-    "test:web": "node --test web/tests/site.test.mjs",
+    "test:web": "node --test web/tests/*.test.mjs",
     "check:web": "npm run test:web && npm run build"
   }
 }

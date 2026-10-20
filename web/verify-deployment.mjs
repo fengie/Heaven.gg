@@ -4,7 +4,7 @@ import { appendFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-const PATHS = Object.freeze(['version.json','index.html','aion2/index.html','aion2/profile.html','ch/catalog.json']);
+const PATHS = Object.freeze(['version.json','index.html','aion2/index.html','aion2/profile.html','aion2/performance.html','aion2/performance-engine.mjs','game-tools.html','ch/catalog.json']);
 const SITE_HOST = 'fengie.github.io';
 const SITE_PATH = '/Heaven.gg/';
 const EXPECTED_REPO = 'fengie/Heaven.gg';
@@ -73,6 +73,10 @@ export async function verifyServedRelease({baseUrl,expectedSha,fetchImpl=fetch})
   if (!portal.includes('data-game="ch"') || !portal.includes('data-game="aion"')) throw new Error('SERVED_PORTAL_INCOMPLETE');
   const atlas=content.get('aion2/index.html');
   if (!atlas.includes('ATREIA ATLAS') || !atlas.includes('./profile.html')) throw new Error('SERVED_ATLAS_INCOMPLETE');
+  const performance=content.get('aion2/performance.html');
+  if(!performance.includes('id="performance-result"') || !performance.includes('performance-engine.mjs')) throw new Error('SERVED_PERFORMANCE_LAB_INCOMPLETE');
+  if(!content.get('aion2/performance-engine.mjs').includes('analyzeFrameOutput')) throw new Error('SERVED_PERFORMANCE_ENGINE_INCOMPLETE');
+  if(!content.get('game-tools.html').includes('Frame Generation')) throw new Error('SERVED_GAME_TOOLS_INCOMPLETE');
   const profile=content.get('aion2/profile.html');
   if (!profile.includes('data-engine="PROFILE_EDITOR"') || !profile.includes('id="profile-upload"')) throw new Error('SERVED_PROFILE_INCOMPLETE');
   try {catalog=JSON.parse(content.get('ch/catalog.json'));} catch {throw new Error('SERVED_CATALOG_INVALID');}

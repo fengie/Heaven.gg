@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark"><meta name="description" content="Heaven.gg game utilities, AION 2 performance lab, Celtic Heroes research and Windows game tool source.">
+<title>Game Tools · Heaven.gg</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;--bg:#09131d;--card:#15283b;--muted:#bad1df;--line:#345063;--mint:#9deacc}
+*{box-sizing:border-box}body{background:radial-gradient(circle at 75% 0%,#244c51,transparent 45%),var(--bg);color:#edf7ff;margin:0;line-height:1.55}
+a{color:var(--mint)}a:focus-visible{outline:3px solid var(--mint);outline-offset:3px}
+header{display:flex;gap:25px;justify-content:space-between;flex-wrap:wrap;border-bottom:1px solid var(--line);padding:18px 30px}
+.brand{font-weight:850;letter-spacing:.08em;text-decoration:none}nav{display:flex;gap:18px;flex-wrap:wrap}
+main{max-width:1060px;padding:26px 16px 70px;margin:auto}h1{font-size:clamp(30px,5vw,50px);margin:0 0 7px}h2{font-size:20px;margin:0 0 8px}
+.eyebrow{font-size:12px;color:var(--mint);font-weight:bold;letter-spacing:.1em}.intro{max-width:830px;color:var(--muted);margin:0 0 25px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+article,.notice{background:linear-gradient(145deg,#183045,#102231);border:1px solid var(--line);border-radius:15px;padding:22px}
+p{margin:5px 0 14px;color:#d0dfeb}.meta{color:var(--muted);font-size:13px}.action{display:inline-block;border:1px solid #55776a;border-radius:8px;padding:8px 12px;text-decoration:none;font-weight:650}
+.action:hover{background:#23433d}.notice{margin-top:20px}.notice h2{color:var(--mint)}
+ul{padding-left:22px}li{margin-bottom:9px}small{color:var(--muted)}
+@media(max-width:670px){.grid{grid-template-columns:1fr}header{padding:15px 17px}}
+</style>
+</head><body>
+<header><a class="brand" href="./">HEAVEN.GG · GAME TOOLS</a><nav aria-label="Game research"><a href="./#celtic-heroes">Celtic Heroes</a><a href="./#aion2">AION 2</a><a href="https://github.com/fengie/Heaven.gg" target="_blank" rel="noopener noreferrer">Repository</a></nav></header>
+<main>
+<p class="eyebrow">PARENT → CHILD PRODUCT RESEARCH PILOT</p>
+<h1>Tools for the game you're playing.</h1>
+<p class="intro">Public game-specific research migrated from Heaven Toolbox, with provenance and uncertainty intact. Windows source utilities remain manual and uninstalled; their tests do not prove that a particular game, launcher, or PC is working.</p>
+<div class="grid">
+ <article><p class="eyebrow">AION 2 · GRAPHICS</p><h2>Frame Generation Lab</h2><p>Compare 144 Hz and 240 Hz, fixed 1×–6×, FPS counter provenance and physical presentation limits. No fabricated real-frame rate or input latency.</p><a class="action" href="./aion2/performance.html">Open FG lab →</a></article>
+ <article><p class="eyebrow">AION 2 · PROGRESSION</p><h2>My Character Planner</h2><p>Local gear/upgrade, dungeon claims, exchange assumptions and offline JSON/CSV imports. Game account syncing and live prices are not claimed.</p><a class="action" href="./aion2/profile.html">Open character planner →</a></article>
+ <article><p class="eyebrow">CELTIC HEROES · RESEARCH</p><h2>Build, gear and boss explorer</h2><p>327 public saved-build listings, release-labeled equipment and source-backed historical bosses. Models are not current-game combat measurements.</p><a class="action" href="./#celtic-heroes">Explore CH research →</a></article>
+ <article><p class="eyebrow">WINDOWS · STORAGE</p><h2>Game SSD and shader caches</h2><p>Learn what may belong on an external SSD and why driver or Windows shader caches should not be relocated wholesale. Review carefully before any migration.</p><a class="action" href="https://github.com/fengie/Heaven.gg/blob/main/docs/GAME_STORAGE_GUIDE.md" target="_blank" rel="noopener noreferrer">Read storage guide →</a></article>
+ <article><p class="eyebrow">WINDOWS · GAME SHORTCUTS</p><h2>External SSD launchers and Steam icons</h2><p>Preview-based PowerShell sources for discovering Steam/Genshin/Overwatch shortcuts and repairing broken Steam icon references, plus isolated fixture tests.</p><a class="action" href="https://github.com/fengie/Heaven.gg/tree/main/tools/windows-game-utils" target="_blank" rel="noopener noreferrer">Review Windows utilities →</a></article>
+ <article><p class="eyebrow">MONSTER HUNTER WORLD · SEPARATE PRODUCT</p><h2>Heaven Mod Manager</h2><p>The actual mod manager, updater and game integration remain in their dedicated product repository. No application binaries were copied into this site.</p><a class="action" href="https://github.com/fengie/Heaven-Mod_Manager" target="_blank" rel="noopener noreferrer">Open mod manager project →</a></article>
+</div>
+<section class="notice"><h2>Migration findings and unresolved work</h2><p>Research and code provenance are tracked separately from installation and gameplay acceptance. Missing browser measurement, Windows integration, third-party rights, parent installer repointing and product issues remain explicit.</p><ul><li><a href="https://github.com/fengie/Heaven.gg/blob/main/docs/TOOLBOX_GAME_TRANSFER_2026_10_19.md" target="_blank" rel="noopener noreferrer">Transfer ledger, evidence and problems</a></li><li><a href="https://github.com/fengie/Heaven.gg/blob/main/data/research/toolbox-game-transfer-2026-10-19.json" target="_blank" rel="noopener noreferrer">Source-blob transfer manifest</a></li></ul><small>Static fan project; no game automation, cheats, login, payment or background collectors.</small></section>
+</main></body></html>
