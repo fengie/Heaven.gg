@@ -1,0 +1,48 @@
+name: Game utilities Windows fixtures
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tools/windows-game-utils/**'
+      - 'data/research/toolbox-game-transfer-2026-10-19.json'
+      - '.github/workflows/game-utilities.yml'
+      - 'web/tests/game-import.test.mjs'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/windows-game-utils/**'
+      - 'data/research/toolbox-game-transfer-2026-10-19.json'
+      - '.github/workflows/game-utilities.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: game-windows-fixtures-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  native-fixtures:
+    name: windows-ps51-game-fixtures
+    runs-on: windows-latest
+    timeout-minutes: 18
+    steps:
+      - name: Checkout candidate without saved credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Run disposable native Windows PowerShell 5.1 fixtures
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $fixtures = @(
+            'Test-HeavenGameShortcuts.ps1',
+            'Test-HeavenGameCachePlacement.ps1',
+            'Test-HeavenGameCacheOneClick.ps1',
+            'Test-SteamShortcutIcons.ps1',
+            'Test-DesktopShortcutIcons.ps1'
+          )
+          foreach($fixture in $fixtures) {
+            $script = Join-Path 'tools/windows-game-utils' $fixture
+            & (Resolve-Path $script).Path
+            if ($LASTEXITCODE -ne 0 -or -not $?) { throw "GAME_NATIVE_FIXTURE_FAILED: $fixture" }
+            Write-Output "WINDOWS_GAME_FIXTURE_OK $fixture"
+          }
