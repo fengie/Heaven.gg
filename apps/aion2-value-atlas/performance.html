@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="Offline AION 2 DLSS Frame Generation and monitor refresh comparison. Theoretical estimates only, with official sources.">
+<title>AION 2 · Frame Generation Lab · Heaven.gg</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;--bg:#08121b;--panel:#142535;--border:#314b5d;--text:#e7f1fb;--muted:#b9cddd;--accent:#9aefca;--blue:#9bc4ff}
+*{box-sizing:border-box}body{background:radial-gradient(ellipse at 85% -10%,#214450,transparent 45%),var(--bg);margin:0;color:var(--text);line-height:1.55}
+a{color:var(--accent)}a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+header{border-bottom:1px solid var(--border);padding:14px clamp(14px,4vw,45px);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.brand{text-decoration:none;font-weight:850;letter-spacing:.09em}.brand small{display:block;color:var(--muted);font-size:11px;font-weight:normal;letter-spacing:0}
+nav{display:flex;gap:16px;flex-wrap:wrap;font-size:14px}main{max-width:1020px;padding:24px 17px 64px;margin:auto}h1{font-size:clamp(29px,5vw,47px);margin:0 0 10px}h2{font-size:19px;margin:0 0 14px}
+.eyebrow{color:var(--accent);font-size:12px;font-weight:800;letter-spacing:.15em}.sub{color:var(--muted);max-width:770px;margin:0 0 24px}
+.panel{background:linear-gradient(165deg,#15293b,#101d2a);border:1px solid var(--border);padding:21px;border-radius:16px;margin-bottom:18px}
+.inputs,.outputs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+label{font-weight:650;display:block;font-size:13px}label small{font-weight:400;color:var(--muted);display:block;margin:3px 0 6px}
+input,select{display:block;border:1px solid #436378;background:#071521;color:var(--text);border-radius:9px;font:inherit;padding:11px;width:100%;min-width:0}
+.out{background:#0b1926;border:1px solid #2c4959;padding:16px;border-radius:12px}.out span{display:block;color:var(--muted);font-size:13px}.out strong{font-size:clamp(21px,4vw,31px);font-variant-numeric:tabular-nums}
+ol,ul{padding-left:23px}li{margin-bottom:10px}.foot{color:var(--muted);font-size:13px}
+#performance-result[data-kind=error]{border-color:#b76353;color:#ffcec6}.advice{margin-top:14px;border-top:1px solid var(--border);padding-top:13px}#notes{padding-left:20px}
+.warn{font-size:14px;color:#f2d59c}.choice{font-size:12px;color:var(--muted)}
+@media(max-width:620px){.inputs,.outputs{grid-template-columns:1fr}.panel{padding:15px}main{padding:20px 12px 48px}}
+</style>
+</head>
+<body>
+<header>
+ <a class="brand" href="../">HEAVEN.GG<small>AION 2 · GRAPHICS RESEARCH</small></a>
+ <nav aria-label="Related pages">
+   <a href="./profile.html">My character</a><a href="./index.html">Shop atlas</a><a href="../game-tools.html">All game tools</a>
+ </nav>
+</header>
+<main>
+ <p class="eyebrow">THEORETICAL MODEL · NO HARDWARE PROBING</p>
+ <h1>Frame Generation Lab</h1>
+ <p class="sub">144 FPS with a 240 target and Fixed 6× does <strong>not</strong> automatically mean a degraded picture. The actual distinction is whether the counter shows displayed frames or game-rendered frames. Test the two interpretations before making settings changes.</p>
+ <section class="panel" aria-label="Inputs">
+  <h2>Enter what you actually see</h2>
+  <div class="inputs">
+   <label for="refresh-hz">Monitor refresh rate <small>144 external / 240 built-in are examples</small>
+    <input id="refresh-hz" type="number" min="30" max="500" step="1" value="144"></label>
+   <label for="reported-fps">FPS number in your counter <small>As reported, not multiplied again</small>
+    <input id="reported-fps" type="number" min="1" max="1200" step="1" value="144"></label>
+   <label for="counter-type">What does the FPS counter show? <small>Choose Unknown if not confirmed</small>
+    <select id="counter-type"><option value="unknown">Unknown</option><option value="displayed" selected>Displayed/output FPS</option><option value="rendered">Native game-rendered FPS</option></select></label>
+   <label for="fg-ratio">Frame Generation multiplier <small>Fixed ratio for calculation; actual ratio may differ</small>
+    <select id="fg-ratio"><option value="1">Off (1×)</option><option value="2">Fixed 2×</option><option value="3">Fixed 3×</option><option value="4">Fixed 4×</option><option value="5">Fixed 5×</option><option value="6" selected>Fixed 6×</option></select></label>
+   <label for="fps-target">In-game FPS target <small>Target is not a measurement</small>
+    <input id="fps-target" type="number" min="1" max="1200" step="1" value="240"></label>
+  </div>
+ </section>
+ <section class="panel" id="performance-result" aria-live="polite">
+  <h2>Theoretical result</h2>
+  <div class="outputs">
+   <div class="out"><span>Estimated real rendered FPS</span><strong id="native-result">—</strong></div>
+   <div class="out"><span>Estimated generated FPS</span><strong id="generated-result">—</strong></div>
+   <div class="out"><span>Estimated total output FPS</span><strong id="output-result">—</strong></div>
+   <div class="out"><span>Visible upper bound on selected monitor</span><strong id="visible-result">—</strong></div>
+  </div>
+  <p class="foot" id="refresh-result"></p>
+  <div class="advice"><strong>Interpretation and cautions</strong><ul id="notes"></ul></div>
+ </section>
+ <section class="panel">
+  <h2>Repeatable A/B/A troubleshooting</h2>
+  <ol>
+   <li>Use the same location, character, camera rotation and graphics preset. Note your FPS overlay <em>source</em>, Reflex, V-Sync, G-SYNC/FreeSync and renderer, without changing everything together.</li>
+   <li>Observe Fixed 6×, then temporarily compare <strong>FG Off → 2× → 6×</strong> in the same location. Look for hair trails, ghosting, shimmering UI and responsiveness; compare true frame times if supported.</li>
+   <li>If comparing 240 Hz and 144 Hz screens, keep one common rendering resolution and repeat <strong>built-in → external → built-in</strong>. A 144 Hz display cannot show 240 distinct refreshes per second.</li>
+   <li>If an RTX 50-series Laptop GPU crashes with G-SYNC and FG, refer to the NCSOFT-specific workaround. Do not enable unstable combinations solely for benchmarking.</li>
+  </ol>
+  <p class="choice">No live measurement of game frames, real latency, panel processing or effective G-SYNC is performed here. No driver or game setting is changed or saved.</p>
+ </section>
+ <section class="panel">
+  <h2>Sources and limitations</h2>
+  <ul>
+   <li><a href="https://www.nvidia.com/en-us/geforce/news/aion2-splitgate-arena-reloaded-dlss-4-multi-frame-gen/" target="_blank" rel="noopener noreferrer">NVIDIA · AION 2 DLSS Multi Frame Generation and Reflex</a></li>
+   <li><a href="https://lounge.plaync.com/feed/78597" target="_blank" rel="noopener noreferrer">NCSOFT · RTX 50 Laptop FG/G-SYNC compatibility guidance</a> (affected configurations; not a blanket graphics recommendation)</li>
+   <li><a href="https://help.plaync.com/faq/aion2global?faqNo=7248" target="_blank" rel="noopener noreferrer">NCSOFT Global · G-SYNC crash troubleshooting</a></li>
+   <li><a href="https://www.nvidia.com/en-us/geforce/news/" target="_blank" rel="noopener noreferrer">NVIDIA · DLSS updates</a></li>
+  </ul>
+  <p class="foot">Source adaptation: Heaven Toolbox's October 15–16 dual-monitor research. Private workstation captures and identifiers were not copied. The 144/240 examples are generic display settings, not individual diagnostic readbacks.</p>
+ </section>
+</main>
+<script type="module">
+import {analyzeFrameOutput} from './performance-engine.mjs';
+const ids=['refresh-hz','reported-fps','counter-type','fg-ratio','fps-target'];
+const $=id=>document.getElementById(id);
+function update(){
+ try {
+  const data=analyzeFrameOutput({
+   refreshHz:Number($('refresh-hz').value),
+   reportedFps:Number($('reported-fps').value),
+   fpsCounter:$('counter-type').value,
+   multiplier:Number($('fg-ratio').value),
+   targetFps:Number($('fps-target').value)
+  });
+  $('performance-result').dataset.kind='ready';
+  const show=x=>x==null?'Not known':String(x);
+  $('native-result').textContent=show(data.estimatedNativeFps);
+  $('generated-result').textContent=show(data.estimatedGeneratedFps);
+  $('output-result').textContent=show(data.estimatedTotalFps);
+  $('visible-result').textContent=show(data.visibleFpsCeiling);
+  $('refresh-result').textContent='One monitor refresh = '+data.refreshIntervalMs+' ms. This is a refresh period, not measured input delay.';
+  $('notes').replaceChildren(...data.warnings.map(message=>{
+   const li=document.createElement('li');li.textContent=message;return li;
+  }));
+ }catch {
+  $('performance-result').dataset.kind='error';
+  $('refresh-result').textContent='Please enter valid values (monitor 30–500 Hz, FPS and target 1–1200, FG 1×–6×).';
+  for(const name of ['native-result','generated-result','output-result','visible-result'])$(name).textContent='—';
+  $('notes').replaceChildren();
+ }
+}
+for(const id of ids)$(id).addEventListener('input',update);
+update();
+</script>
+</body></html>

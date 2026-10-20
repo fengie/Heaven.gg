@@ -2,7 +2,7 @@
 
 **Version 0.1.0 · Research snapshot October 9, 2026 (America/New_York).**
 
-**Hosted preview:** https://atreia-atlas-4ko9ii.v2.appdeploy.ai/ (AppDeploy snapshot; separate from an uncreated GitHub remote).
+**Canonical deployment:** https://fengie.github.io/Heaven.gg/aion2/index.html (GitHub Pages; verify exact deployed SHA and route). The former AppDeploy URL was a separate historical prototype, not the current release channel.
 
 A visual, local/offline-first dashboard for comparing AION 2 Global cash-shop items: Quna packs, bonus A2 Mileage, direct-money cosmetics, passes, persistent convenience, regional patch history and source confidence. Intended for players who prioritize collecting skins and long-term enjoyment over combat meta.
 
@@ -18,6 +18,8 @@ Open `index.html` in Chrome, Edge, Firefox or Safari. There is **no account logi
 - All ten listed A2 Mileage Shop products and their per-character/daily limits.
 - Source-linked regional patch timeline, past events vs scheduled dates, community vs official evidence.
 - Export source JSON directly from the dashboard.
+- [Offline character/gear planner](profile.html), with local JSON/CSV import and transparent upgrade assumptions.
+- [Offline Frame Generation Lab](performance.html), with explicit monitor Hz, FPS-counter source, generated-frame ratio and no invented input latency. These pages are copied into Heaven.gg's production Pages artifact.
 
 ## Canonical inputs & rebuild
 
@@ -36,7 +38,7 @@ Initial coverage is **NOT an exhaustive current cash shop** and is not live-upda
 
 ## Heaven Toolbox alignment
 
-Bootstrapped using `fengie/heaven-toolbox` guidance: `AGENTS.md`, `GLOBAL_GIT_DIRECTIVE.md`, `_AGENT_TRAINING/CONTINUITY_PROTOCOL.md`, `DEVELOPMENT_PIPELINE.md`, `VERIFICATION_DOCTRINE.md`, `APP_AUTOUPDATE_STANDARD.md`. Research and rationale live under `_AGENT_CONTEXT/RESEARCH_FINDINGS/records/2026/10/`. Source contract + test + release timestamps exist. **The AppDeploy live preview is ready with no reported frontend/network QA errors. GitHub repo has not been provisioned, and Heaven updater workflow is not installed.** `.heaven/update-policy.json` is a declared target only; see `NEXT-AGENT-START-HERE.md` for outstanding deployment work.
+Bootstrapped using `fengie/heaven-toolbox` guidance: `AGENTS.md`, `GLOBAL_GIT_DIRECTIVE.md`, `_AGENT_TRAINING/CONTINUITY_PROTOCOL.md`, `DEVELOPMENT_PIPELINE.md`, `VERIFICATION_DOCTRINE.md`, `APP_AUTOUPDATE_STANDARD.md`. Research and rationale live under `_AGENT_CONTEXT/RESEARCH_FINDINGS/records/2026/10/`. Source contract + test + release timestamps exist. **Current site release is GitHub Pages in fengie/Heaven.gg; source CI, provider deployment and independently served HTTP routes are separate gates.** `.heaven/update-policy.json` is a declared target only; see `NEXT-AGENT-START-HERE.md` for outstanding deployment work.
 
 ## Recent patches
 

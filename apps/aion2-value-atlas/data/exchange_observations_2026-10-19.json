@@ -1,0 +1,36 @@
+{
+  "schema": "heaven-gg/aion2-exchange-observation/v1",
+  "observed_date": "2026-10-19",
+  "region": "unknown",
+  "server": "unknown",
+  "source": "User-provided in-game exchange screenshot in private conversation; numerical observation only, no image or account data committed",
+  "price_kind": "lowest_listing",
+  "sold_quantity_known": false,
+  "displayed_tax_basis_points": 1000,
+  "morph_fee_basis_points_assumed": 1000,
+  "morph_fee_basis_points_source": "https://aion2.gg/guides/kina-and-market-guide",
+  "seller_tax_settlement_rounding": "unverified",
+  "offers": [
+    {
+      "kina": 400000,
+      "quna": 217,
+      "listings": 54
+    },
+    {
+      "kina": 2000000,
+      "quna": 950,
+      "listings": 88
+    },
+    {
+      "kina": 10000000,
+      "quna": 5699,
+      "listings": 22
+    }
+  ],
+  "caveats": [
+    "Asking prices do not establish executed trades, fill rate or depth at quoted price.",
+    "The 10% tax is displayed in the screenshot; fee application and integer settlement rounding require in-client confirmation.",
+    "Morphing fee is based on a third-party Global client guide, not this screenshot.",
+    "Snapshot is one point in time and is not a live market feed."
+  ]
+}

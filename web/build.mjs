@@ -32,8 +32,11 @@ async function build(outputDir) {
   const catalog = {schemaVersion:1,generatedFrom:'fengie/Heaven.gg@main',researchOnly:true,provenance:{builds:{date:buildCatalog.snapshot_date,source:buildCatalog.source_url,type:buildCatalog.source_type,warning:buildCatalog.warning},gear:{source:'data/catalog/priority_gear_lookup.json',method:gearCatalog.method},bosses:{date:bossCatalog.as_of,source:bossCatalog.source_url,note:bossCatalog.note}},builds,gear,bosses};
   await mkdir(join(outputDir,'ch'),{recursive:true});
   await mkdir(join(outputDir,'aion2'),{recursive:true});
-  for(const file of ['index.html','site.css','site.js'])await copyFile(join(root,'web',file),join(outputDir,file));
+  for(const file of ['index.html','site.css','site.js','game-tools.html'])await copyFile(join(root,'web',file),join(outputDir,file));
   await copyFile(join(root,'apps/aion2-value-atlas/index.html'),join(outputDir,'aion2/index.html'));
+  await copyFile(join(root,'apps/aion2-value-atlas/profile.html'),join(outputDir,'aion2/profile.html'));
+  await copyFile(join(root,'apps/aion2-value-atlas/performance.html'),join(outputDir,'aion2/performance.html'));
+  await copyFile(join(root,'apps/aion2-value-atlas/scripts/performance-engine.mjs'),join(outputDir,'aion2/performance-engine.mjs'));
   await writeFile(join(outputDir,'ch/catalog.json'),JSON.stringify(catalog,null,2)+'\n','utf8');
   const sha=process.env.GITHUB_SHA;
   const revision=/^[a-f0-9]{40}$/.test(sha || '') ? sha : 'local-unverified';

@@ -1,0 +1,137 @@
+{
+  "schema": "heaven-gg/toolbox-game-transfer/v1",
+  "sourceRepository": "fengie/heaven-toolbox",
+  "sourceRevision": "b557a0531021a483081f1932c44c69ff81b5bf8a",
+  "destinationRepository": "fengie/Heaven.gg",
+  "publicTransferScope": "Only reviewed game-specific scripts and their isolated regression fixtures. No privileged host install, account, secrets or raw private hardware inventory.",
+  "entries": [
+    {
+      "category": "external-ssd-shortcuts",
+      "parentPath": "tools/game-shortcuts/New-HeavenGameShortcuts.ps1",
+      "childPath": "tools/windows-game-utils/New-HeavenGameShortcuts.ps1",
+      "sourceGitBlob": "13bd9fdb8cbb2b6be21bad3cc79a31c4a239fec0",
+      "kind": "reviewed-source-copy",
+      "status": "copied-unmodified"
+    },
+    {
+      "category": "external-ssd-shortcuts",
+      "parentPath": "tools/game-shortcuts/Test-HeavenGameShortcuts.ps1",
+      "childPath": "tools/windows-game-utils/Test-HeavenGameShortcuts.ps1",
+      "sourceGitBlob": "941ee21fc88f3bc69401894d3895547107873f03",
+      "kind": "native-fixture",
+      "status": "copied-unmodified"
+    },
+    {
+      "category": "game-owned-cache-migration",
+      "parentPath": "tools/unified-workstation/Cache-Placement.Common.ps1",
+      "childPath": "tools/windows-game-utils/Cache-Placement.Common.ps1",
+      "sourceGitBlob": "1fc95bf2568b27ace11b1a9415af7f0c2f866be7",
+      "kind": "reviewed-source-copy",
+      "status": "copied-unmodified"
+    },
+    {
+      "category": "game-owned-cache-migration",
+      "parentPath": "tools/unified-workstation/Inspect-HeavenGameCaches.ps1",
+      "childPath": "tools/windows-game-utils/Inspect-HeavenGameCaches.ps1",
+      "sourceGitBlob": "37228e3be12e3fda27ea0a3c2098d27f1e543527",
+      "kind": "reviewed-source-copy",
+      "status": "copied-unmodified"
+    },
+    {
+      "category": "game-owned-cache-migration",
+      "parentPath": "tools/unified-workstation/Invoke-HeavenGameCachePlacement.ps1",
+      "childPath": "tools/windows-game-utils/Invoke-HeavenGameCachePlacement.ps1",
+      "sourceGitBlob": "a8154024c2187ff79b12a4082e6dbcafa0e6d152",
+      "kind": "reviewed-source-copy",
+      "status": "copied-unmodified"
+    },
+    {
+      "category": "game-owned-cache-migration",
+      "parentPath": "tools/unified-workstation/Test-HeavenGameCachePlacement.ps1",
+      "childPath": "tools/windows-game-utils/Test-HeavenGameCachePlacement.ps1",
+      "sourceGitBlob": "b76a0bca4c84207f8eda39e0157d84c4b54170f2",
+      "kind": "native-fixture",
+      "status": "copied-unmodified"
+    },
+    {
+      "category": "game-owned-cache-migration",
+      "parentPath": "tools/unified-workstation/Start-HeavenGameCacheTools.ps1",
+      "childPath": "tools/windows-game-utils/Start-HeavenGameCacheTools.ps1",
+      "sourceGitBlob": "cfb255e094e828c5680f97e3724babc5192e68fc",
+      "kind": "reviewed-source-copy",
+      "status": "copied-unmodified"
+    },
+    {
+      "category": "game-owned-cache-migration",
+      "parentPath": "tools/unified-workstation/Test-HeavenGameCacheOneClick.ps1",
+      "childPath": "tools/windows-game-utils/Test-HeavenGameCacheOneClick.ps1",
+      "sourceGitBlob": "3a740798d80e2a432330a2e46c0cd353a6bfd9d5",
+      "kind": "native-fixture",
+      "status": "copied-unmodified"
+    },
+    {
+      "category": "steam-shortcut-icons",
+      "parentPath": "tools/unified-workstation/Repair-DesktopShortcutIcons.ps1",
+      "childPath": "tools/windows-game-utils/Repair-DesktopShortcutIcons.ps1",
+      "sourceGitBlob": "98d69d9425d69b01cc8d57b88b6cdd7ffc8ff5ee",
+      "kind": "reviewed-source-copy",
+      "status": "copied-unmodified"
+    },
+    {
+      "category": "steam-shortcut-icons",
+      "parentPath": "tools/unified-workstation/Repair-SteamShortcutIcons.ps1",
+      "childPath": "tools/windows-game-utils/Repair-SteamShortcutIcons.ps1",
+      "sourceGitBlob": "66ff5b77f3ae864d05b1a0e41f76caeb436a7301",
+      "kind": "reviewed-source-copy",
+      "status": "copied-unmodified"
+    },
+    {
+      "category": "steam-shortcut-icons",
+      "parentPath": "tools/unified-workstation/Test-DesktopShortcutIcons.ps1",
+      "childPath": "tools/windows-game-utils/Test-DesktopShortcutIcons.ps1",
+      "sourceGitBlob": "8f6cc8651b7032a330c5bc0b6a1958327d098a75",
+      "kind": "native-fixture",
+      "status": "copied-unmodified"
+    },
+    {
+      "category": "steam-shortcut-icons",
+      "parentPath": "tools/unified-workstation/Test-SteamShortcutIcons.ps1",
+      "childPath": "tools/windows-game-utils/Test-SteamShortcutIcons.ps1",
+      "sourceGitBlob": "8e7ee0373adbc2b4a7e498d1210ccec64d1e39a1",
+      "kind": "native-fixture",
+      "status": "copied-unmodified"
+    }
+  ],
+  "notCopied": [
+    {
+      "path": "tools/unified-workstation/Install-HeavenGameCacheTools.ps1",
+      "reason": "Installer pins private Toolbox source and versions; needs new independently reviewed public-child distribution and installed-host smoke."
+    },
+    {
+      "path": "tools/unified-workstation/Install-HeavenStorageHub.ps1",
+      "reason": "Generic protected workstation infrastructure, not a game product."
+    },
+    {
+      "path": "tools/unified-workstation/Inspect-HeavenExternalSsd.ps1",
+      "reason": "Hardware/host-specific storage policy remains in Toolbox."
+    },
+    {
+      "path": "tools/unified-workstation/Invoke-AgentStoragePortal.ps1",
+      "reason": "Agent Control / operator privileges must not migrate."
+    },
+    {
+      "path": "_AGENT_TRAINING/CASE_STUDY_DUAL_MONITOR_GAME_LATENCY_2026-10-15.md",
+      "reason": "Private machine snapshots and diagnostic identifiers; transfer only sanitized public research and calculators."
+    },
+    {
+      "path": "history/mhw-global-tooling/",
+      "reason": "Historical generic infrastructure and independent Heaven-Mod_Manager product boundary; not Heaven.gg application code."
+    }
+  ],
+  "acceptance": {
+    "sourceParity": "git blob SHA-1 of each child file matches exact parent blob",
+    "nativeFixture": "Requires actual PowerShell 5.1 isolated Windows CI; copied code alone is not an installed game/shortcut test.",
+    "publicSafety": "No private host/session logs, credentials or account data; no new privileged installer.",
+    "parentToChild": "Keep exact source SHA and original paths, verify remote child readback after PR."
+  }
+}
