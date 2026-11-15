@@ -28,6 +28,16 @@ the actual quote controls and mobile viewport in hosted Chrome. The
 independent served verifier requires the same exact public assets before
 declaring a revision observed.
 
+**Production verification (November 14, 2026 EST):** WEB-002 wardrobe recovery
+merged as [PR #22](https://github.com/fengie/Heaven.gg/pull/22), exact source
+`cf07062c0e75fb2b533e5cbfcb00eea9367a82cb`. The
+[Website run #43673906003](https://github.com/fengie/Heaven.gg/actions/runs/43673906003)
+verified Pages publication, 14 independently fetched routes, and desktop/mobile
+Chrome interactions including a wardrobe selection/quote. The remaining broader
+WEB-002 scientific/source-calibration work is active in
+[the project ledger](../_AGENT_CONTEXT/PROJECT_PLAN.md); static sample prices
+are dated research only.
+
 ## Heaven Mod Manager — linked desktop companion
 
 Heaven.gg includes a build-time-rendered Mod Manager entry on the homepage and
