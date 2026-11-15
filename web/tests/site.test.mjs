@@ -161,3 +161,18 @@ test('release workflow emits a separate main-only HTTP observation after Pages p
   assert.match(yml,/EXPECTED_SHA/);
   assert.match(yml,/SITE_URL/);
 });
+
+test('real Chrome acceptance is mandatory on both PR build and published Pages',async()=>{
+  const yml=await readFile(join(root,'.github/workflows/site.yml'),'utf8');
+  const browser=await readFile(join(root,'web/browser-smoke.mjs'),'utf8');
+  assert.match(yml,/node web\/browser-smoke\.mjs/g);
+  assert.equal((yml.match(/node web\/browser-smoke\.mjs/g)||[]).length,2);
+  assert.match(yml,/playwright-core@1\.65\.0/);
+  assert.match(yml,/BROWSER_SMOKE_SITE_URL:/);
+  assert.match(yml,/EXPECTED_SHA:/);
+  assert.match(browser,/checkDesktop\(/);
+  assert.match(browser,/checkMobile\(/);
+  assert.match(browser,/chromium\.launch/);
+  assert.match(browser,/game-tools\.html/);
+  assert.match(browser,/\#mod-manager/);
+});

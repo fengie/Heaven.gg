@@ -50,6 +50,10 @@ jobs:
         run: npm run test:web
       - name: Generate static website from this exact commit
         run: npm run build
+      - name: Use pinned browser control with the preinstalled hosted Google Chrome
+        run: npm install --no-save --no-package-lock --ignore-scripts playwright-core@1.65.0
+      - name: Exercise actual Chrome desktop and mobile interactions
+        run: node web/browser-smoke.mjs
       - name: Check deployed artifact identity
         shell: bash
         run: |
@@ -106,3 +110,10 @@ jobs:
           EXPECTED_SHA: ${{ github.sha }}
           SITE_URL: ${{ needs.deploy.outputs.site_url }}
         run: node web/verify-deployment.mjs
+      - name: Use pinned browser control with preinstalled hosted Google Chrome
+        run: npm install --no-save --no-package-lock --ignore-scripts playwright-core@1.65.0
+      - name: Exercise actual Chrome against the exact served gaming hub
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          BROWSER_SMOKE_SITE_URL: https://fengie.github.io/Heaven.gg/
+        run: node web/browser-smoke.mjs

@@ -31,3 +31,16 @@ Do not copy the same release URL independently into new HTML pages. Review
 the registry, maintain the current origin allowlist, run `npm run test:web`,
 and use the post-deploy HTTPS observation before claiming that the new hub
 is served. This is a stable public navigation contract, not a remote desktop API.
+
+## Real-browser acceptance
+
+`web/browser-smoke.mjs` controls the preinstalled GitHub-hosted Google Chrome,
+using a pinned transient Playwright Core package. The Pages PR gate runs the
+headless browser against a loopback server containing the exact built `dist/`
+output. Following publication and the existing read-only HTTPS SHA check, the
+same smoke checks the production `https://fengie.github.io/Heaven.gg/` site.
+Tests cover desktop game tabs, catalog filtering, mobile touch navigation,
+the desktop companion download link and the public game registry. Any failure
+leaves the PR/deployment gate red; no external profile, OS control, direct
+native install or paid browser service is needed. A browser smoke is not a
+general accessibility audit or proof that Windows updater E2E succeeded.
