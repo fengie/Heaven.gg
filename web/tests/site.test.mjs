@@ -206,6 +206,6 @@ test('every owned branch push exercises Chrome while Pages deployment remains ma
 
 test('AutoUpdate Contract runs on every owned branch push before integration',async()=>{
   const workflow=await readFile(join(root,'.github/workflows/heaven-autoupdate-policy.yml'),'utf8');
-  assert.match(workflow,/on:\n  push:\n    branches: \['\*\*'\]/);
+  assert.match(workflow,/on:\n  push:\n(?:[ \t]*#[^\n]*\n)*    branches: \['\*\*'\]/);
   assert.match(workflow,/HEAVEN_AUTOUPDATE_POLICY_OK/);
 });
