@@ -2,7 +2,9 @@ name: Heaven.gg Website
 
 on:
   push:
-    branches: [main]
+    # Unprivileged branch builds cover API-created PR candidates when PR events are absent.
+    # Production publish and served jobs remain strictly limited to main below.
+    branches: ['**']
     paths:
       - 'web/**'
       - 'apps/aion2-value-atlas/**'

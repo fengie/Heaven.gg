@@ -92,6 +92,20 @@ async function checkDesktop(browser, baseUrl, expectedSha) {
     assert.deepEqual(registry.games.map(game => game.id),
       ['celtic-heroes','aion2','monster-hunter-world']);
     assert.equal(registry.games[2].companion.integration,'download-link-only');
+    const wardrobeResponse=await page.goto(new URL('aion2/wardrobe.html',baseUrl).href,{waitUntil:'domcontentloaded'});
+    assert.equal(wardrobeResponse?.status(),200,'Wardrobe route was not served');
+    try {
+      await page.locator('#products .product').first().waitFor({state:'visible',timeout:12000});
+    } catch(error) {
+      throw new Error('WARDROBE_PRODUCTS_UNAVAILABLE: '+await page.locator('#source-note').textContent(),{cause:error});
+    }
+    assert.match(await page.locator('#source-note').textContent(),/Research snapshot/);
+    await page.locator('#budget').fill('85.50');
+    const want=page.locator('#products .product button[data-kind="wanted"]').first();
+    await want.click();
+    assert.equal(await want.getAttribute('aria-pressed'),'true');
+    assert.notEqual(await page.locator('#subtotal').textContent(),'—');
+
     if (expectedSha) {
       const versionResponse = await page.request.get(new URL('version.json',baseUrl).href, {timeout:15000});
       assert.equal(versionResponse.status(),200);
@@ -127,6 +141,14 @@ async function checkMobile(browser, baseUrl) {
     }));
     assert(viewport.scroll <= viewport.width + 2,
       'mobile gaming hub overflows horizontally: '+JSON.stringify(viewport));
+    await page.goto(new URL('aion2/wardrobe.html',baseUrl).href,{waitUntil:'domcontentloaded'});
+    await page.locator('#products .product').first().waitFor({state:'visible',timeout:20000});
+    const wardrobeViewport=await page.evaluate(()=>({
+      width:document.documentElement.clientWidth,
+      scroll:document.documentElement.scrollWidth
+    }));
+    assert(wardrobeViewport.scroll <= wardrobeViewport.width+2,
+      'mobile wardrobe overflows horizontally: '+JSON.stringify(wardrobeViewport));
   } finally {
     await context.close();
   }
@@ -149,7 +171,7 @@ async function main() {
       mode:requested ? 'served' : 'built', browser:'Google Chrome',
       observedRevision:requested ? expectedSha : 'local-pr-build',
       checks:['tabs','catalog-filter','research-panels','desktop-companion',
-        'game-tools','game-registry','mobile-touch','mobile-overflow']
+        'game-tools','game-registry','wardrobe-scenario','mobile-touch','mobile-overflow','mobile-wardrobe']
     }));
   } finally {
     if(browser) await browser.close();
