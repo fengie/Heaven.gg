@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { validateGameRegistry } from './game-registry.mjs';
 
-const PATHS = Object.freeze(['version.json','index.html','aion2/index.html','aion2/profile.html','aion2/performance.html','aion2/performance-engine.mjs','aion2/wardrobe.html','aion2/wardrobe.js','wardrobe.mjs','decision.mjs','game-tools.html','games.json','ch/catalog.json']);
+const PATHS = Object.freeze(['version.json','index.html','aion2/index.html','aion2/profile.html','aion2/performance.html','aion2/performance-engine.mjs','aion2/catalog.json','aion2/wardrobe.html','aion2/wardrobe.js','wardrobe.mjs','decision.mjs','game-tools.html','games.json','ch/catalog.json']);
 const SITE_HOST = 'fengie.github.io';
 const SITE_PATH = '/Heaven.gg/';
 const EXPECTED_REPO = 'fengie/Heaven.gg';
@@ -80,6 +80,15 @@ export async function verifyServedRelease({baseUrl,expectedSha,fetchImpl=fetch})
   if (!portal.includes('data-game="ch"') || !portal.includes('data-game="aion"')) throw new Error('SERVED_PORTAL_INCOMPLETE');
   if (!portal.includes('id="mod-manager"') || !portal.includes('id="mod-manager-title"') || !portal.includes('href="'+releasePage+'"')) throw new Error('SERVED_COMPANION_PORTAL_INCOMPLETE');
   if (!portal.includes('href="./aion2/wardrobe.html"')) throw new Error('SERVED_WARDROBE_NAVIGATION_MISSING');
+  let wardrobeCatalog;
+  try { wardrobeCatalog=JSON.parse(content.get('aion2/catalog.json')); }
+  catch { throw new Error('SERVED_WARDROBE_CATALOG_INVALID'); }
+  if (!Array.isArray(wardrobeCatalog?.products) || wardrobeCatalog.products.length < 10 ||
+      !Array.isArray(wardrobeCatalog.packs) || wardrobeCatalog.packs.length === 0 ||
+      !Array.isArray(wardrobeCatalog.sources) || wardrobeCatalog.sources.length === 0 ||
+      !/^\\d{4}-\\d{2}-\\d{2}$/.test(wardrobeCatalog.as_of ?? '')) {
+    throw new Error('SERVED_WARDROBE_CATALOG_INCOMPLETE');
+  }
   const wardrobe=content.get('aion2/wardrobe.html');
   if (!wardrobe.includes('id="budget"') || !wardrobe.includes('id="import-file"') || !wardrobe.includes('./wardrobe.js')) throw new Error('SERVED_WARDROBE_INCOMPLETE');
   if (!content.get('aion2/wardrobe.js').includes('../wardrobe.mjs') ||

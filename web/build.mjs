@@ -49,6 +49,8 @@ async function build(outputDir) {
   await writeFile(join(outputDir,'games.json'),JSON.stringify(games,null,2)+'\n','utf8');
   await copyFile(join(root,'apps/aion2-value-atlas/index.html'),join(outputDir,'aion2/index.html'));
   await copyFile(join(root,'apps/aion2-value-atlas/profile.html'),join(outputDir,'aion2/profile.html'));
+  // Wardrobe's live module fetch must resolve to this versioned source snapshot.
+  await copyFile(join(root,'apps/aion2-value-atlas/data/catalog.json'),join(outputDir,'aion2/catalog.json'));
   // Preserve the sourced WEB-002 planner modules in the current Pages build.
   for (const file of ['wardrobe.mjs','decision.mjs'])
     await copyFile(join(root,'web',file),join(outputDir,file));

@@ -31,6 +31,11 @@ test('build produces both game tabs, copied AION dashboard and source-pinned CH 
     const wardrobe=await readFile(join(tmp,'aion2','wardrobe.html'),'utf8');
     assert.match(wardrobe,/id="budget"/);
     assert.equal(wardrobe,await readFile(join(root,'web/wardrobe.html'),'utf8'));
+    const shop=JSON.parse(await readFile(join(tmp,'aion2/catalog.json'),'utf8'));
+    assert(shop.products.length >= 10);
+    assert.equal(shop.as_of,'2026-10-09');
+    assert.equal(await readFile(join(tmp,'aion2/catalog.json'),'utf8'),
+      await readFile(join(root,'apps/aion2-value-atlas/data/catalog.json'),'utf8'));
     assert.match(page,/game-tools\.html/);
     const performance=await readFile(join(tmp,'aion2','performance.html'),'utf8');
     assert.match(performance,/id="performance-result"/);
@@ -52,7 +57,7 @@ test('copy/rebuild is deterministic for fixed inputs',async()=>{
   const b=await mkdtemp(join(tmpdir(),'heaven-b-'));
   try {
     await build(a);await build(b);
-    for(const path of ['index.html','site.css','site.js','game-tools.html','ch/catalog.json','aion2/index.html','aion2/performance.html','aion2/performance-engine.mjs','aion2/wardrobe.html','aion2/wardrobe.js','wardrobe.mjs','decision.mjs','games.json','version.json'])
+    for(const path of ['index.html','site.css','site.js','game-tools.html','ch/catalog.json','aion2/index.html','aion2/performance.html','aion2/performance-engine.mjs','aion2/catalog.json','aion2/wardrobe.html','aion2/wardrobe.js','wardrobe.mjs','decision.mjs','games.json','version.json'])
       assert.equal(await readFile(join(a,path),'utf8'),await readFile(join(b,path),'utf8'),'Divergence: '+path);
   } finally {await rm(a,{recursive:true,force:true});await rm(b,{recursive:true,force:true});}
 });
@@ -89,6 +94,7 @@ function goodPages(sha = liveSha) {
     ['aion2/profile.html', '<main data-engine="PROFILE_EDITOR"><input id="profile-upload"></main>'],
     ['aion2/performance.html', '<main id="performance-result">Frame Generation<script src="./performance-engine.mjs"></script></main>'],
     ['aion2/performance-engine.mjs', 'export function analyzeFrameOutput(){}'],
+    ['aion2/catalog.json', {as_of:'2026-10-09',products:Array(12).fill({id:'p'}),packs:[{id:'q'}],sources:[{id:'s'}]}],
     ['aion2/wardrobe.html', '<input id="budget"><input id="import-file"><script type="module" src="./wardrobe.js"></script>'],
     ['aion2/wardrobe.js', "import {wardrobeQuote} from '../wardrobe.mjs';"],
     ['wardrobe.mjs', 'export function wardrobeQuote(){}'],
@@ -116,7 +122,7 @@ test('served release verifies exact source SHA and every public product route',a
   assert.equal(receipt.status,'SERVED_OBSERVED');
   assert.equal(receipt.sourceSha,liveSha);
   assert.equal(receipt.repository,'fengie/Heaven.gg');
-  assert.equal(receipt.paths.length,13);
+  assert.equal(receipt.paths.length,14);
   assert.equal(receipt.authoritative,false);
 });
 test('served release rejects stale SHA even when every HTML route responds',async()=>{
@@ -130,6 +136,8 @@ test('served release rejects wrong repository, stale or missing page and externa
   await assert.rejects(()=>verifyServedRelease({baseUrl,expectedSha:liveSha,fetchImpl:responseFor(wrong)}),/SERVED_REPOSITORY_MISMATCH/);
   const absent=goodPages();absent.delete('aion2/profile.html');
   await assert.rejects(()=>verifyServedRelease({baseUrl,expectedSha:liveSha,fetchImpl:responseFor(absent)}),/SERVED_ROUTE_UNAVAILABLE/);
+  const absentCatalog=goodPages();absentCatalog.delete('aion2/catalog.json');
+  await assert.rejects(()=>verifyServedRelease({baseUrl,expectedSha:liveSha,fetchImpl:responseFor(absentCatalog)}),/SERVED_ROUTE_UNAVAILABLE/);
   const absentWardrobe=goodPages();absentWardrobe.delete('aion2/wardrobe.html');
   await assert.rejects(()=>verifyServedRelease({baseUrl,expectedSha:liveSha,fetchImpl:responseFor(absentWardrobe)}),/SERVED_ROUTE_UNAVAILABLE/);
   const tamperedWardrobe=goodPages();tamperedWardrobe.set('wardrobe.mjs','export const unsafe=true;');
