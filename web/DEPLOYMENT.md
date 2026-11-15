@@ -5,7 +5,8 @@ Target repo: fengie/Heaven.gg (main). Web frontend in web/, built using node web
 
 - CH sources: data/reference/codex_published_build_catalog.json, data/catalog/priority_gear_lookup.json, data/reference/raid_boss_resistances_2026_10_08.json.
 - AION app source: apps/aion2-value-atlas/index.html and profile.html, plus the product-owned performance.html and performance-engine.mjs, copied byte-for-byte. Its canonical editable JSON and generator remain in its directory.
-- Build identity: dist/version.json records the exact GITHUB_SHA during CI. Changes to any game dataset require a new GitHub commit, validation and publication.
+- Build identity: dist/version.json records the exact GITHUB_SHA during CI.
+- Game identity registry: `data/gaming/game-registry.json` is validated at build time and published as `dist/games.json`. The MHW Windows companion points only to the verified canonical public GitHub repository/release page; no binary is hosted by Pages. Changes to any game dataset require a new GitHub commit, validation and publication.
 - No runtime process updates itself: GitHub Pages serves a newly published artifact, with GitHub Actions release/job history for rollback. This is a web-native release/update strategy. Separate Toolbox worker auto-consumption still must be verified outside site CI.
 
 ## CI and deployment sequence
@@ -13,7 +14,7 @@ Target repo: fengie/Heaven.gg (main). Web frontend in web/, built using node web
 2. npm run build: generate dist/ from GitHub source only.
 3. .github/workflows/site.yml checks dist/version.json against GITHUB_SHA and uploads the tested directory.
 4. Only on main, GitHub Pages deploys that exact artifact. The standard URL is https://fengie.github.io/Heaven.gg/; changing the domain requires reviewing the exact origin allowlist.
-5. The main-only verify-served job must execute **after** successful deployment and independently GET the public version.json, homepage, AION shop, AION character page, AION performance lab/engine, game tools hub and CH catalog. It checks exact repository/SHA, presence of key controls, and catalog coverage with strict HTTPS origin, finite response limits and bounded CDN-propagation retries. The job emits a scoped served-observation receipt in Actions logs/summary, without treating it as a signature or interactive test.
+5. The main-only verify-served job must execute **after** successful deployment and independently GET the public version.json, homepage, AION shop, AION character page, AION performance lab/engine, game tools hub and CH catalog, plus the public game registry and Mod Manager release navigation. It checks exact repository/SHA, presence of key controls, and catalog coverage with strict HTTPS origin, finite response limits and bounded CDN-propagation retries. The job emits a scoped served-observation receipt in Actions logs/summary, without treating it as a signature or interactive test.
 6. A successful provider deployment with failed/skipped remote observation remains PROVIDER_PUBLISHED, not SERVED_OBSERVED. For a complete release check, independently exercise import/export, save/reload and mobile layout with synthetic data in a real browser. GitHub logs and job summaries are retention-limited; register exact run/commit evidence with existing release owner before expiry. If Pages is not enabled, activate GitHub Actions as source in Settings → Pages and retry through the existing approved workflow. Never claim end-user behavior merely because source merged or the Pages API returned success.
 
 ## Recovery and security

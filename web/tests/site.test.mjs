@@ -5,6 +5,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { build } from '../build.mjs';
+import { loadGameRegistry } from '../game-registry.mjs';
+const referenceGames = await loadGameRegistry();
 const root = process.cwd();
 test('build produces both game tabs, copied AION dashboard and source-pinned CH catalog', async () => {
   const tmp=await mkdtemp(join(tmpdir(),'heaven-gg-test-'));
@@ -46,13 +48,14 @@ test('copy/rebuild is deterministic for fixed inputs',async()=>{
   const b=await mkdtemp(join(tmpdir(),'heaven-b-'));
   try {
     await build(a);await build(b);
-    for(const path of ['index.html','site.css','site.js','game-tools.html','ch/catalog.json','aion2/index.html','aion2/performance.html','aion2/performance-engine.mjs','version.json'])
+    for(const path of ['index.html','site.css','site.js','game-tools.html','ch/catalog.json','aion2/index.html','aion2/performance.html','aion2/performance-engine.mjs','games.json','version.json'])
       assert.equal(await readFile(join(a,path),'utf8'),await readFile(join(b,path),'utf8'),'Divergence: '+path);
   } finally {await rm(a,{recursive:true,force:true});await rm(b,{recursive:true,force:true});}
 });
 test('final shipped JavaScript passes the actual Node parser',()=>{
   execFileSync(process.execPath,['--check','web/site.js'],{cwd:root,stdio:'pipe'});
   execFileSync(process.execPath,['--check','web/build.mjs'],{cwd:root,stdio:'pipe'});
+  execFileSync(process.execPath,['--check','web/game-registry.mjs'],{cwd:root,stdio:'pipe'});
   execFileSync(process.execPath,['--check','apps/aion2-value-atlas/scripts/performance-engine.mjs'],{cwd:root,stdio:'pipe'});
 });
 test('browser catalog includes explicit uncertainty and source-identity metadata',async()=>{
@@ -76,13 +79,14 @@ const liveSha = 'a'.repeat(40);
 const baseUrl = 'https://fengie.github.io/Heaven.gg/';
 function goodPages(sha = liveSha) {
   return new Map([
-    ['version.json', { repository:'fengie/Heaven.gg',revision:sha,games:['celtic-heroes','aion2'] }],
-    ['index.html', '<button data-game="ch"></button><button data-game="aion"></button>'],
+    ['version.json', { repository:'fengie/Heaven.gg',revision:sha,games:referenceGames.games.map(game=>game.id) }],
+    ['index.html', '<button data-game="ch"></button><button data-game="aion"></button><section id="mod-manager"><h2 id="mod-manager-title">Mod Manager</h2><a href="https://github.com/fengie/Heaven-Mod_Manager/releases/latest">Windows release</a></section>'],
     ['aion2/index.html', '<title>ATREIA ATLAS</title><a href="./profile.html">My character</a>'],
     ['aion2/profile.html', '<main data-engine="PROFILE_EDITOR"><input id="profile-upload"></main>'],
     ['aion2/performance.html', '<main id="performance-result">Frame Generation<script src="./performance-engine.mjs"></script></main>'],
     ['aion2/performance-engine.mjs', 'export function analyzeFrameOutput(){}'],
-    ['game-tools.html', '<main>Frame Generation lab</main>'],
+    ['game-tools.html', '<main>Frame Generation lab<article data-game-id="monster-hunter-world"><a href="https://github.com/fengie/Heaven-Mod_Manager/releases/latest">Windows release</a></article></main>'],
+    ['games.json', referenceGames],
     ['ch/catalog.json', {builds:Array(327).fill({id:'demo'}),gear:Array(259).fill({id:1}),bosses:Array(8).fill({id:1})}]
   ]);
 }
@@ -104,7 +108,7 @@ test('served release verifies exact source SHA and every public product route',a
   assert.equal(receipt.status,'SERVED_OBSERVED');
   assert.equal(receipt.sourceSha,liveSha);
   assert.equal(receipt.repository,'fengie/Heaven.gg');
-  assert.equal(receipt.paths.length,8);
+  assert.equal(receipt.paths.length,9);
   assert.equal(receipt.authoritative,false);
 });
 test('served release rejects stale SHA even when every HTML route responds',async()=>{
@@ -135,6 +139,19 @@ test('bounded retries handle Pages propagation and preserve final failure',async
   let no=0;
   await assert.rejects(()=>retryServedRelease({baseUrl,expectedSha:liveSha,fetchImpl:async url=>{no++;return responseFor(goodPages('c'.repeat(40)))(url)},retries:2,sleep:async()=>{}}),/SERVED_REVISION_MISMATCH/);
   assert.equal(no,2);
+});
+test('served release rejects missing or corrupted game registry and missing companion entry points',async()=>{
+  const missing=goodPages();missing.delete('games.json');
+  await assert.rejects(()=>verifyServedRelease({baseUrl,expectedSha:liveSha,fetchImpl:responseFor(missing)}),/SERVED_ROUTE_UNAVAILABLE/);
+  const hijacked=goodPages();const altered=structuredClone(referenceGames);
+  altered.games[2].companion.releasePage='https://example.net/download.exe';hijacked.set('games.json',altered);
+  await assert.rejects(()=>verifyServedRelease({baseUrl,expectedSha:liveSha,fetchImpl:responseFor(hijacked)}),/SERVED_GAME_REGISTRY_INVALID/);
+  const stale=goodPages();stale.set('version.json',{repository:'fengie/Heaven.gg',revision:liveSha,games:['celtic-heroes','aion2']});
+  await assert.rejects(()=>verifyServedRelease({baseUrl,expectedSha:liveSha,fetchImpl:responseFor(stale)}),/SERVED_GAME_IDENTITIES_MISMATCH/);
+  const noPortal=goodPages();noPortal.set('index.html','<button data-game="ch"></button><button data-game="aion"></button>');
+  await assert.rejects(()=>verifyServedRelease({baseUrl,expectedSha:liveSha,fetchImpl:responseFor(noPortal)}),/SERVED_COMPANION_PORTAL_INCOMPLETE/);
+  const noTools=goodPages();noTools.set('game-tools.html','<main>Frame Generation lab</main>');
+  await assert.rejects(()=>verifyServedRelease({baseUrl,expectedSha:liveSha,fetchImpl:responseFor(noTools)}),/SERVED_COMPANION_TOOLS_INCOMPLETE/);
 });
 test('release workflow emits a separate main-only HTTP observation after Pages publication',async()=>{
   const yml=await readFile(join(root,'.github/workflows/site.yml'),'utf8');
