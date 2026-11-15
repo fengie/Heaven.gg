@@ -86,7 +86,7 @@ export async function verifyServedRelease({baseUrl,expectedSha,fetchImpl=fetch})
   if (!Array.isArray(wardrobeCatalog?.products) || wardrobeCatalog.products.length < 10 ||
       !Array.isArray(wardrobeCatalog.packs) || wardrobeCatalog.packs.length === 0 ||
       !Array.isArray(wardrobeCatalog.sources) || wardrobeCatalog.sources.length === 0 ||
-      !/^\\d{4}-\\d{2}-\\d{2}$/.test(wardrobeCatalog.as_of ?? '')) {
+      !/^\d{4}-\d{2}-\d{2}$/.test(wardrobeCatalog.as_of ?? '')) {
     throw new Error('SERVED_WARDROBE_CATALOG_INCOMPLETE');
   }
   const wardrobe=content.get('aion2/wardrobe.html');
