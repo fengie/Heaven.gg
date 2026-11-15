@@ -92,8 +92,18 @@ async function checkDesktop(browser, baseUrl, expectedSha) {
     assert.deepEqual(registry.games.map(game => game.id),
       ['celtic-heroes','aion2','monster-hunter-world']);
     assert.equal(registry.games[2].companion.integration,'download-link-only');
-    await page.goto(new URL('aion2/wardrobe.html', baseUrl).href, {waitUntil:'domcontentloaded'});
-    await page.locator('#products .product').first().waitFor({state:'visible',timeout:20000});
+    const wardrobeErrors=[];
+    page.on('pageerror', error=>wardrobeErrors.push(String(error?.message||error)));
+    page.on('console', message=>{if(message.type()==='error')wardrobeErrors.push(message.text());});
+    const wardrobeResponse=await page.goto(new URL('aion2/wardrobe.html', baseUrl).href, {waitUntil:'domcontentloaded'});
+    await page.waitForTimeout(1200);
+    console.log('HEAVEN_GG_WARDROBE_DIAGNOSTICS '+JSON.stringify({
+      status:wardrobeResponse?.status(),
+      source:await page.locator('#source-note').textContent(),
+      productCount:await page.locator('#products .product').count(),
+      errors:wardrobeErrors.slice(0,6)
+    }));
+    await page.locator('#products .product').first().waitFor({state:'visible',timeout:10000});
     assert.match(await page.locator('#source-note').textContent(),/Research snapshot/);
     await page.locator('#budget').fill('85.50');
     const want=page.locator('#products .product button[data-kind="wanted"]').first();
