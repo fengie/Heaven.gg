@@ -2,7 +2,8 @@ name: Heaven AutoUpdate Contract
 
 on:
   push:
-    branches: [main]
+    # Test the exact candidate branch as well as canonical main.
+    branches: ['**']
   pull_request:
     branches: [main]
   workflow_dispatch:
