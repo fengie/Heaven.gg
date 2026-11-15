@@ -188,3 +188,10 @@ test('real Chrome acceptance is mandatory on both PR build and published Pages',
   assert.match(browser,/game-tools\.html/);
   assert.match(browser,/\#mod-manager/);
 });
+
+test('every owned branch push exercises Chrome while Pages deployment remains main-only',async()=>{
+  const workflow=await readFile(join(root,'.github/workflows/site.yml'),'utf8');
+  assert.match(workflow,/on:\n  push:\n    branches: \['\*\*'\]/);
+  assert.match(workflow,/github\.ref == 'refs\/heads\/main'/);
+  assert.match(workflow,/Exercise actual Chrome desktop and mobile interactions/);
+});
