@@ -10,6 +10,24 @@ Static hosting must support simple relative URLs, and cross-origin iframe embedd
 
 This is a research interface, not a validated live-game optimal build recommender.
 
+## AION 2 wardrobe / WEB-002 recovery
+
+The dated AION wardrobe planner is linked from the AION tab and built as
+`dist/aion2/wardrobe.html`, with the local ES module at
+`dist/aion2/wardrobe.js` and the standalone quote engine at
+`dist/wardrobe.mjs`. It reuses the existing researched
+`apps/aion2-value-atlas/data/catalog.json` snapshot. Plans are stored in
+browser local storage and can be imported/exported locally; there are no
+payments, live shop feeds, remote accounts or user-data uploads. Costs that
+cannot be sourced remain unknown rather than silently free.
+
+The preserved calculator and decision tests were ported from
+`feat/web002-evidence-wardrobe-20261009`. New regression coverage requires
+the released route/module graph, verifies explicit uncertainties, and exercises
+the actual quote controls and mobile viewport in hosted Chrome. The
+independent served verifier requires the same exact public assets before
+declaring a revision observed.
+
 ## Heaven Mod Manager — linked desktop companion
 
 Heaven.gg includes a build-time-rendered Mod Manager entry on the homepage and
