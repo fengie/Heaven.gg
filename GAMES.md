@@ -6,6 +6,7 @@
 | --- | --- | --- |
 | **Celtic Heroes** | Original ch_tables/, data/, docs/, tests/ | Build explorer (327 public samples), equipment and historical boss intelligence |
 | **AION 2** | apps/aion2-value-atlas/ and its own tests/data | Atreia Atlas shop/Mileage, personal progression and offline FPS/Frame Generation lab |
+| **Monster Hunter: World (desktop companion)** | `fengie/Heaven-Mod_Manager` (separately released C# desktop app) | GitHub Pages links to the Windows release and source; never embeds updater or game-file access |
 | **Windows game tools** | tools/windows-game-utils/ and provenance manifest | Manually reviewed launcher, cache and shortcut sources (not automatically installed) |
 
 ## Run and ship
@@ -32,3 +33,23 @@ The private Toolbox remains the owner of generic host controls and protected ins
 ## Research strategy (2026-10-09)
 
 [Prydwen/KQM/Fribbels/poe.ninja/Paimon competitor audit](_AGENT_CONTEXT/RESEARCH_FINDINGS/records/2026/10/2026-10-09-competitor-product-b500f55604b9.md) · [Scientific multiobjective, validation and provenance review](_AGENT_CONTEXT/RESEARCH_FINDINGS/records/2026/10/2026-10-09-science-multicriteria-1f9c1c451eea.md). These are dated design findings, **not** deployed features or proof of better performance. Existing CH optimization ADR and AION source ledger remain authoritative on their specific facts.
+
+## Unified Heaven gaming hub (source integration)
+
+The website and Mod Manager remain separately owned/released. The public
+[game registry](data/gaming/game-registry.json) binds the website's three
+displayed game identities and the Mod Manager's canonical built-in
+`monster-hunter-world` profile ID. The HTML portal and Game Tools page
+derive their desktop-release navigation from this single reviewed file.
+The generated `dist/games.json` is a **read-only catalog**, not desktop
+source of truth, a game detection authority or an installed-component receipt.
+
+The 12 historical Windows utility copies are pinned to the upstream
+Toolbox blob identities in
+[data/research/toolbox-game-transfer-2026-10-19.json](data/research/toolbox-game-transfer-2026-10-19.json).
+They remain independently distributable public source; do not delete them
+or replace links with private Toolbox repository URLs without reviewed
+public transfer and native Windows fixture parity. Later updates should use
+the existing Toolbox public-child-transfer audit, not a new auto-sync worker.
+No background fetches, automatic profile migration, file scanning or private
+data exchange were added.

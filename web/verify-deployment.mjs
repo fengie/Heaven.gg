@@ -3,8 +3,9 @@
 import { appendFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { validateGameRegistry } from './game-registry.mjs';
 
-const PATHS = Object.freeze(['version.json','index.html','aion2/index.html','aion2/profile.html','aion2/performance.html','aion2/performance-engine.mjs','game-tools.html','ch/catalog.json']);
+const PATHS = Object.freeze(['version.json','index.html','aion2/index.html','aion2/profile.html','aion2/performance.html','aion2/performance-engine.mjs','game-tools.html','games.json','ch/catalog.json']);
 const SITE_HOST = 'fengie.github.io';
 const SITE_PATH = '/Heaven.gg/';
 const EXPECTED_REPO = 'fengie/Heaven.gg';
@@ -69,14 +70,23 @@ export async function verifyServedRelease({baseUrl,expectedSha,fetchImpl=fetch})
   if (version?.repository !== EXPECTED_REPO) throw new Error('SERVED_REPOSITORY_MISMATCH');
   if (version?.revision !== expectedSha) throw new Error('SERVED_REVISION_MISMATCH');
   for(const path of PATHS.slice(1)) content.set(path,await download(path,site,fetchImpl));
+  let gameRegistry;
+  try { gameRegistry=validateGameRegistry(JSON.parse(content.get('games.json'))); }
+  catch { throw new Error('SERVED_GAME_REGISTRY_INVALID'); }
+  if (JSON.stringify(version.games) !== JSON.stringify(gameRegistry.games.map(game => game.id)))
+    throw new Error('SERVED_GAME_IDENTITIES_MISMATCH');
+  const releasePage=gameRegistry.games[2].companion.releasePage;
   const portal=content.get('index.html');
   if (!portal.includes('data-game="ch"') || !portal.includes('data-game="aion"')) throw new Error('SERVED_PORTAL_INCOMPLETE');
+  if (!portal.includes('id="mod-manager"') || !portal.includes('id="mod-manager-title"') || !portal.includes('href="'+releasePage+'"')) throw new Error('SERVED_COMPANION_PORTAL_INCOMPLETE');
   const atlas=content.get('aion2/index.html');
   if (!atlas.includes('ATREIA ATLAS') || !atlas.includes('./profile.html')) throw new Error('SERVED_ATLAS_INCOMPLETE');
   const performance=content.get('aion2/performance.html');
   if(!performance.includes('id="performance-result"') || !performance.includes('performance-engine.mjs')) throw new Error('SERVED_PERFORMANCE_LAB_INCOMPLETE');
   if(!content.get('aion2/performance-engine.mjs').includes('analyzeFrameOutput')) throw new Error('SERVED_PERFORMANCE_ENGINE_INCOMPLETE');
   if(!content.get('game-tools.html').includes('Frame Generation')) throw new Error('SERVED_GAME_TOOLS_INCOMPLETE');
+  if(!content.get('game-tools.html').includes('data-game-id="monster-hunter-world"') ||
+     !content.get('game-tools.html').includes('href="'+releasePage+'"')) throw new Error('SERVED_COMPANION_TOOLS_INCOMPLETE');
   const profile=content.get('aion2/profile.html');
   if (!profile.includes('data-engine="PROFILE_EDITOR"') || !profile.includes('id="profile-upload"')) throw new Error('SERVED_PROFILE_INCOMPLETE');
   try {catalog=JSON.parse(content.get('ch/catalog.json'));} catch {throw new Error('SERVED_CATALOG_INVALID');}
