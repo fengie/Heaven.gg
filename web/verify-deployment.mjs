@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { validateGameRegistry } from './game-registry.mjs';
 
-const PATHS = Object.freeze(['version.json','index.html','aion2/index.html','aion2/profile.html','aion2/performance.html','aion2/performance-engine.mjs','game-tools.html','games.json','ch/catalog.json']);
+const PATHS = Object.freeze(['version.json','index.html','aion2/index.html','aion2/profile.html','aion2/performance.html','aion2/performance-engine.mjs','aion2/wardrobe.html','aion2/wardrobe.js','wardrobe.mjs','decision.mjs','game-tools.html','games.json','ch/catalog.json']);
 const SITE_HOST = 'fengie.github.io';
 const SITE_PATH = '/Heaven.gg/';
 const EXPECTED_REPO = 'fengie/Heaven.gg';
@@ -79,6 +79,12 @@ export async function verifyServedRelease({baseUrl,expectedSha,fetchImpl=fetch})
   const portal=content.get('index.html');
   if (!portal.includes('data-game="ch"') || !portal.includes('data-game="aion"')) throw new Error('SERVED_PORTAL_INCOMPLETE');
   if (!portal.includes('id="mod-manager"') || !portal.includes('id="mod-manager-title"') || !portal.includes('href="'+releasePage+'"')) throw new Error('SERVED_COMPANION_PORTAL_INCOMPLETE');
+  if (!portal.includes('href="./aion2/wardrobe.html"')) throw new Error('SERVED_WARDROBE_NAVIGATION_MISSING');
+  const wardrobe=content.get('aion2/wardrobe.html');
+  if (!wardrobe.includes('id="budget"') || !wardrobe.includes('id="import-file"') || !wardrobe.includes('./wardrobe.js')) throw new Error('SERVED_WARDROBE_INCOMPLETE');
+  if (!content.get('aion2/wardrobe.js').includes('../wardrobe.mjs') ||
+      !content.get('wardrobe.mjs').includes('export function wardrobeQuote') ||
+      !content.get('decision.mjs').includes('export function compareBuilds')) throw new Error('SERVED_WARDROBE_ENGINE_INCOMPLETE');
   const atlas=content.get('aion2/index.html');
   if (!atlas.includes('ATREIA ATLAS') || !atlas.includes('./profile.html')) throw new Error('SERVED_ATLAS_INCOMPLETE');
   const performance=content.get('aion2/performance.html');

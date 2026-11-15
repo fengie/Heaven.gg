@@ -49,6 +49,11 @@ async function build(outputDir) {
   await writeFile(join(outputDir,'games.json'),JSON.stringify(games,null,2)+'\n','utf8');
   await copyFile(join(root,'apps/aion2-value-atlas/index.html'),join(outputDir,'aion2/index.html'));
   await copyFile(join(root,'apps/aion2-value-atlas/profile.html'),join(outputDir,'aion2/profile.html'));
+  // Preserve the sourced WEB-002 planner modules in the current Pages build.
+  for (const file of ['wardrobe.mjs','decision.mjs'])
+    await copyFile(join(root,'web',file),join(outputDir,file));
+  for (const file of ['wardrobe.html','wardrobe.js'])
+    await copyFile(join(root,'web',file),join(outputDir,'aion2',file));
   await copyFile(join(root,'apps/aion2-value-atlas/performance.html'),join(outputDir,'aion2/performance.html'));
   await copyFile(join(root,'apps/aion2-value-atlas/scripts/performance-engine.mjs'),join(outputDir,'aion2/performance-engine.mjs'));
   await writeFile(join(outputDir,'ch/catalog.json'),JSON.stringify(catalog,null,2)+'\n','utf8');

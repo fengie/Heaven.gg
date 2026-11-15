@@ -101,9 +101,10 @@ This file is the repository's durable current-work ledger. It follows the cross-
 ### WEB-002 — Competitor-informed decision and collector experience
 
 **Priority:** P1, following GitHub Pages issue #6  
-**Status:** READY (research authored, implementation unclaimed)  
-**Owner:** unclaimed  
+**Status:** IN REVIEW — recovered wardrobe implementation candidate #22; not yet deployed  
+**Owner:** WEB-002 recovery PR #22  
 **Source:** 2026-10-09 competitor and scientific records, root `_AGENT_CONTEXT/RESEARCH_FINDINGS/records/2026/10/`.  
 **Goal:** understandable, feasible, dated, player-specific comparisons without universal tier claims.  
 **Acceptance:** CH compare has assumption/source/encounter evidence with incomplete-state guard; AION compare includes owned cosmetics, dye, expiry and region/binding; negative scenario tests, keyboard and mobile checks pass.  
-**Next action:** implement trust/context badges and scenario-mismatch regression in a separate reviewed PR; validate one sourced cosmetic purchase workflow before adding larger catalog. No scheduled agents or auto-purchase.
+**Recovery scope:** Original WEB-002 wardrobe/decision calculator source and tests are carried from the preserved branch into current Pages build with dedicated route checks and Chrome acceptance in PR #22. Snapshot limits remain explicit.  
+**Next action:** verify PR #22 exact-head source/browser gates, integrate via native protections and independently observe served revision. After that reconcile issue #9 and the ledger. Validate a sourced cosmetic workflow separately. No scheduled agents or auto-purchase.

@@ -27,6 +27,10 @@ test('build produces both game tabs, copied AION dashboard and source-pinned CH 
     assert.match(profilePage,/id="profile-upload"/);
     assert.match(page,/Plan my character/);
     assert.match(page,/Frame Generation lab/);
+    assert.match(page,/href="\.\/aion2\/wardrobe\.html"/);
+    const wardrobe=await readFile(join(tmp,'aion2','wardrobe.html'),'utf8');
+    assert.match(wardrobe,/id="budget"/);
+    assert.equal(wardrobe,await readFile(join(root,'web/wardrobe.html'),'utf8'));
     assert.match(page,/game-tools\.html/);
     const performance=await readFile(join(tmp,'aion2','performance.html'),'utf8');
     assert.match(performance,/id="performance-result"/);
@@ -48,7 +52,7 @@ test('copy/rebuild is deterministic for fixed inputs',async()=>{
   const b=await mkdtemp(join(tmpdir(),'heaven-b-'));
   try {
     await build(a);await build(b);
-    for(const path of ['index.html','site.css','site.js','game-tools.html','ch/catalog.json','aion2/index.html','aion2/performance.html','aion2/performance-engine.mjs','games.json','version.json'])
+    for(const path of ['index.html','site.css','site.js','game-tools.html','ch/catalog.json','aion2/index.html','aion2/performance.html','aion2/performance-engine.mjs','aion2/wardrobe.html','aion2/wardrobe.js','wardrobe.mjs','decision.mjs','games.json','version.json'])
       assert.equal(await readFile(join(a,path),'utf8'),await readFile(join(b,path),'utf8'),'Divergence: '+path);
   } finally {await rm(a,{recursive:true,force:true});await rm(b,{recursive:true,force:true});}
 });
@@ -80,11 +84,15 @@ const baseUrl = 'https://fengie.github.io/Heaven.gg/';
 function goodPages(sha = liveSha) {
   return new Map([
     ['version.json', { repository:'fengie/Heaven.gg',revision:sha,games:referenceGames.games.map(game=>game.id) }],
-    ['index.html', '<button data-game="ch"></button><button data-game="aion"></button><section id="mod-manager"><h2 id="mod-manager-title">Mod Manager</h2><a href="https://github.com/fengie/Heaven-Mod_Manager/releases/latest">Windows release</a></section>'],
+    ['index.html', '<button data-game="ch"></button><button data-game="aion"></button><a href="./aion2/wardrobe.html">Wardrobe</a><section id="mod-manager"><h2 id="mod-manager-title">Mod Manager</h2><a href="https://github.com/fengie/Heaven-Mod_Manager/releases/latest">Windows release</a></section>'],
     ['aion2/index.html', '<title>ATREIA ATLAS</title><a href="./profile.html">My character</a>'],
     ['aion2/profile.html', '<main data-engine="PROFILE_EDITOR"><input id="profile-upload"></main>'],
     ['aion2/performance.html', '<main id="performance-result">Frame Generation<script src="./performance-engine.mjs"></script></main>'],
     ['aion2/performance-engine.mjs', 'export function analyzeFrameOutput(){}'],
+    ['aion2/wardrobe.html', '<input id="budget"><input id="import-file"><script type="module" src="./wardrobe.js"></script>'],
+    ['aion2/wardrobe.js', "import {wardrobeQuote} from '../wardrobe.mjs';"],
+    ['wardrobe.mjs', 'export function wardrobeQuote(){}'],
+    ['decision.mjs', 'export function compareBuilds(){}'],
     ['game-tools.html', '<main>Frame Generation lab<article data-game-id="monster-hunter-world"><a href="https://github.com/fengie/Heaven-Mod_Manager/releases/latest">Windows release</a></article></main>'],
     ['games.json', referenceGames],
     ['ch/catalog.json', {builds:Array(327).fill({id:'demo'}),gear:Array(259).fill({id:1}),bosses:Array(8).fill({id:1})}]
@@ -108,7 +116,7 @@ test('served release verifies exact source SHA and every public product route',a
   assert.equal(receipt.status,'SERVED_OBSERVED');
   assert.equal(receipt.sourceSha,liveSha);
   assert.equal(receipt.repository,'fengie/Heaven.gg');
-  assert.equal(receipt.paths.length,9);
+  assert.equal(receipt.paths.length,13);
   assert.equal(receipt.authoritative,false);
 });
 test('served release rejects stale SHA even when every HTML route responds',async()=>{
@@ -122,6 +130,10 @@ test('served release rejects wrong repository, stale or missing page and externa
   await assert.rejects(()=>verifyServedRelease({baseUrl,expectedSha:liveSha,fetchImpl:responseFor(wrong)}),/SERVED_REPOSITORY_MISMATCH/);
   const absent=goodPages();absent.delete('aion2/profile.html');
   await assert.rejects(()=>verifyServedRelease({baseUrl,expectedSha:liveSha,fetchImpl:responseFor(absent)}),/SERVED_ROUTE_UNAVAILABLE/);
+  const absentWardrobe=goodPages();absentWardrobe.delete('aion2/wardrobe.html');
+  await assert.rejects(()=>verifyServedRelease({baseUrl,expectedSha:liveSha,fetchImpl:responseFor(absentWardrobe)}),/SERVED_ROUTE_UNAVAILABLE/);
+  const tamperedWardrobe=goodPages();tamperedWardrobe.set('wardrobe.mjs','export const unsafe=true;');
+  await assert.rejects(()=>verifyServedRelease({baseUrl,expectedSha:liveSha,fetchImpl:responseFor(tamperedWardrobe)}),/SERVED_WARDROBE_ENGINE_INCOMPLETE/);
   const broken=goodPages();broken.set('aion2/profile.html','<main>missing import controls</main>');
   await assert.rejects(()=>verifyServedRelease({baseUrl,expectedSha:liveSha,fetchImpl:responseFor(broken)}),/SERVED_PROFILE_INCOMPLETE/);
   await assert.rejects(()=>verifyServedRelease({baseUrl,expectedSha:liveSha,fetchImpl:async()=>new Response(null,{status:302,headers:{location:'https://evil.example/'}})}),/SERVED_ROUTE_UNAVAILABLE/);
