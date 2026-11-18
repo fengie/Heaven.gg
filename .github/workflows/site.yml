@@ -7,6 +7,7 @@ on:
     branches: ['**']
     paths:
       - 'web/**'
+      - 'data/gaming/game-registry.json'
       - 'apps/aion2-value-atlas/**'
       - 'data/reference/codex_published_build_catalog.json'
       - 'data/reference/raid_boss_resistances_2026_10_08.json'
@@ -18,6 +19,7 @@ on:
     branches: [main]
     paths:
       - 'web/**'
+      - 'data/gaming/game-registry.json'
       - 'apps/aion2-value-atlas/**'
       - 'data/reference/codex_published_build_catalog.json'
       - 'data/reference/raid_boss_resistances_2026_10_08.json'
