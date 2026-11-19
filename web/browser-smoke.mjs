@@ -73,6 +73,28 @@ async function checkDesktop(browser, baseUrl, expectedSha) {
     await page.locator('#build-cards .empty-state').waitFor({state:'visible'});
     await page.locator('#build-query').fill('');
     await page.locator('#build-cards .build-card').first().waitFor({state:'visible'});
+    const catalogResponse = await page.request.get(new URL('ch/catalog.json', baseUrl).href);
+    assert(catalogResponse.ok(), 'Build catalog request failed');
+    const {builds} = await catalogResponse.json();
+    const more = page.locator('#show-more');
+    const cards = page.locator('#build-cards .build-card');
+    while (await cards.count() < builds.length) {
+      const before = await cards.count();
+      await more.click();
+      assert(await cards.count() > before, 'Show more must reveal additional builds');
+    }
+    const metrics = await cards.evaluateAll(nodes => nodes.map(node => [
+      node.querySelector('[data-pick]').dataset.pick, node.querySelector('.metric').textContent
+    ]));
+    const byId = new Map(metrics);
+    assert.equal(byId.size, builds.length);
+    for (const build of builds) {
+      const expected = build.benchmarkDps === null
+        ? (build.buildType === 'Tank' ? 'Tank build' : 'DPS not provided')
+        : build.benchmarkDps.toLocaleString('en-US') + 'modeled DPS';
+      assert.equal(byId.get(build.id), expected, 'Incorrect metric for ' + build.name);
+    }
+    assert(await more.isHidden(), 'Show more must disappear after the last build');
 
     await page.locator('.ecosystem-link').click();
     assert.equal(new URL(page.url()).hash, '#mod-manager');
