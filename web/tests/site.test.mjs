@@ -207,5 +207,8 @@ test('every owned branch push exercises Chrome while Pages deployment remains ma
 test('AutoUpdate Contract runs on every owned branch push before integration',async()=>{
   const workflow=await readFile(join(root,'.github/workflows/heaven-autoupdate-policy.yml'),'utf8');
   assert.match(workflow,/on:\n  push:\n(?:[ \t]*#[^\n]*\n)*    branches: \['\*\*'\]/);
-  assert.match(workflow,/HEAVEN_AUTOUPDATE_POLICY_OK/);
+  const validatorPath = '.github/scripts/Test-UpdatePolicy.ps1';
+  assert.ok(workflow.includes('run: ./' + validatorPath));
+  const validator = await readFile(join(root, validatorPath), 'utf8');
+  assert.match(validator, /HEAVEN_AUTOUPDATE_POLICY_OK/);
 });
