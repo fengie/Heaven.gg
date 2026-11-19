@@ -46,7 +46,8 @@ function renderClassFilters() {
 }
 
 function buildCard(build) {
-  const metric = Number.isFinite(build.benchmarkDps) ? whole(build.benchmarkDps) + '<small>modeled DPS</small>' : '<span style="font-size:18px">Tank build</span>';
+  const missingMetric = build.buildType === 'Tank' ? 'Tank build' : 'DPS not provided';
+  const metric = Number.isFinite(build.benchmarkDps) ? whole(build.benchmarkDps) + '<small>modeled DPS</small>' : '<span style="font-size:18px">' + missingMetric + '</span>';
   const inList = state.compared.includes(build.id);
   return '<article class="build-card">' +
     '<div class="card-top"><span class="class-tag">' + esc(build.characterClass) + '</span><span class="small-meta">LVL ' + esc(build.level) + ' · ' + esc(build.buildType) + '</span></div>' +
