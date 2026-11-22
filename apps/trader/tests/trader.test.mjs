@@ -138,3 +138,78 @@ test('rejects corrupted persisted offer records before serving requests',async()
    assert.equal(typeof (await makeApp({sellerKey,dataPath,catalogPath,publicOrigin:origin})).listener,'function');
  }finally{await rm(dir,{recursive:true,force:true});}
 });
+
+
+test('rejected repeated decisions preserve committed file bytes and unrelated offers after a fresh reader',async()=>{
+  // Source-backed ordered-state verification: persist a known accepted state,
+  // reject conflicting/replayed actions, then compare exact bytes AND a
+  // separate service's readback. No external accounts or network destinations.
+  await fixture(async({req,dataPath,catalogPath})=>{
+    const numbers={petHalfK:80,mountHalfK:160,rateCents:750,offerCents:11000};
+    const first=await req('/api/offers',{method:'POST',body:{...numbers,buyerAlias:'First Buyer'}});
+    const other=await req('/api/offers',{method:'POST',body:{...numbers,buyerAlias:'Second Buyer'}});
+    assert.equal(first.status,201);
+    assert.equal(other.status,201);
+    const firstId=first.data.offer.id, otherId=other.data.offer.id;
+    const accepted=await req('/api/offers/'+firstId+'/action',{
+      method:'POST',body:{action:'accept'},key:sellerKey
+    });
+    assert.equal(accepted.status,200);
+    assert.equal(accepted.data.offer.status,'accepted');
+
+    const committed=await readFile(dataPath,'utf8');
+    const before=JSON.parse(committed);
+    assert.equal(before.length,2);
+    assert.equal(before.find(x=>x.id===firstId)?.status,'accepted');
+    assert.equal(before.find(x=>x.id===otherId)?.status,'submitted');
+
+    // Rejecting completed decisions, invalid buyer state and wrong credentials
+    // must not consume an earlier commit or mutate a separate live offer.
+    const repeated=await req('/api/offers/'+firstId+'/action',{
+      method:'POST',body:{action:'reject'},key:sellerKey
+    });
+    assert.equal(repeated.status,409);
+    const wrongState=await req('/api/offers/'+otherId+'/respond',{
+      method:'POST',body:{action:'accept-counter'},key:other.data.buyerKey
+    });
+    assert.equal(wrongState.status,409);
+    const wrongOwner=await req('/api/offers/'+otherId+'/action',{
+      method:'POST',body:{action:'accept'},key:first.data.buyerKey
+    });
+    assert.equal(wrongOwner.status,401);
+    assert.equal(await readFile(dataPath,'utf8'),committed);
+
+    // Reopen the same exact persisted source through a new service instance,
+    // rather than trusting a cached in-memory object from the first listener.
+    const reloaded=await makeApp({sellerKey,dataPath,catalogPath,publicOrigin:origin});
+    const independent=createServer(reloaded.listener);
+    await new Promise((resolve,reject)=>{
+      independent.once('error',reject);
+      independent.listen(0,'127.0.0.1',resolve);
+    });
+    try {
+      const reopenedOrigin='http://127.0.0.1:'+independent.address().port;
+      for(const [id,status] of [[firstId,'accepted'],[otherId,'submitted']]){
+        const response=await fetch(reopenedOrigin+'/api/offers/'+id,{
+          headers:{authorization:'Bearer '+sellerKey}
+        });
+        assert.equal(response.status,200);
+        const data=await response.json();
+        assert.equal(data.offer.id,id);
+        assert.equal(data.offer.status,status);
+        const durable=before.find(record=>record.id===id);
+        assert.equal(data.offer.updatedAt,durable.updatedAt);
+      }
+      const list=await fetch(reopenedOrigin+'/api/offers',{
+        headers:{authorization:'Bearer '+sellerKey}
+      });
+      assert.equal(list.status,200);
+      const report=await list.json();
+      assert.deepEqual(new Set(report.offers.map(x=>x.id)),new Set([firstId,otherId]));
+      assert.equal(await readFile(dataPath,'utf8'),committed);
+    }finally{
+      await new Promise((resolve,reject)=>
+        independent.close(error=>error?reject(error):resolve()));
+    }
+  });
+});
