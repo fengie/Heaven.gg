@@ -4,6 +4,12 @@ Canonical repository: `fengie/Heaven.gg@main`. This repository owns the **AION 2
 
 Before work, verify the live target repository, current branches/PRs and ownership; read the current `fengie/heaven-toolbox@main` `AGENTS.md`, `GLOBAL_GIT_DIRECTIVE.md` and applicable shared training. Higher-priority policies and the user's current explicit instructions prevail. Do not rely on stale snapshots as live market facts.
 
+For engineering tasks, set `$Toolbox` to the clean Toolbox checkout and `$ToolboxSourceSha` to the full parent commit verified at task start. Keep that revision in the existing task evidence and restore it on resume. Use a short engineering question without player, account or market data. Set `$Task` to that question and run the shared lookup from this repository. Check any returned finding against this product’s source and tests.
+
+```powershell
+node (Join-Path $Toolbox 'tools/agent-control/research-preflight.mjs') --root $Toolbox --task $Task --scope fengie/Heaven.gg --source-sha $ToolboxSourceSha
+```
+
 For AION 2, use `apps/aion2-value-atlas/` for product source and research and `tests/` for repository-wide integration/regression coverage. For Celtic Heroes, use `ch_tables/`, `data/`, `docs/` and root `tests/` according to existing structure. Preserve current provenance and original source references. Material findings should be dated, clearly separate official/client/user observations from community estimates, and never expose private screenshots, account details or credentials in this public repository.
 
 Shared, independently reusable engineering-process lessons, generic enforcement, agent/Bridge/tooling infrastructure and bootstrap logic belong in `fengie/heaven-toolbox`, **not** in Heaven.gg. Promote only source-linked, transferable improvements to the existing Toolbox lesson catalog/control, with a linked product precedent. Do not copy game mechanics, market values, active product status or unverified claims into Toolbox's training files.
