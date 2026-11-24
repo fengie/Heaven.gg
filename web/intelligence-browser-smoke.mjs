@@ -28,12 +28,16 @@ export async function checkIntelligence(browser,baseUrl){
   await page.getByRole('button',{name:'Fixture · Siel · nae · level 45'}).click();
   await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('Published character data checked'),{},{timeout:25000});
   assert.equal(await page.locator('#il').innerText(),'2,800');assert.equal(await page.locator('#wallet').innerText(),'Unknown');
+  assert.match(await page.locator('#facts').textContent(),/Critical Damage Boost: 0%/);
   await page.locator('#objective').selectOption('critBonus');const plan=await page.locator('#best-plan').innerText();
   assert.match(plan,/12\.84 pp/);assert.match(plan,/Shoulder: Accuracy 31/);assert.match(plan,/Shoes: Critical Hit 26/);assert.match(plan,/Net raw Accuracy \+16/);
   const count=requests.length,rows=await page.locator('#ledger tr').count();await page.locator('#sort').selectOption('power');
   assert.equal(await page.locator('#ledger tr').count(),rows);assert.equal(requests.length,count);
   await page.locator('#use-wallet').click();assert.equal(await page.locator('#wallet').innerText(),'5,200 Kina');
   assert.equal(await page.getByRole('row').filter({hasText:'Ludra weapon selection'}).filter({hasText:'unaffordable'}).count(),3);
+  await page.locator('#refresh').click();assert.equal(await page.locator('#wallet').innerText(),'Unknown');
+  await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('Published character data checked'),{},{timeout:25000});
+  await page.locator('#use-wallet').click();assert.equal(await page.locator('#wallet').innerText(),'5,200 Kina');
   await page.locator('#clear-wallet').click();assert.equal(await page.locator('#wallet').innerText(),'Unknown');
   assert.equal(await page.getByRole('row').filter({hasText:'Ludra weapon selection'}).filter({hasText:'unaffordable'}).count(),0);
   await page.reload({waitUntil:'domcontentloaded'});
@@ -41,6 +45,32 @@ export async function checkIntelligence(browser,baseUrl){
   assert.equal(await page.locator('#name').innerText(),'Fixture','saved identity must load without a second search');
   assert.equal(requests.filter(x=>x.endsWith('/search/v2/character')).length,1);
   await page.setViewportSize({width:390,height:844});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),'intelligence page mobile overflow');
-  await page.locator('#forget').click();assert.equal(await page.locator('#name').innerText(),'—');assert.deepEqual(errors,[]);
+  await page.locator('#forget').click();assert.equal(await page.locator('#name').innerText(),'—');
+  // Exercise the optional same-origin transport in a synthetic built-site browser fixture.
+  // The broker is not available on static Pages; do not pretend this fixture is a live test.
+  if(new URL(baseUrl).hostname==='127.0.0.1'){
+   const beforeDirect=requests.length,localRequests=[];
+   const pageUrl=new URL('aion2/intelligence.html',baseUrl).href;
+   await page.route(pageUrl,async route=>{
+    const response=await route.fetch();
+    await route.fulfill({response,body:(await response.text()).replace('</head>','<meta name="heaven-gg-armory-transport" content="same-origin"></head>')});
+   });
+   await context.route('**/aion2/armory-api/**',async route=>{
+    const u=new URL(route.request().url()),name=u.pathname.split('/aion2/armory-api/')[1];localRequests.push(name);
+    const key=name==='search'?'/aion2global/search/v2/character':name==='equipment/item'?'item'+u.searchParams.get('id'):'/api/character/'+name;
+    const found=Object.hasOwn(fixtures,key);
+    await route.fulfill({status:found?200:404,contentType:'application/json',body:JSON.stringify(found?fixtures[key]:{})});
+   });
+   await page.goto(pageUrl,{waitUntil:'domcontentloaded'});
+   await page.locator('#objective option').first().waitFor({state:'attached'});
+   await page.locator('#character-name').fill('Fixture');
+   await page.getByRole('button',{name:'Find character'}).click();
+   await page.getByRole('button',{name:'Fixture · Siel · nae · level 45'}).click();
+   await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('Published character data checked'),{},{timeout:25000});
+   assert.match(await page.locator('#transport-detail').textContent(),/explicitly enabled local same-origin/);
+   assert.equal(await page.locator('#il').innerText(),'2,800');assert.equal(localRequests.length,6);assert.equal(requests.length,beforeDirect);
+   await page.locator('#forget').click();
+  }
+  assert.deepEqual(errors,[]);
  }finally{await context.close();}
 }

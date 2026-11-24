@@ -18,6 +18,51 @@ function url(path,params){const u=new URL(path);for(const [k,v] of Object.entrie
 function endpoint(name,key,extra={}){return url(`${game}/api/character/${name}`,{...characterKey(key),lang:'en-US',...extra});}
 function array(value,limit){if(!Array.isArray(value)||value.length>limit)throw Error('provider schema or size mismatch');return value;}
 const optional=(v,limit)=>v==null?null:array(v,limit);
+const optionalRows=(v,limit)=>Array.isArray(v)&&v.length<=limit&&v.every(record)?v:null;
+function sameNumber(published,expected){
+ return published==null||expected==null||
+  (typeof published==='number'||typeof published==='string'&&/^\d+$/.test(published))&&Number.isSafeInteger(Number(published))&&Number(published)===expected;
+}
+export function normalizeItemDetail(item,data){
+ if(!record(data)||data.id==null||!sameNumber(data.id,item.id)||!sameNumber(data.slotPos,item.slotPos)||!sameNumber(data.enchantLevel,item.enchantLevel)||!sameNumber(data.exceedLevel,item.exceedLevel)||!(typeof data.name==='string'&&data.name.trim()||Array.isArray(data.subStats)))throw Error('item detail identity/schema mismatch');
+ for(const field of ['mainStats','subStats','subSkills','magicStoneStat','godStoneStat']){
+  if(data[field]!=null&&!optionalRows(data[field],128))throw Error('invalid item detail collection: '+field);
+ }
+ return data;
+}
+export function normalizeBoardDetail(board,data){
+ if(!record(data)||!sameNumber(data.boardId,board.id)||!optionalRows(data.nodeList,400))throw Error('invalid board detail');
+ const identities=new Set(),coords=new Set();
+ const nodeList=data.nodeList.map(n=>{
+  const validCoord=Number.isSafeInteger(n.row)&&n.row>=0&&n.row<=100&&Number.isSafeInteger(n.col)&&n.col>=0&&n.col<=100;
+  const coord=validCoord?n.row+':'+n.col:null;
+  const nodeId=id(n.nodeId);
+  if(typeof n.type!=='string'||!n.type||!nodeId&&!validCoord)throw Error('invalid board node identity');
+  const identity=nodeId?'id:'+nodeId:'coord:'+coord;
+  if(identities.has(identity)||coord!==null&&coords.has(coord))throw Error('duplicate board node');
+  identities.add(identity);if(coord!==null)coords.add(coord);
+  if(n.effectList!=null&&!optionalRows(n.effectList,128))throw Error('invalid board node effects');
+  return {...n,nodeId:nodeId??undefined};
+ });
+ for(const field of ['openStatEffectList','openSkillEffectList'])if(data[field]!=null&&!optionalRows(data[field],500))throw Error('invalid board effect collection');
+ return {...data,nodeList};
+}
+export function armoryRequestTarget(request,{mode='direct',moduleUrl=import.meta.url}={}){
+ if(mode==='direct')return request;
+ if(mode!=='same-origin')throw Error('invalid armory transport');
+ const u=new URL(request);
+ const routes=new Map([
+  ['https://api-search.plaync.com/aion2global/search/v2/character','search'],
+  ['https://aion2.plaync.com/api/character/info','info'],
+  ['https://aion2.plaync.com/api/character/equipment','equipment'],
+  ['https://aion2.plaync.com/api/character/equipment/item','equipment/item'],
+  ['https://aion2.plaync.com/api/character/daevanion/detail','daevanion/detail']
+ ]);
+ const route=routes.get(u.origin+u.pathname);if(!route||u.username||u.password||u.hash)throw Error('unapproved armory route');
+ const target=new URL('../armory-api/'+route+u.search,moduleUrl);
+ if(target.origin!==new URL(moduleUrl).origin)throw Error('invalid local armory route');
+ return target.href;
+}
 export function normalizeSearch(data,region){
  if(!regions.has(region))throw Error('invalid region');
  const rows=[],seen=new Set();for(const c of array(data?.list,200)){
@@ -29,9 +74,10 @@ export function normalizeSearch(data,region){
 }
 export function normalizeArmory(input,info,equip,now=Date.now()){
  const key=characterKey(input),p=info?.profile;
- if(!record(p)||!p.characterName||decoded(p.characterId)!==key.characterId||p.serverId!=null&&String(p.serverId)!==key.serverId)throw Error('character identity missing or mismatch');
+ if(!record(p)||typeof p.characterName!=='string'||!p.characterName.trim()||decoded(p.characterId)!==key.characterId||p.serverId!=null&&String(p.serverId)!==key.serverId)throw Error('character identity missing or mismatch');
  if(!record(equip?.equipment)||!record(info?.stat))throw Error('armory response schema mismatch');
- const stats=optional(info.stat.statList,500),skills=optional(equip.skill?.skillList,500),rawGear=optional(equip.equipment.equipmentList,100),rawBoards=optional(info.daevanion?.boardList,30);
+ const stats=optionalRows(info.stat.statList,500),skillRows=optionalRows(equip.skill?.skillList,500),rawGear=optional(equip.equipment.equipmentList,100),rawBoards=optional(info.daevanion?.boardList,30);
+ const skills=skillRows&&skillRows.every(s=>id(s.id))&&new Set(skillRows.map(s=>s.id)).size===skillRows.length?skillRows:null;
  const slots=new Set(),boardIds=new Set();
  const equipment=(rawGear??[]).map(g=>{
   if(!record(g)||!id(g.id)||!Number.isSafeInteger(g.slotPos)||g.slotPos<0||slots.has(g.slotPos))throw Error('invalid/duplicate equipment slot');slots.add(g.slotPos);
@@ -43,7 +89,8 @@ export function normalizeArmory(input,info,equip,now=Date.now()){
 function wait(ms,signal){if(signal?.aborted)return Promise.reject(signal.reason??Error('aborted'));return new Promise((resolve,reject)=>{const abort=()=>{clearTimeout(timer);reject(signal.reason??Error('aborted'));};const timer=setTimeout(()=>{signal?.removeEventListener('abort',abort);resolve();},ms);signal?.addEventListener('abort',abort,{once:true});});}
 export async function browserTransport(request,{signal}={}){
  const controller=AbortSignal.any([AbortSignal.timeout(15000),...(signal?[signal]:[])]);
- const response=await fetch(request,{method:'GET',credentials:'omit',redirect:'error',signal:controller,headers:{Accept:'application/json'},cache:'default',referrerPolicy:'no-referrer'});
+ const mode=globalThis.document?.querySelector('meta[name="heaven-gg-armory-transport"][content="same-origin"]')?'same-origin':'direct';
+ const response=await fetch(armoryRequestTarget(request,{mode}),{method:'GET',credentials:'omit',redirect:'error',signal:controller,headers:{Accept:'application/json'},cache:'no-store',referrerPolicy:'no-referrer'});
  if(!response.ok)return {status:response.status,retryAfter:response.headers.get('Retry-After')};
  const reader=response.body?.getReader();if(!reader)throw Error('empty response');let total=0;const chunks=[];
  try{for(;;){const {done,value}=await reader.read();if(done)break;total+=value.length;if(total>2_000_000)throw Error('provider response too large');chunks.push(value);}}finally{await reader.cancel().catch(()=>{});reader.releaseLock();}
@@ -85,11 +132,11 @@ export class ArmoryClient{
   }else{s=structuredClone(previous);if(!s)return null;}
   const expired=t=>!Number.isFinite(t)||t>this.clock()||this.clock()-t>=this.ttl;
   const work=[];
-  for(const g of s.equipment)if(!g.detail||expired(g.detailCheckedAt)||trigger==='refresh'||trigger==='reroll'&&g.slotPos===slotPos)work.push({g,label:g.slotPosName||g.name,path:'equipment/item',params:{id:g.id,slotPos:g.slotPos,enchantLevel:g.enchantLevel??0,...(g.exceedLevel===null?{}:{exceedLevel:g.exceedLevel})},validate:r=>Number(r.id)===g.id&&(Array.isArray(r.subStats)||typeof r.name==='string')});
-  for(const b of s.boards)if(!b.detail||expired(b.detailCheckedAt)||trigger==='refresh')work.push({g:b,label:b.name,path:'daevanion/detail',params:{boardId:b.id},validate:r=>Array.isArray(r.nodeList)&&r.nodeList.length<=400});
+  for(const g of s.equipment)if(!g.detail||expired(g.detailCheckedAt)||trigger==='refresh'||trigger==='reroll'&&g.slotPos===slotPos)work.push({g,label:g.slotPosName||g.name,path:'equipment/item',params:{id:g.id,slotPos:g.slotPos,enchantLevel:g.enchantLevel??0,...(g.exceedLevel===null?{}:{exceedLevel:g.exceedLevel})},normalize:r=>normalizeItemDetail(g,r)});
+  for(const b of s.boards)if(!b.detail||expired(b.detailCheckedAt)||trigger==='refresh')work.push({g:b,label:b.name,path:'daevanion/detail',params:{boardId:b.id},normalize:r=>normalizeBoardDetail(b,r)});
   for(let i=0;i<work.length;i++){
    const w=work[i];signal?.throwIfAborted();onProgress(`Checking ${w.label} (${i+1}/${work.length})`);
-   try{const r=await this.request(endpoint(w.path,key,w.params),signal);if(!w.validate(r))throw Error('detail schema/identity mismatch');w.g.detail=r;w.g.detailCheckedAt=this.clock();w.g.detailError=null;}
+   try{const r=await this.request(endpoint(w.path,key,w.params),signal);w.g.detail=w.normalize(r);w.g.detailCheckedAt=this.clock();w.g.detailError=null;}
    catch(e){signal?.throwIfAborted();w.g.detail=null;w.g.detailCheckedAt=null;w.g.detailError=e.message;}
   }
   signal?.throwIfAborted();s.complete=Object.values(s.summaryCoverage).every(Boolean)&&s.equipment.every(x=>x.detail!==null)&&s.boards.every(x=>x.detail!==null);return s;

@@ -26,3 +26,19 @@ On failed publication, the old Pages artifact remains authoritative, and workflo
 Celtic Heroes: user-authored build samples and historical game record extraction, not exact live meta. AION 2: snapshot October 9, 2026 and incomplete shop coverage, not refreshed automatically. The site never combines incompatible games' economies or labels predictions verified. Store source URLs and dates with observations before expanding.
 
 No scheduled or recurring agent was created. Github-first is mandatory; the former AppDeploy AION preview is not part of this release pipeline.
+
+
+## AION 2 Character Intelligence: direct and local transport
+
+The existing Pages build publishes the Character Intelligence interface, not a backend. Direct requests to the documented NCSOFT public website endpoints are attempted only after character lookup/selection or relevant refresh; a network/CORS/provider error remains visible. Do not interpret the page serving successfully as proof that NCSOFT allows cross-origin access.
+
+An optional, zero-dependency Node preview serves the same built site on the IPv4 loopback address only:
+
+```sh
+npm run build
+npm run serve:intelligence
+```
+
+Default URL: http://127.0.0.1:8787/aion2/intelligence.html. The read-only broker is disabled by default. An authorized local operator who has confirmed permission for the specific public endpoint use can set the environment variable `HEAVEN_ARMORY_UPSTREAM=allowed` before starting this preview. No account login, provider-cookie forwarding, arbitrary proxy destinations, redirect following, persistent server-side player storage, or automated retries. The handler rejects cross-origin requests and unexpected parameters, limits response size and per-origin request pace, and honors provider denial/backoff. Do not expose it publicly or weaken these restrictions as a CORS workaround. A production broker requires separately authorized hosting, provider permission, abuse/availability controls and exact-deployment verification. No process is installed, launched or deployed by this source change.
+
+The local preview is an alternate transport, not proof of current upstream behavior or a private inventory API. Tests exercise synthetic responses, schema drift, provider failures and same-origin route selection. Actual official profile access, legal current item-roll catalog coverage, private wallet/quest availability, and combat calibration remain separate acceptance gates. Keep the original offline planner available when live lookup cannot be used.

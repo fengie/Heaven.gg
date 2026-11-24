@@ -5,7 +5,7 @@ const byId=id=>document.getElementById(id), node=(tag,content)=>{const n=documen
 const bindingKey='heaven-gg:aion2:intelligence-binding-v1', preferenceKey='heaven-gg:aion2:intelligence-preferences-v1';
 const client=new ArmoryClient();
 const walletKey='heaven-gg:aion2:intelligence-wallet-v1', offlineKey='heaven-gg:aion2:character-v1';
-let wallet=null, analysisCache=null, lastError='';
+let wallet=null, analysisCache=null, lastError='', walletTimer=null;
 for(const [value,label] of Object.entries(GOALS)){const o=node('option',label);o.value=value;byId('objective').append(o);}
 let selected=null,snapshot=null,pending=null,generation=0,searchPage=1,searchTerm=null;
 function read(key){try{return JSON.parse(localStorage.getItem(key)||'null');}catch{return null;}}
@@ -16,10 +16,25 @@ function start(){pending?.abort();const controller=new AbortController(),id=++ge
 function isCurrent(task){return task.id===generation&&!task.signal.aborted;}
 function finish(task){if(task.id===generation){pending=null;byId('refresh').disabled=!selected;}}
 const fmt=x=>typeof x==='number'&&Number.isFinite(x)?x.toLocaleString():'Unknown';
+const statText=x=>typeof x==='string'&&x.trim()&&x.length<=100?x:fmt(x);
+function clearWallet(){wallet=null;store(walletKey,null);analysisCache=null;}
+function scheduleWalletExpiry(){
+ clearTimeout(walletTimer);walletTimer=null;
+ if(document.hidden||!wallet||!Number.isFinite(wallet.observedAt))return;
+ const remaining=wallet.observedAt+30*60000-Date.now();
+ if(remaining>0&&remaining<=30*60000)walletTimer=setTimeout(render,remaining+25);
+}
+function progressFingerprint(s){
+ if(!s)return null;
+ const gear=(s.equipment??[]).map(g=>[g.slotPos,g.id,g.enchantLevel,g.exceedLevel,g.detail?.subStats??null,g.detail?.subSkills??null,g.detail?.magicStoneStat??null]).sort((a,b)=>a[0]-b[0]);
+ const boards=(s.boards??[]).map(b=>[b.id,b.openNodeCount,b.detail?.nodeList??null]).sort((a,b)=>a[0]-b[0]);
+ return JSON.stringify([s.itemLevel,s.combatPower,gear,boards,s.skills??null]);
+}
+
 function gainText(gain){if(gain===null||!Number.isFinite(gain))return 'Not modeled';const goal=byId('objective').value;const unit=goal==='hit'?'% hit index':['critBonus','weaponBoost','damageBoost','attackIncrease','doubleChance','combatSpeed','multiHit','perfectChance','moveSpeed'].includes(goal)?' pp':' points';return (gain>0?'+':'')+gain.toLocaleString(undefined,{maximumFractionDigits:3})+unit;}
 function costText(cost){if(cost===null)return 'Unknown';if(!Object.keys(cost).length)return 'No resource cost';return Object.entries(cost).map(([k,v])=>fmt(v)+' '+(k==='recipeKina'?'Kina (usable scope unknown)':k)).join(' + ');}
-function analysis(){const now=Date.now(),goal=byId('objective').value,encounter=byId('encounter').value,minute=Math.floor(now/60000);const c=analysisCache;if(c&&c.snapshot===snapshot&&c.wallet===wallet&&c.goal===goal&&c.encounter===encounter&&c.minute===minute)return c.value;
- const value=analyzeProgression(snapshot,{wallet,goal,encounter,now});analysisCache={snapshot,wallet,goal,encounter,minute,value};return value;}
+function analysis(){const now=Date.now(),goal=byId('objective').value,encounter=byId('encounter').value,minute=Math.floor(now/60000),walletFresh=Object.hasOwn(walletResources(wallet,snapshot?.key,now),'boundKina');const c=analysisCache;if(c&&c.snapshot===snapshot&&c.wallet===wallet&&c.goal===goal&&c.encounter===encounter&&c.minute===minute&&c.walletFresh===walletFresh)return c.value;
+ const value=analyzeProgression(snapshot,{wallet,goal,encounter,now});analysisCache={snapshot,wallet,goal,encounter,minute,walletFresh,value};return value;}
 
 function render(){
  byId('refresh').disabled=!selected||!!pending;byId('forget').disabled=!selected;
@@ -27,7 +42,7 @@ function render(){
  const resources=walletResources(wallet,selected?.key);const known=Object.hasOwn(resources,'boundKina');
  byId('wallet').textContent=known?fmt(resources.boundKina.high+resources.marketKina.high)+' Kina':'Unknown';
  byId('wallet-detail').textContent=known?`Locally confirmed: ${fmt(resources.boundKina.high)} bound / ${fmt(resources.marketKina.high)} tradable. Confirmation expires after 30 minutes; material balances and live wallet remain unknown.`:'Private wallet and materials unavailable. Optional: confirm the existing offline planner balances for this character; no repeated data entry is required.';
- byId('use-wallet').disabled=!selected||!read(offlineKey);byId('clear-wallet').disabled=!wallet;
+ byId('use-wallet').disabled=!selected||!read(offlineKey);byId('clear-wallet').disabled=!wallet;scheduleWalletExpiry();
 
  if(!snapshot){byId('coverage').textContent='No character snapshot loaded. Live combat, private resources and legal-roll eligibility are not verified.';}
  else{const detail=snapshot.equipment.filter(x=>x.detail).length,boards=snapshot.boards.filter(x=>x.detail).length;
@@ -45,17 +60,17 @@ function render(){
   const status=node('td',r.status==='unknown'?'Conditional / unknown':r.status==='blocked'&&r.delta?'Needs coordinated swap':r.status);status.className=r.status;tr.append(status);table.append(tr);
  }if(!rows.length){const tr=node('tr'),td=node('td',snapshot?'No verified candidates for the loaded data.':'Choose a character to begin.');td.colSpan=5;tr.append(td);table.append(tr);}byId('ledger').replaceChildren(table);
  const gear=document.createDocumentFragment();for(const g of snapshot?.equipment??[]){const card=node('article');card.append(node('h3',g.slotPosName||`Slot ${g.slotPos}`),node('p',`${g.name} · ${g.grade||'unknown grade'} · +${fmt(g.enchantLevel)}`));const lines=node('ul');for(const line of g.detail?.subStats??[])lines.append(node('li',`${line.name||line.id}: ${line.value??'unknown'}`));for(const stone of g.detail?.magicStoneStat??[])lines.append(node('li',`Stone: ${stone.name||stone.id} ${stone.value??''}`));if(!lines.children.length)lines.append(node('li',g.detail?'No published stat lines in this response':g.detailError||'Detail not loaded'));card.append(lines);const refresh=node('button','Refresh this item');refresh.type='button';refresh.disabled=!!pending;refresh.addEventListener('click',()=>load('reroll',g.slotPos));card.append(refresh);gear.append(card);}byId('gear').replaceChildren(gear);
- const facts=document.createDocumentFragment();for(const s of snapshot?.stats??[])facts.append(node('p',`${s.name||s.type}: ${fmt(s.value)}`));for(const s of snapshot?.skills??[])facts.append(node('p',`${s.name}: level ${fmt(s.skillLevel)}`));for(const b of snapshot?.boards??[])facts.append(node('p',`${b.name}: ${fmt(b.openNodeCount)} / ${fmt(b.totalNodeCount)} nodes`));byId('facts').replaceChildren(facts);
+ const facts=document.createDocumentFragment();for(const s of snapshot?.stats??[])facts.append(node('p',`${s.name||s.type}: ${statText(s.value)}`));for(const s of snapshot?.skills??[])facts.append(node('p',`${s.name}: level ${fmt(s.skillLevel)}`));for(const b of snapshot?.boards??[])facts.append(node('p',`${b.name}: ${fmt(b.openNodeCount)} / ${fmt(b.totalNodeCount)} nodes`));byId('facts').replaceChildren(facts);
 }
 async function load(trigger='open',slotPos){
  if(!selected||document.hidden)return;
- const task=start();if(trigger==='reroll'){wallet=null;store(walletKey,null);}byId('refresh').disabled=true;render();say('Checking selected character…');
+ const task=start();if(trigger==='reroll'||trigger==='refresh')clearWallet();byId('refresh').disabled=true;render();say('Checking selected character…');
  try{const next=await client.load(selected.key,{previous:snapshot,trigger,slotPos,visible:!document.hidden,signal:task.signal,onProgress:message=>{if(isCurrent(task))say(message);}});
-  if(!isCurrent(task))return;snapshot=next;lastError='';selected={key:next.key,name:next.name,serverName:next.serverName};store(bindingKey,selected);say(next.complete?'Published character data checked.':'Character loaded; some published details are unavailable.');
+  if(!isCurrent(task))return;if(wallet&&snapshot&&progressFingerprint(snapshot)!==progressFingerprint(next))clearWallet();snapshot=next;lastError='';selected={key:next.key,name:next.name,serverName:next.serverName};store(bindingKey,selected);say(next.complete?'Published character data checked.':'Character loaded; some published details are unavailable.');
  }catch(e){if(isCurrent(task)){say(`${e.message}. No live data was fabricated.`, 'error');lastError=e.message;}}
  finally{if(isCurrent(task)){finish(task);render();}}
 }
-function choose(row){pending?.abort();snapshot=null;lastError='';selected={key:characterKey(row.key),name:row.name,serverName:row.serverName};store(bindingKey,selected);byId('results').replaceChildren();render();void load();}
+function choose(row){pending?.abort();if(!selected||JSON.stringify(selected.key)!==JSON.stringify(characterKey(row.key)))clearWallet();snapshot=null;lastError='';selected={key:characterKey(row.key),name:row.name,serverName:row.serverName};store(bindingKey,selected);byId('results').replaceChildren();render();void load();}
 async function search(page=1){
  const name=byId('character-name').value.trim(),region=byId('region').value;searchTerm={name,region};searchPage=page;const task=start();byId('results').replaceChildren();say('Searching the selected region…');
  try{const result=await client.search(name,region,{page,signal:task.signal});if(!isCurrent(task))return;
@@ -68,13 +83,14 @@ byId('forget').addEventListener('click',()=>{pending?.abort();generation++;pendi
 byId('sort').addEventListener('change',render);
 byId('objective').addEventListener('change',render);byId('encounter').addEventListener('change',render);
 byId('use-wallet').addEventListener('click',()=>{if(!selected)return;try{const next=confirmWallet(read(offlineKey),selected.key);if(!window.confirm(`Confirm these current balances belong to ${selected.name}: ${fmt(next.boundKina)} bound Kina and ${fmt(next.tradableKina)} tradable Kina?`))return;wallet=next;store(walletKey,wallet);render();}catch(e){say(e.message,'error');}});
-byId('clear-wallet').addEventListener('click',()=>{wallet=null;store(walletKey,null);render();});
+byId('clear-wallet').addEventListener('click',()=>{clearWallet();render();});
 byId('category').addEventListener('change',()=>{byId('preference').value=prefs[byId('category').value]??'neutral';});
 byId('preference').addEventListener('change',()=>{prefs={...prefs,[byId('category').value]:byId('preference').value};store(preferenceKey,prefs);render();});
 function resume(){if(!document.hidden&&selected&&!pending)void load('open');}
-document.addEventListener('visibilitychange',()=>{if(document.hidden){pending?.abort();generation++;pending=null;}else resume();});
-window.addEventListener('focus',resume);window.addEventListener('pagehide',()=>pending?.abort());
+document.addEventListener('visibilitychange',()=>{if(document.hidden){clearTimeout(walletTimer);walletTimer=null;pending?.abort();generation++;pending=null;}else{render();resume();}});
+window.addEventListener('focus',resume);window.addEventListener('pagehide',()=>{clearTimeout(walletTimer);pending?.abort();});
 try{const saved=read(bindingKey);if(saved?.key)selected={key:characterKey(saved.key),name:typeof saved.name==='string'?saved.name:'',serverName:typeof saved.serverName==='string'?saved.serverName:''};}catch{store(bindingKey,null);}
 wallet=read(walletKey);
+if(document.querySelector('meta[name="heaven-gg-armory-transport"][content="same-origin"]'))byId('transport-detail').textContent='Using the explicitly enabled local same-origin armory transport. No account login or private inventory access. All character data stays local to this preview.';
 if(selected){byId('region').value=selected.key.region;byId('character-name').value=selected.name;}
 byId('preference').value=prefs[byId('category').value]??'neutral';render();if(selected)resume();
