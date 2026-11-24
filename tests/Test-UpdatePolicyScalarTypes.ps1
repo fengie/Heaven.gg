@@ -28,7 +28,7 @@ try {
             $policy | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $temp -Encoding UTF8
             $failure = $null
             try { & $validator -PolicyPath $temp | Out-Null } catch { $failure = $_.Exception.Message }
-            if ($literal -in $valid) {
+            if ($literal -cin $valid) {
                 if ($failure) { throw "$field=$literal should pass. $failure" }
             } elseif (-not $failure -or -not $failure.StartsWith($expected)) {
                 throw "$field=$literal should fail the scalar check. Observed '$failure'"
