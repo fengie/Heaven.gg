@@ -134,6 +134,37 @@ export async function checkIntelligence(browser,baseUrl){
    assert.equal(await page.locator('#il').innerText(),'2,800');assert.equal(localRequests.length,7);assert.equal(requests.length,beforeDirect);
    await page.locator('#forget').click();
   }
+  // A live-origin denial is different from a missing character. Verify the
+  // recovery branch imports already successful official responses without retry.
+  const denialCalls=requests.length;let attempts=0;
+  await context.route(/^https:\/\/api-search\.plaync\.com\/aion2global\/search\/v2\/character/,async route=>{
+   attempts++;await route.fulfill({status:403,headers:{'Access-Control-Allow-Origin':'*'},contentType:'application/json',body:'{}'});
+  });
+  // The local-transport test above may have set a document meta route. Remove it.
+  await page.unroute(new URL('aion2/intelligence.html',baseUrl).href);
+  await page.goto(new URL('aion2/intelligence.html',baseUrl).href,{waitUntil:'domcontentloaded'});
+  await page.locator('#objective option').first().waitFor({state:'attached'});
+  await page.locator('#character-name').fill('Fixture');
+  await page.getByRole('button',{name:'Find character'}).click();
+  await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('denied direct access (HTTP 403)'));
+  assert.equal(await page.locator('#official-import-help').evaluate(el=>el.open),true);
+  await page.getByRole('button',{name:'Find character'}).click();
+  await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('denied direct access (HTTP 403)'));
+  assert.equal(attempts,1);
+  const capturedAt=new Date(Date.now()-60000).toISOString();
+  const cap=(route,body,extra='')=>({startedDateTime:capturedAt,request:{method:'GET',url:'https://aion2.plaync.com/api/character/'+route+'?region=nae&lang=en-US&serverId=1101&characterId=fixture%3D'+extra,headers:[],cookies:[]},response:{status:200,headers:[],cookies:[],content:{mimeType:'application/json',text:JSON.stringify(body)}}});
+  const har={log:{version:'1.2',entries:[cap('info',fixtures['/api/character/info']),cap('equipment',fixtures['/api/character/equipment']),cap('equipment/item',fixtures.item101,'&id=101&slotPos=1&enchantLevel=5&exceedLevel=0')]}};
+  await page.locator('#import-observation').setInputFiles({name:'official.har',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(har))});
+  await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('Imported official browser observations'));
+  assert.equal(await page.locator('#name').innerText(),'Fixture');
+  assert.equal(await page.locator('#il').innerText(),'2,800');
+  assert.match(await page.locator('#coverage').textContent(),/Imported historical observation/);
+  assert.match(await page.locator('#gear').textContent(),/Accuracy: 31/);
+  assert.equal(requests.length,denialCalls);
+  await page.reload({waitUntil:'domcontentloaded'});
+  await page.waitForFunction(()=>document.querySelector('#coverage').textContent.includes('Imported historical observation'));
+  assert.equal(attempts,1);assert.equal(requests.length,denialCalls);
+  await page.locator('#forget').click();
   assert.deepEqual(errors,[]);
  }finally{await context.close();}
 }

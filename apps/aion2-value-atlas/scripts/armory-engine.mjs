@@ -196,13 +196,13 @@ export class ArmoryClient{
    signal?.throwIfAborted();const origin=new URL(request).origin;
    if(origin!==game&&origin!==new URL(search).origin)throw Error('unapproved source');
    const state=this.origins.get(origin)??{next:0,backoff:0};this.origins.set(origin,state);
-   if(state.denied)throw Error('provider denied access; no retry in this session');
+   if(state.denied)throw Object.assign(Error('Official provider denied access (HTTP '+state.denied+'); no retry in this session'),{code:'ARMORY_DENIED',status:state.denied});
    if(this.clock()<state.backoff)throw Error('provider backoff; try again later');
    const delay=state.next-this.clock();if(delay>0)await wait(delay,signal);
    signal?.throwIfAborted();state.next=this.clock()+this.minInterval;
    let r;try{r=await this.transport(request,{signal});}catch(e){signal?.throwIfAborted();throw Error('Official data unavailable (network or browser CORS)');}
    signal?.throwIfAborted();if(r.status===429||r.status===503){const seconds=typeof r.retryAfter==='string'&&/^\d+$/.test(r.retryAfter)?Number(r.retryAfter)*1000:Math.max(0,Date.parse(r.retryAfter)-this.clock());state.backoff=this.clock()+Math.max(60000,Number.isFinite(seconds)?seconds:0);}
-   if(r.status===401||r.status===403)state.denied=true;
+   if(r.status===401||r.status===403){state.denied=r.status;throw Object.assign(Error('Official provider denied access (HTTP '+r.status+'); no automatic retry'),{code:'ARMORY_DENIED',status:r.status});}
    if(r.status!==200||!record(r.body))throw Error(`Official provider HTTP ${r.status}; no automatic retry`);return r.body;
   };
   const pending=this.queue.then(run,run);this.queue=pending.catch(()=>{});return pending;
