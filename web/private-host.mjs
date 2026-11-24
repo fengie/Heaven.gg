@@ -5,6 +5,7 @@ import {createHash,randomBytes} from 'node:crypto';
 import {lstat,mkdir,mkdtemp,readFile,readdir,realpath,rename,rm,unlink,writeFile,open} from 'node:fs/promises';
 import {join,resolve,dirname,sep} from 'node:path';
 import {hostname} from 'node:os';
+import {request} from 'node:http';
 import {fileURLToPath} from 'node:url';
 
 const REPO='fengie/Heaven.gg';
@@ -169,9 +170,38 @@ async function limited(response,max){
  finally{await reader.cancel().catch(()=>{});reader.releaseLock();}
  return Buffer.concat(parts,size);
 }
+// A new TCP connection for each local observation: an idle pooled socket from
+// the previous generation must not be mistaken for a foreign listener.
 async function get(port,path,options={}){
- try{return await fetch('http://127.0.0.1:'+port+path,{...options,redirect:'error',signal:AbortSignal.timeout(1800),cache:'no-store'});}
- catch(e){if(e.cause?.code==='ECONNREFUSED')return null;fail('FOREIGN_OR_UNKNOWN_LISTENER');}
+ return new Promise((resolve,reject)=>{
+  let responded=false,settled=false,deadline;
+  const finish=(error,value)=>{
+   if(settled)return;settled=true;clearTimeout(deadline);
+   if(error)reject(Error('FOREIGN_OR_UNKNOWN_LISTENER'));else resolve(value);
+  };
+  const req=request({hostname:'127.0.0.1',port,path,method:options.method??'GET',
+   headers:{...options.headers,Connection:'close'},agent:false},res=>{
+   responded=true;
+   const parts=[];let size=0;
+   res.on('data',b=>{
+    size+=b.length;
+    if(size>16*1024*1024){finish(true);res.destroy();}else if(!settled)parts.push(b);
+   });
+   res.once('aborted',()=>finish(true));
+   res.once('error',()=>finish(true));
+   res.once('end',()=>{
+    if(settled)return;
+    try{
+     const status=res.statusCode;
+     const body=[204,205,304].includes(status)?null:Buffer.concat(parts,size);
+     finish(false,new Response(body,{status,headers:Object.entries(res.headers).flatMap(([k,v])=>Array.isArray(v)?v.map(x=>[k,x]):v===undefined?[]:[[k,v]])}));
+    }catch{finish(true);}
+   });
+  });
+  req.once('error',e=>!responded&&e.code==='ECONNREFUSED'?finish(false,null):finish(true));
+  deadline=setTimeout(()=>{finish(true);req.destroy();},1800);
+  req.end();
+ });
 }
 async function observe(port,r,release){
  const response=await get(port,'/__heavengg/status');

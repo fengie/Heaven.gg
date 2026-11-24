@@ -5,6 +5,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {createServer} from 'node:net';
+import {createServer as createHttpServer} from 'node:http';
 import {stageRelease, verifyRelease, openHost, readSourceTree} from '../private-host.mjs';
 
 const repo=process.cwd();
@@ -66,12 +67,13 @@ test('real private service starts, observes exact SHA, stays idempotent and resp
 });
 test('foreign loopback listener is never stopped or replaced',async t=>{
  const root=await temp(t);
- const listener=createServer(s=>s.end());
+ const listener=createHttpServer((req,res)=>res.writeHead(200,{'Connection':'close'}).end('foreign'));
  await new Promise((r,j)=>{listener.once('error',j);listener.listen(0,'127.0.0.1',r);});
- t.after(()=>new Promise(r=>listener.close(r)));
+ t.after(()=>new Promise((r,j)=>{listener.close(e=>e?j(e):r());listener.closeAllConnections();}));
  const host=await openHost({repoRoot:repo,stateRoot:root,port:listener.address().port});
  await assert.rejects(host.apply(revision),/FOREIGN_OR_UNKNOWN_LISTENER/);
  assert.equal(listener.listening,true);
+ assert.equal(await (await fetch('http://127.0.0.1:'+listener.address().port)).text(),'foreign');
 });
 test('interrupted handoff fails closed instead of launching another listener',async t=>{
  const root=await temp(t),host=await openHost({repoRoot:repo,stateRoot:root,port:await freePort()});
