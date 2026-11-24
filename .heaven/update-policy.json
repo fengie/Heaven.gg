@@ -10,11 +10,14 @@
     "controller": "heaven-toolbox/repo-autoupdate"
   },
   "runtime_update": {
-    "mode": "self-update-release",
+    "mode": "apply-script",
+    "apply_script": "scripts/Apply-HeavenGg.ps1",
+    "verify_script": "scripts/Test-HeavenGgRuntime.ps1",
+    "target_host": "HEAVEN",
     "evidence_paths": [
-      ".github/workflows/site.yml",
-      "web/DEPLOYMENT.md",
-      "web/tests/site.test.mjs"
+      "web/private-host.mjs",
+      "web/tests/h1-private-runtime.test.mjs",
+      "web/DEPLOYMENT.md"
     ]
   }
 }

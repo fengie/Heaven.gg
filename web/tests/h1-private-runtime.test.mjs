@@ -17,9 +17,9 @@ async function freePort(){
  await new Promise(r=>server.close(r));
  return port;
 }
-async function temp(t){
+async function temp(t,cleanup=true){
  const root=await mkdtemp(join(tmpdir(),'heaven-gg-private-'));
- t.after(()=>rm(root,{recursive:true,force:true}));
+ if(cleanup)t.after(()=>rm(root,{recursive:true,force:true}));
  return root;
 }
 test('stages a real immutable Git source and exact-revision site, rejects altered release bytes',async t=>{
@@ -44,9 +44,9 @@ test('source tree rejects links, unsafe paths, bad modes and excessive blobs bef
  ])assert.throws(()=>readSourceTree(entry+'\0'),/SOURCE_TREE/);
 });
 test('real private service starts, observes exact SHA, stays idempotent and respects a durable stop',async t=>{
- const root=await temp(t),port=await freePort();
+ const root=await temp(t,false),port=await freePort();
  const host=await openHost({repoRoot:repo,stateRoot:root,port});
- t.after(async()=>{try{await host.stop();}catch{}});
+ t.after(async()=>{try{await host.stop();}finally{await rm(root,{recursive:true,force:true});}});
  const first=await host.apply(revision);
  assert.equal(first.status,'DEPLOYED');
  assert.equal(first.installed_sha,revision);
