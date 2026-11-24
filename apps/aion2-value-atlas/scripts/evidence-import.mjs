@@ -1,6 +1,6 @@
 // Local interoperability with documented public armory bundles and a2log v1.
 // No network, credentials, native-client inspection, or implicit character binding.
-import {characterKey,normalizeArmory,normalizeBoardDetail,normalizeImportedSnapshot} from './armory-engine.mjs';
+import {characterKey,normalizeArmory,normalizeBoardDetail,normalizeItemDetail,normalizeImportedSnapshot} from './armory-engine.mjs';
 
 const record=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
 const text=(v,max=200)=>typeof v==='string'&&v.trim()&&v.length<=max?v.trim():null;
@@ -37,6 +37,88 @@ export function normalizeRawArmoryBundle(data,input,now=Date.now()){
   b.detail=detail;b.detailCheckedAt=null;
  }
  return normalizeImportedSnapshot(snapshot,now);
+}
+
+// Read an explicitly supplied, sanitized browser archive of successful public
+// official UI requests. Never resend a request, import a credential, or retain the archive.
+const CAPTURE_ROUTES=new Map([
+ ['/api/character/info',[]],['/api/character/equipment',[]],
+ ['/api/character/equipment/item',['id','slotPos','enchantLevel','exceedLevel']],
+ ['/api/character/daevanion/detail',['boardId']]
+]);
+const CAPTURE_WINDOW=300000;
+function captureResponse(e,now){
+ if(!record(e)||e.request?.method!=='GET'||e.response?.status!==200||typeof e.request.url!=='string'||e.request.url.length>2048)return null;
+ let u;try{u=new URL(e.request.url);}catch{return null;}
+ if(u.origin!=='https://aion2.plaync.com'||u.username||u.password||u.hash||!CAPTURE_ROUTES.has(u.pathname))return null;
+ // Reject a sensitive export instead of processing or persisting credentials.
+ for(const part of [e.request,e.response]){
+  if(Array.isArray(part?.headers)&&part.headers.some(h=>typeof h?.name==='string'&&/^(authorization|proxy-authorization|cookie|set-cookie)$/i.test(h.name)))throw Error('Use a sanitized HAR export without sensitive headers');
+  if(Array.isArray(part?.cookies)&&part.cookies.length)throw Error('Use a sanitized HAR export without cookies');
+ }
+ const p=u.searchParams,extra=CAPTURE_ROUTES.get(u.pathname),required=['region','lang','characterId','serverId',...extra];
+ const allowed=new Set(required);
+ // Exceed is optional in the documented equipped-item route.
+ if(required.some(k=>k!=='exceedLevel'&&p.getAll(k).length!==1)||[...p.keys()].some(k=>!allowed.has(k)||p.getAll(k).length!==1)||p.get('lang')!=='en-US')return null;
+ let key;try{key=characterKey({region:p.get('region'),serverId:p.get('serverId'),characterId:p.get('characterId')});}catch{return null;}
+ const args={};
+ for(const k of extra){
+  if(!p.has(k))continue;
+  const value=p.get(k);if(!/^\d{1,10}$/.test(value)||!Number.isSafeInteger(Number(value))||Number(value)>2147483647||['id','boardId'].includes(k)&&Number(value)===0)return null;
+  args[k]=Number(value);
+ }
+ let at;try{at=originalDate(e.startedDateTime,now);}catch{return null;}
+ if(at===null)return null;
+ const c=e.response.content;
+ if(!record(c)||typeof c.mimeType!=='string'||!/^application\/(?:json|[^;\s]+\+json)(?:\s*;|$)/i.test(c.mimeType)||typeof c.text!=='string'||c.text.length>2800000)return null;
+ let body;try{
+  const decoded=c.encoding==='base64'?new TextDecoder('utf-8',{fatal:true}).decode(Uint8Array.from(atob(c.text),x=>x.charCodeAt(0))):c.encoding==null||c.encoding===''?c.text:null;
+  if(decoded===null||decoded.length>2000000)return null;
+  body=JSON.parse(decoded);
+ }catch{return null;}
+ if(!record(body))return null;
+ return {route:u.pathname,key,at,args,body};
+}
+export function normalizeOfficialArmoryCapture(data,{key=null,now=Date.now()}={}){
+ const entries=data?.log?.entries;
+ if(data?.log?.version!=='1.2'||!Array.isArray(entries)||entries.length>2000)throw Error('Expected a bounded sanitized HAR 1.2 file');
+ const rows=entries.map(e=>captureResponse(e,now)).filter(Boolean);
+ const identities=new Map(rows.filter(r=>r.route==='/api/character/info').map(r=>[JSON.stringify(r.key),r.key]));
+ if(key)key=characterKey(key);
+ else if(identities.size===1)key=identities.values().next().value;
+ else if(identities.size>1)throw Error('Capture one character at a time');
+ else throw Error('Capture must contain successful public profile and equipment responses');
+ const selected=rows.filter(r=>same(r.key,key));
+ const infos=selected.filter(r=>r.route==='/api/character/info'),equips=selected.filter(r=>r.route==='/api/character/equipment');
+ if(!infos.length||!equips.length)throw Error('Capture must contain successful public profile and equipment responses');
+ // Do not infer which refresh belongs to which detail. Start with a clean capture
+ // and a single manifest; exact duplicate refreshes are not needed for import.
+ if(infos.length!==1||equips.length!==1)throw Error('Capture one profile and equipment response generation at a time');
+ const a=infos[0],b=equips[0],start=Math.min(a.at,b.at),end=Math.max(a.at,b.at);
+ if(end-start>CAPTURE_WINDOW)throw Error('Profile and equipment were captured too far apart');
+ const s=normalizeArmory(key,a.body,b.body,start);
+ if(!same(rawArmoryIdentity({info:a.body},key.region),key))throw Error('Capture profile identity mismatch');
+ const details=selected.filter(r=>r.at>=start&&r.at<=start+CAPTURE_WINDOW);
+ for(const g of s.equipment){
+  // Unknown instance upgrade state cannot prove a match.
+  if(g.enchantLevel===null)continue;
+  const matches=details.filter(r=>r.route==='/api/character/equipment/item'&&r.args.id===g.id&&r.args.slotPos===g.slotPos&&r.args.enchantLevel===g.enchantLevel&&(g.exceedLevel===null?r.args.exceedLevel===undefined:r.args.exceedLevel===g.exceedLevel));
+  if(matches.length!==1)continue;
+  try{g.detail=normalizeItemDetail(g,matches[0].body);g.detailCheckedAt=matches[0].at;}catch{/* leave missing data unknown */}
+ }
+ for(const b of s.boards){
+  const matches=details.filter(r=>r.route==='/api/character/daevanion/detail'&&r.args.boardId===b.id);
+  if(matches.length!==1)continue;
+  try{
+   const d=normalizeBoardDetail(b,matches[0].body);
+   if(d.nodeList.some(n=>n.boardId!=null&&String(n.boardId)!==String(b.id)))continue;
+   const nodes=d.nodeList.filter(n=>n.type!=='Start'&&n.type!=='None');
+   if(nodes.some(n=>![0,1,true,false].includes(n.open))||b.totalNodeCount!==null&&nodes.length!==b.totalNodeCount||b.openNodeCount!==null&&nodes.filter(n=>n.open===true||n.open===1).length!==b.openNodeCount)continue;
+   b.detail=d;b.detailCheckedAt=matches[0].at;
+  }catch{/* leave missing data unknown */}
+ }
+ // Only known public observation fields survive; never save the raw HAR.
+ return normalizeImportedSnapshot(s,now);
 }
 
 export function inspectA2Log(data){

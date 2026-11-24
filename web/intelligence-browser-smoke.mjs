@@ -9,7 +9,7 @@ export async function checkIntelligence(browser,baseUrl){
   const fixtures={
    '/en-us/api/gameinfo/servers':{serverList:[{raceId:1,serverId:1101,serverName:'Siel',serverShortName:'SIE'},{raceId:2,serverId:2101,serverName:'Israphel',serverShortName:'ISR'}]},
    '/aion2global/search/v2/character':{list:[{characterId:'fixture%3D',name:'Fixture',serverId:1101,serverName:'Siel',level:45}]},
-   '/api/character/info':{profile:{characterId:'fixture=',characterName:'Fixture',characterLevel:45,combatPower:1234,className:'Spiritmaster',serverName:'Siel'},stat:{statList:[{type:'ItemLevel',name:'Item Level',value:2800},{name:'Attack',value:1000},{name:'Accuracy',value:1100},{name:'Critical Hit',value:1400},{name:'Critical Damage Boost',value:'0%'},{name:'Weapon Damage Boost',value:'0%'}]},daevanion:{boardList:[{id:1,name:'Board',openNodeCount:1,totalNodeCount:3}]}},
+   '/api/character/info':{profile:{characterId:'fixture=',serverId:1101,characterName:'Fixture',characterLevel:45,combatPower:1234,className:'Spiritmaster',serverName:'Siel'},stat:{statList:[{type:'ItemLevel',name:'Item Level',value:2800},{name:'Attack',value:1000},{name:'Accuracy',value:1100},{name:'Critical Hit',value:1400},{name:'Critical Damage Boost',value:'0%'},{name:'Weapon Damage Boost',value:'0%'}]},daevanion:{boardList:[{id:1,name:'Board',openNodeCount:1,totalNodeCount:3}]}},
    '/api/character/equipment':{equipment:{equipmentList:[{slotPos:1,slotPosName:'Shoulder',id:101,name:'Shoulder',grade:'Unique',enchantLevel:5,exceedLevel:0},{slotPos:2,slotPosName:'Shoes',id:102,name:'Shoes',grade:'Unique',enchantLevel:5,exceedLevel:0}]},skill:{skillList:[{id:2,name:'Skill',skillLevel:15,equip:true}]}},
    '/api/character/daevanion/detail':{nodeList:[{nodeId:1,type:'Stat',open:true,name:'Owned'},{nodeId:2,type:'Stat',open:false,name:'New'}]},
    item101:{id:101,name:'Shoulder',level:102,subStats:[{id:'WeaponAccuracy',name:'Accuracy',value:'31'}],maxEnchantLevel:10},
@@ -144,6 +144,37 @@ export async function checkIntelligence(browser,baseUrl){
    assert.equal(await page.locator('#il').innerText(),'2,800');assert.equal(localRequests.length,7);assert.equal(requests.length,beforeDirect);
    await page.locator('#forget').click();
   }
+  // A live-origin denial is different from a missing character. Verify the
+  // recovery branch imports already successful official responses without retry.
+  const denialCalls=requests.length;let attempts=0;
+  await context.route(/^https:\/\/api-search\.plaync\.com\/aion2global\/search\/v2\/character/,async route=>{
+   attempts++;await route.fulfill({status:403,headers:{'Access-Control-Allow-Origin':'*'},contentType:'application/json',body:'{}'});
+  });
+  // The local-transport test above may have set a document meta route. Remove it.
+  await page.unroute(new URL('aion2/intelligence.html',baseUrl).href);
+  await page.goto(new URL('aion2/intelligence.html',baseUrl).href,{waitUntil:'domcontentloaded'});
+  await page.locator('#objective option').first().waitFor({state:'attached'});
+  await page.locator('#character-name').fill('Fixture');
+  await page.getByRole('button',{name:'Find character'}).click();
+  await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('denied direct access (HTTP 403)'));
+  assert.equal(await page.locator('#official-import-help').evaluate(el=>el.open),true);
+  await page.getByRole('button',{name:'Find character'}).click();
+  await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('denied direct access (HTTP 403)'));
+  assert.equal(attempts,1);
+  const capturedAt=new Date(Date.now()-60000).toISOString();
+  const cap=(route,body,extra='')=>({startedDateTime:capturedAt,request:{method:'GET',url:'https://aion2.plaync.com/api/character/'+route+'?region=nae&lang=en-US&serverId=1101&characterId=fixture%3D'+extra,headers:[],cookies:[]},response:{status:200,headers:[],cookies:[],content:{mimeType:'application/json',text:JSON.stringify(body)}}});
+  const har={log:{version:'1.2',entries:[cap('info',fixtures['/api/character/info']),cap('equipment',fixtures['/api/character/equipment']),cap('equipment/item',fixtures.item101,'&id=101&slotPos=1&enchantLevel=5&exceedLevel=0')]}};
+  await page.locator('#import-observation').setInputFiles({name:'official.har',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(har))});
+  await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('Imported official browser observations'),{},{timeout:20000}).catch(async error=>{throw Error('Sanitized HAR fixture import: '+await page.locator('#status').innerText(),{cause:error});});
+  assert.equal(await page.locator('#name').innerText(),'Fixture');
+  assert.equal(await page.locator('#il').innerText(),'2,800');
+  assert.match(await page.locator('#coverage').textContent(),/Imported historical observation/);
+  assert.match(await page.locator('#gear').textContent(),/Accuracy: 31/);
+  assert.equal(requests.length,denialCalls);
+  await page.reload({waitUntil:'domcontentloaded'});
+  await page.waitForFunction(()=>document.querySelector('#coverage').textContent.includes('Imported historical observation'));
+  assert.equal(attempts,1);assert.equal(requests.length,denialCalls);
+  await page.locator('#forget').click();
   assert.deepEqual(errors,[]);
  }finally{await context.close();}
 }

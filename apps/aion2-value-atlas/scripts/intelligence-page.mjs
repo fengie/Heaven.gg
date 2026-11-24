@@ -1,6 +1,6 @@
 import {ArmoryClient,characterKey,parseOfficialCharacterLink} from './armory-engine.mjs';
 import {rankLedger,MAX_ACTION_PREFERENCES} from './intelligence-engine.mjs';
-import {rawArmoryIdentity,normalizeRawArmoryBundle,inspectA2Log,summarizeA2Log,appendCombatEvidence,normalizeCombatEvidence,compareRecordedFights} from './evidence-import.mjs';
+import {rawArmoryIdentity,normalizeRawArmoryBundle,normalizeOfficialArmoryCapture,inspectA2Log,summarizeA2Log,appendCombatEvidence,normalizeCombatEvidence,compareRecordedFights} from './evidence-import.mjs';
 import {analyzeProgression, confirmWallet, walletResources, GOALS, REFERENCE_VERSION,normalizeObservationPack,createObservationPack,normalizeReferenceCatalog,normalizeWalletObservation,appendProgressHistory,normalizeProgressHistory,normalizeActionPreferences} from './intelligence-context.mjs';
 const byId=id=>document.getElementById(id), node=(tag,content)=>{const n=document.createElement(tag);if(content!==undefined)n.textContent=String(content);return n;};
 const bindingKey='heaven-gg:aion2:intelligence-binding-v1', preferenceKey='heaven-gg:aion2:intelligence-preferences-v1';
@@ -18,6 +18,10 @@ function read(key){try{return JSON.parse(localStorage.getItem(key)||'null');}cat
 function store(key,value){try{if(value===null)localStorage.removeItem(key);else localStorage.setItem(key,JSON.stringify(value));}catch{/* browser storage can be disabled */}}
 let prefs=read(preferenceKey);if(!prefs||typeof prefs!=='object'||Array.isArray(prefs))prefs={};
 const say=(message,kind='info')=>{byId('status').textContent=message;byId('status').dataset.kind=kind;};
+function showArmoryFailure(e){
+ if(e.code==='ARMORY_DENIED'){byId('official-import-help').open=true;say('Official provider denied direct access (HTTP '+e.status+'). Use the official armory and import its successful public responses below. No further request to the denied origin was sent.','error');}
+ else say(e.message,'error');
+}
 function start(){pending?.abort();const controller=new AbortController(),id=++generation;pending=controller;return {id,signal:controller.signal};}
 function isCurrent(task){return task.id===generation&&!task.signal.aborted;}
 function finish(task){if(task.id===generation){pending=null;byId('refresh').disabled=!selected;}}
@@ -147,7 +151,7 @@ async function importObservation(file){
  if(!file)return;
  const started=generation;
  try{
-  if(file.size>2_000_000)throw Error('Observation file exceeds 2 MB');
+  if(file.size>(file.name.toLowerCase().endsWith('.har')?12_000_000:2_000_000))throw Error('File exceeds the local import size limit (12 MB for HAR; 2 MB for JSON)');
   const data=JSON.parse(await file.text());if(generation!==started)return;
   if(data?.schema==='heaven-gg/aion2-item-reference/v1'){
    if(!snapshot)throw Error('Load a character before importing item references');
@@ -157,6 +161,11 @@ async function importObservation(file){
    if(!selected)throw Error('Select the character before importing resource observations');
    const next=normalizeWalletObservation(data,selected.key);
    wallet=next;store(walletKey,wallet);analysisCache=null;say('Imported local resource observation at its original timestamp.');render();
+  }else if(data?.log?.version==='1.2'){
+   const imported=normalizeOfficialArmoryCapture(data,{key:selected?.key??null});
+   if(!selected&&!window.confirm('Import '+imported.name+' on server '+imported.key.serverId+' in '+imported.key.region+' from this local capture?'))return;
+   applyObservation(createObservationPack(imported,{catalog:sameCharacter(selected?.key,imported.key)?catalog:null}));
+   say('Imported official browser observations. The archive was not stored or sent anywhere. Missing detail remains unknown.');
   }else if(data?.info&&data?.equipment&&data?.daevanion){
    const key=selected?.key??rawArmoryIdentity(data,byId('region').value),imported=normalizeRawArmoryBundle(data,key);
    if(!selected&&!window.confirm('Import '+imported.name+' on server '+key.serverId+' in '+key.region+'? Confirm this is your selected character and region.'))return;
@@ -238,7 +247,7 @@ async function load(trigger='open',slotPos){
  const task=start();if(trigger==='reroll'||trigger==='refresh')clearWallet();byId('refresh').disabled=true;render();say('Checking selected character…');
  try{const next=await client.load(selected.key,{previous:snapshotMode==='imported'?null:snapshot,trigger,slotPos,visible:!document.hidden,signal:task.signal,onProgress:message=>{if(isCurrent(task))say(message);}});
   if(!isCurrent(task))return;if(snapshotMode==='live'&&snapshot)recordHistory(snapshot,next);if(wallet&&snapshot&&progressFingerprint(snapshot)!==progressFingerprint(next))clearWallet();snapshot=next;snapshotMode='live';lastError='';selected={key:next.key,name:next.name,serverName:next.serverName};store(bindingKey,selected);saveObservation();say(next.complete?'Published character data checked.':'Character loaded; some published details are unavailable.');
- }catch(e){if(isCurrent(task)){say(`${e.message}. No live data was fabricated.`, 'error');lastError=e.message;}}
+ }catch(e){if(isCurrent(task)){showArmoryFailure(e);lastError=e.message;}}
  finally{if(isCurrent(task)){finish(task);render();}}
 }
 function choose(row){
@@ -265,7 +274,7 @@ async function search(page=1){
    if(!isCurrent(task))return;
    if(byId('region').value!==key.region)resetDirectory();
    byId('region').value=key.region;choose({key,name:'Official character link',serverName:''});
-  }catch(e){if(isCurrent(task))say(e.message,'error');}
+  }catch(e){if(isCurrent(task))showArmoryFailure(e);}
   finally{if(isCurrent(task)){finish(task);render();}}
   return;
  }
@@ -273,9 +282,11 @@ async function search(page=1){
  searchTerm={name,region,serverId};searchPage=page;const task=start();byId('results').replaceChildren();say('Searching the selected region…');
  try{const result=await client.search(name,region,{page,serverId,signal:task.signal});if(!isCurrent(task)||byId('region').value!==region||(byId('server-filter').value||null)!==serverId)return;
   const f=document.createDocumentFragment();for(const row of result.rows){const b=node('button',`${row.name} · ${row.serverName||row.key.serverId} · ${row.key.region} · level ${fmt(row.level)}`);b.type='button';b.addEventListener('click',()=>choose(row));f.append(b);}if(result.hasMore&&page<10){const more=node('button','Next search page');more.type='button';more.addEventListener('click',()=>{if(byId('character-name').value.trim()===searchTerm?.name&&byId('region').value===searchTerm.region&&(byId('server-filter').value||null)===searchTerm.serverId)void search(searchPage+1);});f.append(more);}byId('results').replaceChildren(f);say(result.rows.length?'Select the matching character and server.':'No matches on this page.');
- }catch(e){if(isCurrent(task))say(e.message,'error');}finally{if(isCurrent(task)){finish(task);render();}}
+ }catch(e){if(isCurrent(task))showArmoryFailure(e);}finally{if(isCurrent(task)){finish(task);render();}}
 }
 byId('search-form').addEventListener('submit',event=>{event.preventDefault();void search();});
+byId('region').addEventListener('change',()=>{byId('official-armory-link').href='https://aion2.plaync.com/en-us/characters/index?region='+encodeURIComponent(byId('region').value);});
+byId('official-armory-link').addEventListener('click',()=>{byId('official-import-help').open=true;});
 byId('load-servers').addEventListener('click',()=>void loadDirectory());
 byId('region').addEventListener('change',()=>{pending?.abort();generation++;pending=null;byId('results').replaceChildren();resetDirectory();render();void loadDirectory();});
 byId('server-filter').addEventListener('change',()=>{byId('results').replaceChildren();});
