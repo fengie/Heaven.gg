@@ -1,0 +1,1 @@
+BROWSER_SMOKE_PASS: 6 fixture opportunities, 5 intercepted requests; search/confirm, stored identity, preference retention, local sort, unknown wallet, equipment/board details, responsive layout, forget; no uncaught JS errors. Browser module imports resolved to test-local Blob URLs; provider responses and storage simulated; real navigation and live connectivity unverified.

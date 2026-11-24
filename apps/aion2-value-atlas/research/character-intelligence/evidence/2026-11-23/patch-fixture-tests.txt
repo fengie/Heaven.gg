@@ -1,0 +1,94 @@
+TAP version 13
+# Subtest: all 16 factorial builds are evaluated; harder and easier optima differ
+ok 1 - all 16 factorial builds are evaluated; harder and easier optima differ
+  ---
+  duration_ms: 1.549682
+  type: 'test'
+  ...
+# Subtest: equivalent aggregate stat assignments produce equivalent scores and caps
+ok 2 - equivalent aggregate stat assignments produce equivalent scores and caps
+  ---
+  duration_ms: 0.227044
+  type: 'test'
+  ...
+# Subtest: bounded search reports incomplete, never claims optimum or infeasible
+ok 3 - bounded search reports incomplete, never claims optimum or infeasible
+  ---
+  duration_ms: 0.137721
+  type: 'test'
+  ...
+# Subtest: replacement enumerator retains every legal distinct candidate and subtracts existing line
+ok 4 - replacement enumerator retains every legal distinct candidate and subtracts existing line
+  ---
+  duration_ms: 0.913173
+  type: 'test'
+  ...
+# Subtest: affordability distinguishes missing, bound, stale, real money and reserve
+ok 5 - affordability distinguishes missing, bound, stale, real money and reserve
+  ---
+  duration_ms: 0.444334
+  type: 'test'
+  ...
+# Subtest: rank preserves all options and preference changes only ranking
+ok 6 - rank preserves all options and preference changes only ranking
+  ---
+  duration_ms: 0.358803
+  type: 'test'
+  ...
+# Subtest: refresh depends on age and user actions, even if item ID unchanged
+ok 7 - refresh depends on age and user actions, even if item ID unchanged
+  ---
+  duration_ms: 0.305421
+  type: 'test'
+  ...
+# Subtest: search unwraps highlights and percent encoding, keeps region identity
+ok 8 - search unwraps highlights and percent encoding, keeps region identity
+  ---
+  duration_ms: 0.728049
+  type: 'test'
+  ...
+# Subtest: armory normalizes observed data without fabricating private state and refuses wrong character
+ok 9 - armory normalizes observed data without fabricating private state and refuses wrong character
+  ---
+  duration_ms: 0.89057
+  type: 'test'
+  ...
+# Subtest: armory expands actual equipped item and board, shows hidden fields unknown, and caches
+ok 10 - armory expands actual equipped item and board, shows hidden fields unknown, and caches
+  ---
+  duration_ms: 3.14846
+  type: 'test'
+  ...
+# Subtest: missing/denied detail is explicit, provider backoff is respected
+ok 11 - missing/denied detail is explicit, provider backoff is respected
+  ---
+  duration_ms: 0.917663
+  type: 'test'
+  ...
+# Subtest: ledger uses observed incomplete nodes, keeps known alternatives and unknown balances
+ok 12 - ledger uses observed incomplete nodes, keeps known alternatives and unknown balances
+  ---
+  duration_ms: 0.708135
+  type: 'test'
+  ...
+# Subtest: free but unconfirmed eligibility is conditional, not a verified recommendation
+ok 13 - free but unconfirmed eligibility is conditional, not a verified recommendation
+  ---
+  duration_ms: 0.101823
+  type: 'test'
+  ...
+# Subtest: denied provider is not retried for additional details
+ok 14 - denied provider is not retried for additional details
+  ---
+  duration_ms: 0.450061
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 90.706846

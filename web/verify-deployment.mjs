@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { validateGameRegistry } from './game-registry.mjs';
 
-const PATHS = Object.freeze(['version.json','index.html','aion2/index.html','aion2/profile.html','aion2/performance.html','aion2/performance-engine.mjs','aion2/catalog.json','aion2/wardrobe.html','aion2/wardrobe.js','wardrobe.mjs','decision.mjs','game-tools.html','games.json','ch/catalog.json']);
+const PATHS = Object.freeze(['version.json','index.html','aion2/index.html','aion2/profile.html','aion2/intelligence.html','aion2/scripts/intelligence-engine.mjs','aion2/scripts/armory-engine.mjs','aion2/scripts/intelligence-context.mjs','aion2/scripts/evidence-import.mjs','aion2/scripts/intelligence-page.mjs','aion2/performance.html','aion2/performance-engine.mjs','aion2/catalog.json','aion2/wardrobe.html','aion2/wardrobe.js','wardrobe.mjs','decision.mjs','game-tools.html','games.json','ch/catalog.json']);
 const SITE_HOST = 'fengie.github.io';
 const SITE_PATH = '/Heaven.gg/';
 const EXPECTED_REPO = 'fengie/Heaven.gg';
@@ -104,6 +104,17 @@ export async function verifyServedRelease({baseUrl,expectedSha,fetchImpl=fetch})
      !content.get('game-tools.html').includes('href="'+releasePage+'"')) throw new Error('SERVED_COMPANION_TOOLS_INCOMPLETE');
   const profile=content.get('aion2/profile.html');
   if (!profile.includes('data-engine="PROFILE_EDITOR"') || !profile.includes('id="profile-upload"')) throw new Error('SERVED_PROFILE_INCOMPLETE');
+  const intelligence=content.get('aion2/intelligence.html');
+  if (!profile.includes('href="./intelligence.html"') ||
+      !['id="objective"','id="best-plan"','id="ledger"','id="import-observation"','id="export-observation"','id="server-filter"','id="progress-history"','id="import-combat"','id="combat-evidence"','./scripts/intelligence-page.mjs'].every(marker=>intelligence.includes(marker)))
+    throw new Error('SERVED_INTELLIGENCE_INCOMPLETE');
+  if (!content.get('aion2/scripts/intelligence-context.mjs').includes('export function analyzeProgression') ||
+      !content.get('aion2/scripts/armory-engine.mjs').includes('export class ArmoryClient') ||
+      !content.get('aion2/scripts/intelligence-engine.mjs').includes('export function enumerateBuilds') ||
+      !content.get('aion2/scripts/evidence-import.mjs').includes('export function summarizeA2Log') ||
+      !content.get('aion2/scripts/intelligence-page.mjs').includes('./evidence-import.mjs') ||
+      !content.get('aion2/scripts/intelligence-page.mjs').includes('./intelligence-context.mjs'))
+    throw new Error('SERVED_INTELLIGENCE_ENGINE_INCOMPLETE');
   try {catalog=JSON.parse(content.get('ch/catalog.json'));} catch {throw new Error('SERVED_CATALOG_INVALID');}
   if (!Array.isArray(catalog?.builds) || catalog.builds.length!==327 ||
       !Array.isArray(catalog.gear) || catalog.gear.length<200 ||
