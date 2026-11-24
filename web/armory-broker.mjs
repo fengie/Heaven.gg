@@ -44,7 +44,7 @@ export function resolveBrokerRequest(raw){
  return out;
 }
 const MAX_BYTES=2_000_000;
-async function boundedJSON(response){
+export async function boundedJSON(response){
  const len=response.headers.get('Content-Length');
  if(len!==null&&Number(len)>MAX_BYTES)throw Error('response too large');
  const reader=response.body?.getReader();if(!reader)throw Error('empty response');
