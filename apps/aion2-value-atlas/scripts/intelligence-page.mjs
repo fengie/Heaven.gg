@@ -1,11 +1,12 @@
 import {ArmoryClient,characterKey,parseOfficialCharacterLink} from './armory-engine.mjs';
 import {rankLedger} from './intelligence-engine.mjs';
-import {analyzeProgression, confirmWallet, walletResources, GOALS, REFERENCE_VERSION,normalizeObservationPack,createObservationPack,normalizeReferenceCatalog,normalizeWalletObservation} from './intelligence-context.mjs';
+import {analyzeProgression, confirmWallet, walletResources, GOALS, REFERENCE_VERSION,normalizeObservationPack,createObservationPack,normalizeReferenceCatalog,normalizeWalletObservation,appendProgressHistory,normalizeProgressHistory} from './intelligence-context.mjs';
 const byId=id=>document.getElementById(id), node=(tag,content)=>{const n=document.createElement(tag);if(content!==undefined)n.textContent=String(content);return n;};
 const bindingKey='heaven-gg:aion2:intelligence-binding-v1', preferenceKey='heaven-gg:aion2:intelligence-preferences-v1';
 const client=new ArmoryClient();
 const walletKey='heaven-gg:aion2:intelligence-wallet-v1', offlineKey='heaven-gg:aion2:character-v1';
-const observationKey='heaven-gg:aion2:intelligence-observation-v1';
+const observationKey='heaven-gg:aion2:intelligence-observation-v1',historyKey='heaven-gg:aion2:intelligence-history-v1';
+let history=null,directory=null,directoryPending=null;
 let wallet=null,catalog=null,snapshotMode='live',analysisCache=null,lastError='',walletTimer=null;
 for(const [value,label] of Object.entries(GOALS)){const o=node('option',label);o.value=value;byId('objective').append(o);}
 let selected=null,snapshot=null,pending=null,generation=0,searchPage=1,searchTerm=null;
@@ -19,6 +20,48 @@ function finish(task){if(task.id===generation){pending=null;byId('refresh').disa
 const fmt=x=>typeof x==='number'&&Number.isFinite(x)?x.toLocaleString():'Unknown';
 const statText=x=>typeof x==='string'&&x.trim()&&x.length<=100?x:fmt(x);
 function clearWallet(){wallet=null;store(walletKey,null);analysisCache=null;}
+function clearHistory(){history=null;store(historyKey,null);}
+function recordHistory(before,after){
+ try{const next=appendProgressHistory(history,before,after);if(next.changes.length){history=next;store(historyKey,history);}}catch{/* unusable comparison never prevents refresh */}
+}
+function renderHistory(){
+ const changes=history?.changes??[],list=node('ul');
+ byId('history-summary').textContent=changes.length+' observed changes. Local-only comparisons, not causal DPS or calibrated CP predictions.';
+ const delta=p=>p===null?'Unknown':(p.after-p.before>0?'+':'')+fmt(p.after-p.before);
+ for(const row of [...changes].reverse()){
+  const li=node('li',new Date(row.to).toLocaleString()+': CP '+delta(row.combatPower)+' · IL '+delta(row.itemLevel)+' · '+row.changedSlots.length+' gear slots changed');
+  const details=[...row.contextChanges,row.patchMatch===true?'same reported patch':row.patchMatch===false?'different reported patches':'patch unknown'];
+  li.append(node('small',' — '+details.join(', ')));list.append(li);
+ }
+ byId('progress-history').replaceChildren(list);
+ byId('clear-history').disabled=!changes.length;byId('export-history').disabled=!changes.length;
+}
+function exportHistory(){
+ if(!history?.changes.length)return;
+ const href=URL.createObjectURL(new Blob([JSON.stringify(history,null,2)+'\n'],{type:'application/json'})),a=node('a');a.href=href;a.download='heaven-gg-aion2-progression-history.json';a.click();setTimeout(()=>URL.revokeObjectURL(href),0);
+}
+function resetDirectory(){
+ directoryPending?.abort();directoryPending=null;directory=null;
+ const first=node('option','Any server in region');first.value='';
+ byId('server-filter').replaceChildren(first);byId('directory-status').textContent='Official server names and IDs can be loaded on demand.';byId('load-servers').disabled=false;
+}
+function showDirectory(value){
+ if(value.region!==byId('region').value)return;
+ directory=value;
+ const first=node('option','Any server in region');first.value='';
+ const options=[first];for(const row of value.rows){const option=node('option',row.name+' · '+row.serverId);option.value=row.serverId;options.push(option);}
+ const previous=byId('server-filter').value;byId('server-filter').replaceChildren(...options);
+ if(options.some(o=>o.value===previous))byId('server-filter').value=previous;
+ byId('directory-status').textContent=value.rows.length+' official server identities checked '+new Date(value.checkedAt).toLocaleTimeString()+'. Not a population or availability check.';
+}
+async function loadDirectory(){
+ const region=byId('region').value;directoryPending?.abort();
+ const controller=new AbortController();directoryPending=controller;byId('load-servers').disabled=true;
+ byId('directory-status').textContent='Checking official server directory…';
+ try{const value=await client.servers(region,{signal:controller.signal});if(directoryPending===controller&&!controller.signal.aborted)showDirectory(value);}
+ catch(e){if(directoryPending===controller&&!controller.signal.aborted){directory=null;const first=node('option','Any server in region');first.value='';byId('server-filter').replaceChildren(first);byId('directory-status').textContent='Server directory unavailable; region-only search remains available. '+e.message;}}
+ finally{if(directoryPending===controller){directoryPending=null;byId('load-servers').disabled=false;}}
+}
 function saveObservation(){
  if(!snapshot){store(observationKey,null);return;}
  try{store(observationKey,{mode:snapshotMode,pack:createObservationPack(snapshot,{catalog})});}
@@ -27,11 +70,12 @@ function saveObservation(){
 function sameCharacter(a,b){try{return JSON.stringify(characterKey(a))===JSON.stringify(characterKey(b));}catch{return false;}}
 function applyObservation(pack){
  pending?.abort();generation++;pending=null;
+ if(!sameCharacter(selected?.key,pack.snapshot.key))clearHistory();
  snapshot=pack.snapshot;snapshotMode='imported';catalog=pack.catalog;wallet=pack.wallet;
  selected={key:snapshot.key,name:snapshot.name,serverName:snapshot.serverName};
  analysisCache=null;lastError='';
  store(bindingKey,selected);store(walletKey,wallet);saveObservation();
- byId('region').value=selected.key.region;byId('character-name').value=selected.name;byId('results').replaceChildren();
+ if(byId('region').value!==selected.key.region)resetDirectory();byId('region').value=selected.key.region;byId('character-name').value=selected.name;byId('results').replaceChildren();
  say('Imported local observation. No live request was made.');render();
 }
 async function importObservation(file){
@@ -80,7 +124,7 @@ function analysis(){const now=Date.now(),goal=byId('objective').value,encounter=
  const value=analyzeProgression(snapshot,{wallet,catalog,goal,encounter,now});analysisCache={snapshot,wallet,catalog,goal,encounter,minute,walletFresh,value};return value;}
 
 function render(){
- byId('refresh').disabled=!selected||!!pending;byId('forget').disabled=!selected;
+ byId('refresh').disabled=!selected||!!pending;byId('forget').disabled=!selected;renderHistory();
  byId('name').textContent=snapshot?.name??selected?.name??'—';byId('il').textContent=fmt(snapshot?.itemLevel);byId('cp').textContent=fmt(snapshot?.combatPower);
  const resources=walletResources(wallet,selected?.key),known=Object.hasOwn(resources,'boundKina')&&Object.hasOwn(resources,'marketKina');
  const materialCount=Object.keys(resources).filter(k=>k!=='boundKina'&&k!=='marketKina').length;
@@ -111,13 +155,13 @@ async function load(trigger='open',slotPos){
  if(!selected||document.hidden)return;
  const task=start();if(trigger==='reroll'||trigger==='refresh')clearWallet();byId('refresh').disabled=true;render();say('Checking selected character…');
  try{const next=await client.load(selected.key,{previous:snapshotMode==='imported'?null:snapshot,trigger,slotPos,visible:!document.hidden,signal:task.signal,onProgress:message=>{if(isCurrent(task))say(message);}});
-  if(!isCurrent(task))return;if(wallet&&snapshot&&progressFingerprint(snapshot)!==progressFingerprint(next))clearWallet();snapshot=next;snapshotMode='live';lastError='';selected={key:next.key,name:next.name,serverName:next.serverName};store(bindingKey,selected);saveObservation();say(next.complete?'Published character data checked.':'Character loaded; some published details are unavailable.');
+  if(!isCurrent(task))return;if(snapshotMode==='live'&&snapshot)recordHistory(snapshot,next);if(wallet&&snapshot&&progressFingerprint(snapshot)!==progressFingerprint(next))clearWallet();snapshot=next;snapshotMode='live';lastError='';selected={key:next.key,name:next.name,serverName:next.serverName};store(bindingKey,selected);saveObservation();say(next.complete?'Published character data checked.':'Character loaded; some published details are unavailable.');
  }catch(e){if(isCurrent(task)){say(`${e.message}. No live data was fabricated.`, 'error');lastError=e.message;}}
  finally{if(isCurrent(task)){finish(task);render();}}
 }
 function choose(row){
  pending?.abort();generation++;pending=null;
- if(!sameCharacter(selected?.key,row.key)){clearWallet();catalog=null;snapshot=null;store(observationKey,null);}
+ if(!sameCharacter(selected?.key,row.key)){clearWallet();clearHistory();catalog=null;snapshot=null;store(observationKey,null);}
  const wasImported=snapshotMode==='imported'&&!!snapshot;
  if(!snapshot)snapshotMode='live';
  lastError='';selected={key:characterKey(row.key),name:row.name,serverName:row.serverName};store(bindingKey,selected);
@@ -126,18 +170,37 @@ function choose(row){
 async function search(page=1){
  const name=byId('character-name').value.trim(),region=byId('region').value;
  if(/^https?:\/\//i.test(name)){
-  try{const key=parseOfficialCharacterLink(name);byId('region').value=key.region;choose({key,name:'Official character link',serverName:''});}
-  catch(e){say(e.message,'error');}
+  const task=start();
+  try{
+   let key;
+   try{key=parseOfficialCharacterLink(name,{directory:directory?.rows});}
+   catch(e){
+    if(e.message!=='Link must include a region or match the official server directory'||new URL(name).searchParams.has('region'))throw e;
+    const roster=await client.servers(region,{signal:task.signal});
+    if(!isCurrent(task))return;
+    showDirectory(roster);key=parseOfficialCharacterLink(name,{directory:roster.rows});
+   }
+   if(!isCurrent(task))return;
+   if(byId('region').value!==key.region)resetDirectory();
+   byId('region').value=key.region;choose({key,name:'Official character link',serverName:''});
+  }catch(e){if(isCurrent(task))say(e.message,'error');}
+  finally{if(isCurrent(task)){finish(task);render();}}
   return;
  }
- searchTerm={name,region};searchPage=page;const task=start();byId('results').replaceChildren();say('Searching the selected region…');
- try{const result=await client.search(name,region,{page,signal:task.signal});if(!isCurrent(task))return;
-  const f=document.createDocumentFragment();for(const row of result.rows){const b=node('button',`${row.name} · ${row.serverName||row.key.serverId} · ${row.key.region} · level ${fmt(row.level)}`);b.type='button';b.addEventListener('click',()=>choose(row));f.append(b);}if(result.hasMore&&page<10){const more=node('button','Next search page');more.type='button';more.addEventListener('click',()=>{if(byId('character-name').value.trim()===searchTerm?.name&&byId('region').value===searchTerm.region)void search(searchPage+1);});f.append(more);}byId('results').replaceChildren(f);say(result.rows.length?'Select the matching character and server.':'No matches on this page.');
+ const serverId=byId('server-filter').value||null;
+ searchTerm={name,region,serverId};searchPage=page;const task=start();byId('results').replaceChildren();say('Searching the selected region…');
+ try{const result=await client.search(name,region,{page,serverId,signal:task.signal});if(!isCurrent(task)||byId('region').value!==region||(byId('server-filter').value||null)!==serverId)return;
+  const f=document.createDocumentFragment();for(const row of result.rows){const b=node('button',`${row.name} · ${row.serverName||row.key.serverId} · ${row.key.region} · level ${fmt(row.level)}`);b.type='button';b.addEventListener('click',()=>choose(row));f.append(b);}if(result.hasMore&&page<10){const more=node('button','Next search page');more.type='button';more.addEventListener('click',()=>{if(byId('character-name').value.trim()===searchTerm?.name&&byId('region').value===searchTerm.region&&(byId('server-filter').value||null)===searchTerm.serverId)void search(searchPage+1);});f.append(more);}byId('results').replaceChildren(f);say(result.rows.length?'Select the matching character and server.':'No matches on this page.');
  }catch(e){if(isCurrent(task))say(e.message,'error');}finally{if(isCurrent(task)){finish(task);render();}}
 }
 byId('search-form').addEventListener('submit',event=>{event.preventDefault();void search();});
+byId('load-servers').addEventListener('click',()=>void loadDirectory());
+byId('region').addEventListener('change',()=>{pending?.abort();generation++;pending=null;byId('results').replaceChildren();resetDirectory();render();void loadDirectory();});
+byId('server-filter').addEventListener('change',()=>{byId('results').replaceChildren();});
+byId('clear-history').addEventListener('click',()=>{clearHistory();renderHistory();});
+byId('export-history').addEventListener('click',exportHistory);
 byId('refresh').addEventListener('click',()=>load('refresh'));
-byId('forget').addEventListener('click',()=>{pending?.abort();generation++;pending=null;snapshot=null;selected=null;store(bindingKey,null);store(preferenceKey,null);store(walletKey,null);store(observationKey,null);wallet=null;catalog=null;snapshotMode='live';analysisCache=null;lastError='';prefs={};byId('preference').value='neutral';byId('results').replaceChildren();say('Saved character and preferences removed.');render();});
+byId('forget').addEventListener('click',()=>{pending?.abort();generation++;pending=null;snapshot=null;selected=null;store(bindingKey,null);store(preferenceKey,null);store(walletKey,null);store(observationKey,null);clearHistory();resetDirectory();wallet=null;catalog=null;snapshotMode='live';analysisCache=null;lastError='';prefs={};byId('preference').value='neutral';byId('results').replaceChildren();say('Saved character and preferences removed.');render();});
 byId('sort').addEventListener('change',render);
 byId('objective').addEventListener('change',render);byId('encounter').addEventListener('change',render);
 byId('use-wallet').addEventListener('click',()=>{if(!selected)return;try{const next=confirmWallet(read(offlineKey),selected.key);if(!window.confirm(`Confirm these current balances belong to ${selected.name}: ${fmt(next.boundKina)} bound Kina and ${fmt(next.tradableKina)} tradable Kina?`))return;wallet=next;store(walletKey,wallet);render();}catch(e){say(e.message,'error');}});
@@ -148,10 +211,11 @@ byId('clear-catalog').addEventListener('click',()=>{catalog=null;analysisCache=n
 byId('category').addEventListener('change',()=>{byId('preference').value=prefs[byId('category').value]??'neutral';});
 byId('preference').addEventListener('change',()=>{prefs={...prefs,[byId('category').value]:byId('preference').value};store(preferenceKey,prefs);render();});
 function resume(){if(!document.hidden&&selected&&!pending&&snapshotMode!=='imported')void load('open');}
-document.addEventListener('visibilitychange',()=>{if(document.hidden){clearTimeout(walletTimer);walletTimer=null;pending?.abort();generation++;pending=null;}else{render();resume();}});
-window.addEventListener('focus',resume);window.addEventListener('pagehide',()=>{clearTimeout(walletTimer);pending?.abort();});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){clearTimeout(walletTimer);walletTimer=null;directoryPending?.abort();directoryPending=null;byId('load-servers').disabled=false;pending?.abort();generation++;pending=null;}else{render();resume();}});
+window.addEventListener('focus',resume);window.addEventListener('pagehide',()=>{clearTimeout(walletTimer);directoryPending?.abort();pending?.abort();});
 try{const saved=read(bindingKey);if(saved?.key)selected={key:characterKey(saved.key),name:typeof saved.name==='string'?saved.name:'',serverName:typeof saved.serverName==='string'?saved.serverName:''};}catch{store(bindingKey,null);}
 wallet=read(walletKey);
+try{if(selected&&read(historyKey))history=normalizeProgressHistory(read(historyKey),selected.key);}catch{clearHistory();}
 try{const saved=read(observationKey);if(saved?.pack&&selected){const pack=normalizeObservationPack(saved.pack);if(sameCharacter(pack.snapshot.key,selected.key)){snapshot=pack.snapshot;catalog=pack.catalog;snapshotMode=saved.mode==='imported'?'imported':'live';}}}catch{store(observationKey,null);}
 if(document.querySelector('meta[name="heaven-gg-armory-transport"][content="same-origin"]'))byId('transport-detail').textContent='Using the explicitly enabled local same-origin armory transport. No account login or private inventory access. All character data stays local to this preview.';
 if(selected){byId('region').value=selected.key.region;byId('character-name').value=selected.name;}

@@ -13,20 +13,35 @@ export function characterKey(input){
  return {region:input.region,serverId:String(input.serverId),characterId:decoded(input.characterId)};
 }
 // A user-supplied official profile link is an identity, never an arbitrary fetch target.
-export function parseOfficialCharacterLink(input){
+export function parseOfficialCharacterLink(input,{directory=null}={}){
  if(typeof input!=='string'||input.length>2048)throw Error('Invalid official character link');
  let u;try{u=new URL(input.trim());}catch{throw Error('Invalid official character link');}
  if(u.origin!=='https://aion2.plaync.com'||u.username||u.password||u.hash||
     !(u.pathname==='/api/character/info'||/^\/[a-z]{2}-[a-z]{2}\/characters\/[a-z0-9/_-]+$/i.test(u.pathname)))throw Error('Use an official AION 2 character link');
  const p=u.searchParams;
- for(const k of ['region','serverId','characterId'])if(p.getAll(k).length!==1)throw Error('Link must include exact region, server and character ID');
- return characterKey({region:p.get('region'),serverId:p.get('serverId'),characterId:p.get('characterId')});
+ for(const k of ['serverId','characterId'])if(p.getAll(k).length!==1)throw Error('Link must include exact server and character ID');
+ if(p.getAll('region').length>1)throw Error('Ambiguous character region');
+ const serverId=p.get('serverId');
+ const matches=Array.isArray(directory)?directory.filter(x=>x?.serverId===serverId&&regions.has(x.region)):[];
+ const region=p.get('region')??(matches.length===1?matches[0].region:null);
+ if(!regions.has(region)||matches.some(x=>x.region!==region))throw Error('Link must include a region or match the official server directory');
+ return characterKey({region,serverId,characterId:p.get('characterId')});
 }
 const keyId=k=>JSON.stringify(characterKey(k));
 function same(a,b){try{return keyId(a)===keyId(b);}catch{return false;}}
 function url(path,params){const u=new URL(path);for(const [k,v] of Object.entries(params))u.searchParams.set(k,String(v));return u.toString();}
 function endpoint(name,key,extra={}){return url(`${game}/api/character/${name}`,{...characterKey(key),lang:'en-US',...extra});}
 function array(value,limit){if(!Array.isArray(value)||value.length>limit)throw Error('provider schema or size mismatch');return value;}
+export function normalizeServerDirectory(data,region){
+ if(!regions.has(region))throw Error('Invalid Global region');
+ const rows=array(data?.serverList,300),seen=new Set();
+ if(!rows.length)throw Error('Official server directory is empty');
+ return rows.map(x=>{
+  if(!record(x)||!id(x.serverId)||!id(x.raceId)||typeof x.serverName!=='string'||!x.serverName.trim()||x.serverName.length>128||seen.has(x.serverId))throw Error('Invalid or duplicate server identity');
+  seen.add(x.serverId);
+  return {region,serverId:String(x.serverId),name:x.serverName,raceId:x.raceId};
+ });
+}
 const optional=(v,limit)=>v==null?null:array(v,limit);
 const optionalRows=(v,limit)=>Array.isArray(v)&&v.length<=limit&&v.every(record)?v:null;
 function sameNumber(published,expected){
@@ -63,6 +78,7 @@ export function armoryRequestTarget(request,{mode='direct',moduleUrl=import.meta
  const u=new URL(request);
  const routes=new Map([
   ['https://api-search.plaync.com/aion2global/search/v2/character','search'],
+  ['https://aion2.plaync.com/en-us/api/gameinfo/servers','servers'],
   ['https://aion2.plaync.com/api/character/info','info'],
   ['https://aion2.plaync.com/api/character/equipment','equipment'],
   ['https://aion2.plaync.com/api/character/equipment/item','equipment/item'],
@@ -173,7 +189,7 @@ export async function browserTransport(request,{signal}={}){
  const bytes=new Uint8Array(total);let offset=0;for(const c of chunks){bytes.set(c,offset);offset+=c.length;}return {status:response.status,body:JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes))};
 }
 export class ArmoryClient{
- constructor({transport=browserTransport,clock=Date.now,minInterval=1000,ttl=300000}={}){this.transport=transport;this.clock=clock;this.minInterval=minInterval;this.ttl=ttl;this.origins=new Map();this.queue=Promise.resolve();}
+ constructor({transport=browserTransport,clock=Date.now,minInterval=1000,ttl=300000}={}){this.transport=transport;this.clock=clock;this.minInterval=minInterval;this.ttl=ttl;this.origins=new Map();this.directories=new Map();this.queue=Promise.resolve();}
  async request(request,signal){
   // Serialized across origins, with one-second minimum spacing per origin and no speculative retries.
   const run=async()=>{
@@ -191,10 +207,22 @@ export class ArmoryClient{
   };
   const pending=this.queue.then(run,run);this.queue=pending.catch(()=>{});return pending;
  }
- async search(name,region,{signal,page=1}={}){
-  const keyword=typeof name==='string'?name.trim():'';if(!keyword||keyword.length>100||!regions.has(region)||!Number.isSafeInteger(page)||page<1||page>10)throw Error('enter a name and Global region');
-  const data=await this.request(url(search,{keyword,region,localeInfo:'en-US',page,size:40}),signal);
-  return {rows:normalizeSearch(data,region),hasMore:Number(data.pagination?.endPage)>page};
+ async servers(region,{signal,force=false}={}){
+  signal?.throwIfAborted();if(!regions.has(region))throw Error('Invalid Global region');
+  const old=this.directories.get(region),now=this.clock();
+  if(!force&&old&&old.checkedAt<=now&&now-old.checkedAt<3600000)return structuredClone(old);
+  const data=await this.request(url(game+'/en-us/api/gameinfo/servers',{region,lang:'en-US'}),signal);
+  const next={region,checkedAt:this.clock(),rows:normalizeServerDirectory(data,region)};
+  this.directories.set(region,next);return structuredClone(next);
+ }
+ async search(name,region,{signal,page=1,serverId=null}={}){
+  const keyword=typeof name==='string'?name.trim():'';
+  if(!keyword||keyword.length>100||!regions.has(region)||!Number.isSafeInteger(page)||page<1||page>10)throw Error('enter a name and Global region');
+  if(serverId!==null&&(!/^[1-9]\d{0,9}$/.test(String(serverId))||Number(serverId)>2147483647))throw Error('invalid selected server');
+  const params={keyword,region,localeInfo:'en-US',page,size:40};
+  if(serverId!==null)params.serverId=String(serverId);
+  const data=await this.request(url(search,params),signal);
+  return {rows:normalizeSearch(data,region).filter(row=>serverId===null||row.key.serverId===String(serverId)),hasMore:Number(data.pagination?.endPage)>page};
  }
  async load(input,{previous=null,trigger='open',slotPos,visible=true,signal,onProgress=()=>{}}={}){
   const key=characterKey(input);if(previous&&!same(previous.key,key))previous=null;

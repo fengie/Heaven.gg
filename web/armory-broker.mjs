@@ -8,6 +8,7 @@ const SEARCH='https://api-search.plaync.com/aion2global/search/v2/character';
 const REGIONS=new Set(['nae','naw','eu','la','as']);
 const ROUTES=new Map([
  ['search',{url:SEARCH,required:['keyword','region','localeInfo','page','size'],optional:['serverId']}],
+ ['servers',{url:GAME+'/en-us/api/gameinfo/servers',required:['region','lang'],optional:[]}],
  ['info',{url:GAME+'/api/character/info',required:['region','lang','serverId','characterId'],optional:[]}],
  ['equipment',{url:GAME+'/api/character/equipment',required:['region','lang','serverId','characterId'],optional:[]}],
  ['equipment/item',{url:GAME+'/api/character/equipment/item',required:['region','lang','serverId','characterId','id','slotPos','enchantLevel'],optional:['exceedLevel']}],
@@ -31,6 +32,9 @@ export function resolveBrokerRequest(raw){
   const keyword=p.get('keyword').trim();if(!keyword||keyword.length>100||/[\u0000-\u001f\u007f]/.test(keyword)||p.get('localeInfo')!=='en-US')throw Error('invalid character search');
   for(const [k,v] of Object.entries({keyword,region,localeInfo:'en-US',page:int(p.get('page'),1,10),size:int(p.get('size'),1,40)}))out.searchParams.set(k,v);
   if(p.has('serverId'))out.searchParams.set('serverId',int(p.get('serverId'),1,2147483647));
+ }else if(route==='servers'){
+  if(p.get('lang')!=='en-US')throw Error('invalid language');
+  out.searchParams.set('region',region);out.searchParams.set('lang','en-US');
  }else{
   if(p.get('lang')!=='en-US')throw Error('invalid language');
   const key=characterKey({region,serverId:int(p.get('serverId'),1,2147483647),characterId:p.get('characterId')});

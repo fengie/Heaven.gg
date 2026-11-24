@@ -146,6 +146,75 @@ export function normalizeObservationPack(data,now=Date.now()){
 export function createObservationPack(snapshot,{wallet=null,catalog=null,now=Date.now()}={}){
  return normalizeObservationPack({schema:'heaven-gg/aion2-observation-pack/v1',snapshot,wallet,catalog},now);
 }
+// Local, bounded evidence from successive armory observations. No fitted CP coefficients,
+// inferred DPS, raw player logs, or claim that all hidden conditions were held constant.
+const HISTORY_SCHEMA='heaven-gg/aion2-progress-history/v1',HISTORY_LIMIT=20;
+const CONTEXT_FIELDS=['class','level','skills','boards','titles','petwing','patch'];
+function canonical(value){
+ if(Array.isArray(value))return value.map(canonical);
+ if(record(value))return Object.fromEntries(Object.keys(value).sort().map(k=>[k,canonical(value[k])]));
+ return value??null;
+}
+const signature=value=>JSON.stringify(canonical(value));
+const unordered=rows=>Array.isArray(rows)?rows.map(canonical).sort((a,b)=>signature(a).localeCompare(signature(b))):null;
+function paired(a,b){return finite(a)&&finite(b)&&a>=0&&b>=0?{before:a,after:b}:null;}
+const changed=p=>p!==null&&p.before!==p.after;
+function coherentObservation(input,now){
+ const s=normalizeImportedSnapshot(input,now);
+ if(!s.complete)return null;
+ if([...s.equipment,...s.boards].some(x=>!Number.isSafeInteger(x.detailCheckedAt)||Math.abs(x.detailCheckedAt-s.checkedAt)>300000))return null;
+ return s;
+}
+function gearFingerprint(g){
+ return signature([g.id,g.grade,g.enchantLevel,g.exceedLevel,g.detail?.level,unordered(g.detail?.subStats),unordered(g.detail?.subSkills),unordered(g.detail?.magicStoneStat),unordered(g.detail?.godStoneStat)]);
+}
+export function compareProgressObservations(before,after,now=Date.now()){
+ try{
+  if(!before||!after||!same(before.key,after.key))return null;
+  const a=coherentObservation(before,now),b=coherentObservation(after,now);
+  if(!a||!b||a.checkedAt>=b.checkedAt)return null;
+  const combatPower=paired(a.combatPower,b.combatPower),itemLevel=paired(a.itemLevel,b.itemLevel);
+  const oldTotals=observedTotals(a.stats),newTotals=observedTotals(b.stats),stats={};
+  for(const k of Object.keys(oldTotals))if(own(newTotals,k))stats[k]=paired(oldTotals[k],newTotals[k]);
+  const oldGear=new Map(a.equipment.map(g=>[g.slotPos,gearFingerprint(g)])),newGear=new Map(b.equipment.map(g=>[g.slotPos,gearFingerprint(g)]));
+  const changedSlots=[...new Set([...oldGear.keys(),...newGear.keys()])].filter(k=>oldGear.get(k)!==newGear.get(k)).sort((x,y)=>x-y);
+  const context=s=>({class:s.className,level:s.characterLevel,skills:unordered(s.skills),boards:s.boards.map(x=>[x.id,x.openNodeCount,unordered(x.detail?.nodeList)]).sort((a,b)=>a[0]-b[0]),titles:s.title,petwing:s.petwing,patch:s.patch});
+  const x=context(a),y=context(b),contextChanges=CONTEXT_FIELDS.filter(k=>signature(x[k])!==signature(y[k]));
+  const patchMatch=a.patch&&b.patch?a.patch===b.patch:null;
+  if(!changed(combatPower)&&!changed(itemLevel)&&!Object.values(stats).some(changed)&&!changedSlots.length&&!contextChanges.length)return null;
+  return {from:a.checkedAt,to:b.checkedAt,combatPower,itemLevel,stats,changedSlots,contextChanges,patchMatch,observational:true};
+ }catch{return null;}
+}
+function validPair(p){
+ if(p===null)return null;
+ if(!record(p)||![p.before,p.after].every(x=>finite(x)&&x>=0&&x<=1e12))throw Error('Invalid observed metric pair');
+ return {before:p.before,after:p.after};
+}
+export function normalizeProgressHistory(input,key,now=Date.now()){
+ const normalizedKey=characterKey(key);
+ if(input?.schema!==HISTORY_SCHEMA||!same(input.key,normalizedKey)||!Array.isArray(input.changes)||input.changes.length>HISTORY_LIMIT)throw Error('Invalid character progression history');
+ const seen=new Set();let last=-1;
+ const changes=input.changes.map(row=>{
+  if(!record(row)||!Number.isSafeInteger(row.from)||!Number.isSafeInteger(row.to)||row.from<0||row.from>=row.to||row.to>now||row.to<last||
+    row.observational!==true||![null,true,false].includes(row.patchMatch)||!record(row.stats)||Object.keys(row.stats).length>Object.keys(labels).length||
+    !Array.isArray(row.changedSlots)||row.changedSlots.length>200||row.changedSlots.some(x=>!Number.isSafeInteger(x)||x<0)||
+    !Array.isArray(row.contextChanges)||row.contextChanges.some(k=>!CONTEXT_FIELDS.includes(k)))throw Error('Invalid progression comparison');
+  const identity=row.from+':'+row.to;if(seen.has(identity))throw Error('Duplicate progression comparison');seen.add(identity);last=row.to;
+  const stats={};
+  for(const [k,p] of Object.entries(row.stats)){
+   if(!own(labels,k)||p===null)throw Error('Unknown observed stat');stats[k]=validPair(p);
+  }
+  return {from:row.from,to:row.to,combatPower:validPair(row.combatPower),itemLevel:validPair(row.itemLevel),stats,changedSlots:[...new Set(row.changedSlots)].sort((a,b)=>a-b),contextChanges:[...new Set(row.contextChanges)],patchMatch:row.patchMatch,observational:true};
+ });
+ return {schema:HISTORY_SCHEMA,key:normalizedKey,changes};
+}
+export function appendProgressHistory(history,before,after,now=Date.now()){
+ const key=characterKey(after.key);
+ let prior;try{prior=normalizeProgressHistory(history,key,now);}catch{prior={schema:HISTORY_SCHEMA,key,changes:[]};}
+ const pair=compareProgressObservations(before,after,now);
+ if(!pair||prior.changes.some(x=>x.from===pair.from&&x.to===pair.to)||prior.changes.at(-1)?.to>pair.to)return prior;
+ return normalizeProgressHistory({...prior,changes:[...prior.changes,pair].slice(-HISTORY_LIMIT)},key,now);
+}
 function fmt(k,v){return percent.has(k)?(v*100).toFixed(2).replace(/\.?0+$/,'')+'%':String(v);}
 function rawGain(delta,goal){return (delta[goal]??0)*(percent.has(goal)?100:1);}
 function poolFor(g,region,catalog){
