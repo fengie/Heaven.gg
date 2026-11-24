@@ -101,9 +101,10 @@ This file is the repository's durable current-work ledger. It follows the cross-
 ### WEB-002 — Competitor-informed decision and collector experience
 
 **Priority:** P1, following GitHub Pages issue #6  
-**Status:** READY (research authored, implementation unclaimed)  
-**Owner:** unclaimed  
+**Status:** ACTIVE — recovered wardrobe route SHIPPED on verified main; remaining source-aware comparison scope open  
+**Owner:** recovered website slice #22/#9 completed; broader scenario/calibration owner unclaimed  
 **Source:** 2026-10-09 competitor and scientific records, root `_AGENT_CONTEXT/RESEARCH_FINDINGS/records/2026/10/`.  
 **Goal:** understandable, feasible, dated, player-specific comparisons without universal tier claims.  
 **Acceptance:** CH compare has assumption/source/encounter evidence with incomplete-state guard; AION compare includes owned cosmetics, dye, expiry and region/binding; negative scenario tests, keyboard and mobile checks pass.  
-**Next action:** implement trust/context badges and scenario-mismatch regression in a separate reviewed PR; validate one sourced cosmetic purchase workflow before adding larger catalog. No scheduled agents or auto-purchase.
+**Recovered slice — DONE and independently served:** [PR #22](https://github.com/fengie/Heaven.gg/pull/22) preserved the original wardrobe/decision calculator and tests, integrated on main `cf07062c0e75fb2b533e5cbfcb00eea9367a82cb`, and added the exact dated `aion2/catalog.json` asset, navigation, negative route fixtures, branch-side and production Chrome acceptance. [Main website run #43673906003](https://github.com/fengie/Heaven.gg/actions/runs/43673906003) final attempt passed all three jobs; `HEAVEN_GG_SERVED_RELEASE_OBSERVED` confirmed all 14 paths and exact SHA, and `HEAVEN_GG_BROWSER_INTERACTIONS_PASS` confirmed interactive desktop/mobile wardrobe behavior. [Recovery issue #9](https://github.com/fengie/Heaven.gg/issues/9) is closed. Historical recovery branch remains for provenance.  
+**Remaining WEB-002 acceptance:** Independently verify a sourced current-patch cosmetic purchase scenario and trust/context badges, expiry/region/binding evidence, and CH scenario-normalized comparison. Unknown or historical prices must not be represented as current. Next action: collect exact dated user-observed test case and add negative mismatched-encounter/region/expiry scenario fixtures before claiming the larger feature complete. No scheduled agents or auto-purchase.

@@ -1,0 +1,5 @@
+# The transfer manifest verifies these scripts against the original Git blob bytes.
+tools/windows-game-utils/*.ps1 -text
+
+# Keep workflow source consistent across checkout platforms.
+.github/workflows/*.yml text eol=lf

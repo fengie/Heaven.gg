@@ -9,3 +9,66 @@ Static hosting must support simple relative URLs, and cross-origin iframe embedd
 **Canonical publish:** GitHub Pages workflow (.github/workflows/site.yml). Build on PR, deploy on main; then verify the live served version and routes on main. Exact SHA must be present in version.json. This HTTP proof is not a browser-interaction test. See DEPLOYMENT.md.
 
 This is a research interface, not a validated live-game optimal build recommender.
+
+## AION 2 wardrobe / WEB-002 recovery
+
+The dated AION wardrobe planner is linked from the AION tab and built as
+`dist/aion2/wardrobe.html`, with the local ES module at
+`dist/aion2/wardrobe.js` and the standalone quote engine at
+`dist/wardrobe.mjs`. It reuses the existing researched
+`apps/aion2-value-atlas/data/catalog.json` snapshot. Plans are stored in
+browser local storage and can be imported/exported locally; there are no
+payments, live shop feeds, remote accounts or user-data uploads. Costs that
+cannot be sourced remain unknown rather than silently free.
+
+The preserved calculator and decision tests were ported from
+`feat/web002-evidence-wardrobe-20261009`. New regression coverage requires
+the released route/module graph, verifies explicit uncertainties, and exercises
+the actual quote controls and mobile viewport in hosted Chrome. The
+independent served verifier requires the same exact public assets before
+declaring a revision observed.
+
+**Production verification (November 14, 2026 EST):** WEB-002 wardrobe recovery
+merged as [PR #22](https://github.com/fengie/Heaven.gg/pull/22), exact source
+`cf07062c0e75fb2b533e5cbfcb00eea9367a82cb`. The
+[Website run #43673906003](https://github.com/fengie/Heaven.gg/actions/runs/43673906003)
+verified Pages publication, 14 independently fetched routes, and desktop/mobile
+Chrome interactions including a wardrobe selection/quote. The remaining broader
+WEB-002 scientific/source-calibration work is active in
+[the project ledger](../_AGENT_CONTEXT/PROJECT_PLAN.md); static sample prices
+are dated research only.
+
+## Heaven Mod Manager — linked desktop companion
+
+Heaven.gg includes a build-time-rendered Mod Manager entry on the homepage and
+[Game Tools](game-tools.html). Both links derive from one
+[allowlisted game registry](../data/gaming/game-registry.json), published
+as `dist/games.json` for read-only discovery. The MHW game identifier
+`monster-hunter-world` matches the built-in Windows GameProfile ID in
+`fengie/Heaven-Mod_Manager`. Other research games are **not** asserted to be
+supported mod deployment targets.
+
+The Windows download opens the Mod Manager's canonical public
+[latest release page](https://github.com/fengie/Heaven-Mod_Manager/releases/latest);
+no binary or updater token is mirrored into GitHub Pages. Desktop installation,
+mod archives, live-game file modification, Windows verification and rollback
+remain solely owned by the desktop repository. The website does not access
+local files or download third-party code.
+
+Do not copy the same release URL independently into new HTML pages. Review
+the registry, maintain the current origin allowlist, run `npm run test:web`,
+and use the post-deploy HTTPS observation before claiming that the new hub
+is served. This is a stable public navigation contract, not a remote desktop API.
+
+## Real-browser acceptance
+
+`web/browser-smoke.mjs` controls the preinstalled GitHub-hosted Google Chrome,
+using a pinned transient Playwright Core package. The Pages PR gate runs the
+headless browser against a loopback server containing the exact built `dist/`
+output. Following publication and the existing read-only HTTPS SHA check, the
+same smoke checks the production `https://fengie.github.io/Heaven.gg/` site.
+Tests cover desktop game tabs, catalog filtering, mobile touch navigation,
+the desktop companion download link and the public game registry. Any failure
+leaves the PR/deployment gate red; no external profile, OS control, direct
+native install or paid browser service is needed. A browser smoke is not a
+general accessibility audit or proof that Windows updater E2E succeeded.

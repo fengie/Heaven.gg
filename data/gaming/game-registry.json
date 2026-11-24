@@ -1,0 +1,31 @@
+{
+  "schema": "heaven-gaming/game-registry/v1",
+  "repository": "fengie/Heaven.gg",
+  "games": [
+    {
+      "id": "celtic-heroes",
+      "name": "Celtic Heroes",
+      "experience": "research",
+      "siteRoute": "./#celtic-heroes"
+    },
+    {
+      "id": "aion2",
+      "name": "AION 2",
+      "experience": "research",
+      "siteRoute": "./#aion2"
+    },
+    {
+      "id": "monster-hunter-world",
+      "name": "Monster Hunter: World",
+      "experience": "windows-companion",
+      "siteRoute": "./#mod-manager",
+      "companion": {
+        "repository": "fengie/Heaven-Mod_Manager",
+        "releasePage": "https://github.com/fengie/Heaven-Mod_Manager/releases/latest",
+        "sourcePage": "https://github.com/fengie/Heaven-Mod_Manager",
+        "platform": "windows-x64",
+        "integration": "download-link-only"
+      }
+    }
+  ]
+}

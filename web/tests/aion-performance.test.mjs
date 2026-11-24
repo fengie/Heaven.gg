@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { analyzeFrameOutput, FRAME_LAB_SCHEMA } from '../../apps/aion2-value-atlas/scripts/performance-engine.mjs';
+import { renderCompanionToolCard } from '../game-registry.mjs';
 
 const sample = {
   refreshHz:144, reportedFps:144, fpsCounter:'displayed',
@@ -71,5 +72,9 @@ test('site publishes AION 2 frame lab with local-only inputs and source disclosu
   assert.match(hub,/AION 2/);
   assert.match(hub,/frame generation/i);
   assert.match(hub,/Celtic Heroes/i);
-  assert.match(hub,/Monster Hunter/i);
+  // The desktop companion card is generated at build time from one reviewed
+  // game registry; the source template intentionally contains no duplicate URL.
+  assert.match(hub,/HEAVEN_GAMING_MOD_MANAGER_TOOLS/);
+  const registry=JSON.parse(readFileSync(new URL('../../data/gaming/game-registry.json',import.meta.url),'utf8'));
+  assert.match(renderCompanionToolCard(registry),/Monster Hunter/i);
 });

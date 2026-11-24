@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Heaven.gg — AION 2 Wardrobe Planner</title><meta name="color-scheme" content="dark">
+<link rel="stylesheet" href="../site.css"><script src="./wardrobe.js" type="module"></script>
+<style>
+:root{color-scheme:dark}body{background:radial-gradient(ellipse at 75% -10%,#123e40,#0a111b 58%);padding:0}
+.ward{max-width:1240px;margin:0 auto;padding:24px clamp(12px,3vw,34px) 60px}.ward h1{font:800 clamp(24px,4vw,38px) Manrope,system-ui;margin:8px 0}.ward h2{font-size:19px;margin:0 0 12px}.ward p{line-height:1.65;color:#a9bdca;font-size:12px}
+.ward header{display:flex;justify-content:space-between;gap:20px;align-items:center;flex-wrap:wrap}.subtle{color:#94a8b6}.grid-layout{display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:17px;margin-top:18px}.controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.controls label{color:#a9becb;font-size:12px;display:flex;flex-direction:column;gap:6px}.controls input,.controls select,.search-bar{width:100%;padding:10px 12px;color:#f3faff;background:#0c1926;border:1px solid #355061;border-radius:8px}
+.ward-card{background:#132130;border:1px solid #324656;border-radius:14px;padding:20px;margin-bottom:16px}.products{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.product{padding:15px;border-radius:10px;border:1px solid #375061;background:#111d2b;display:flex;flex-direction:column;gap:10px}.product h3{font-size:14px;margin:0}.product p{margin:0;font-size:11px}.product small{color:#aec0cd}.product .action{display:flex;gap:8px;margin-top:auto}.product button,.ward button{border:1px solid #51796d;color:#d5fbe8;background:#1a3536;padding:8px 10px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer}.product button.on{background:#b2f3c6;color:#152d28}.chips{display:flex;gap:6px;flex-wrap:wrap}.hint{color:#e9bd8b;font-size:11px}.summary{position:sticky;top:15px}.price{font:800 36px Manrope,system-ui;color:#baf2cd;margin:10px 0}.summary-row{display:flex;gap:10px;justify-content:space-between;padding:10px 0;border-bottom:1px solid #304657;font-size:12px}.summary-row span{color:#a7bfcb}.warning-list{padding-left:17px;color:#ead0a7;font-size:11px;line-height:1.6}.ward .minor{font-size:10px;color:#95aabb}.exportbar{display:flex;flex-wrap:wrap;gap:8px}.ward .neutral{background:#192537;border-color:#426075}.source-link{color:#a8dce2}.product[hidden]{display:none}.note{border-left:3px solid #cea978;padding-left:12px}.sticky{position:sticky;top:0}
+@media(max-width:830px){.grid-layout{grid-template-columns:1fr}.summary{position:static}}@media(max-width:560px){.products,.controls{grid-template-columns:1fr}.ward header{align-items:start}}
+</style></head>
+<body><main class="ward"><header><div><span class="overline">AION 2 · FASHION-FIRST RESEARCH</span><h1>Wardrobe & spending planner</h1><p>Plan looks you want, exclude looks you already own, and compare cash, Quna and known Mileage.</p></div>
+<div class="exportbar"><button id="export" class="neutral">Export plan JSON ↓</button><button id="import" class="neutral">Import plan ↑</button><input id="import-file" type="file" accept=".json,application/json" hidden></div></header>
+<div class="grid-layout"><div>
+<section class="ward-card"><h2>Your constraints</h2><div class="controls">
+<label>Cash budget (USD; before taxes)<input id="budget" type="number" min="0" max="100000" step=".01" value="100"></label>
+<label>Already owned Quna<input id="wallet" type="number" min="0" max="100000" step="1" value="0"></label>
+<label>Number of future recolors<input id="dye-changes" type="number" min="0" max="50" step="1" value="0"></label>
+<label>Assumed Quna per recolor (manual)<input id="dye-price" type="number" min="0" max="10000" step="1" placeholder="Unknown — leave blank"></label>
+</div><p class="note">Dye prices are deliberately **not** hard-coded. Put in your own in-client quote; if blank, the budget calculation is incomplete. Quna packs are selected by cheapest USD top-up, not by guessing the future market.</p></section>
+<section class="ward-card"><h2>Sourced catalog</h2><label for="search-items" class="subtle">Search cosmetics, passes and other shop purchases</label><input id="search-items" type="search" class="search-bar" placeholder="Outfits, wings, memberships...">
+<p class="minor" id="source-note">Loading the dated research snapshot…</p>
+<div id="products" class="products" aria-live="polite"></div></section></div>
+<aside><section class="ward-card summary" aria-live="polite"><span class="overline">YOUR SCENARIO</span><h2>Estimated checkout</h2><div id="subtotal" class="price">—</div><p id="budget-result"></p>
+<div class="summary-row"><span>Direct-dollar items</span><strong id="usd-direct">—</strong></div>
+<div class="summary-row"><span>Total Quna needed</span><strong id="quna-needed">—</strong></div>
+<div class="summary-row"><span>Quna top-up</span><strong id="quna-topup">—</strong></div>
+<div class="summary-row"><span>Known earned Mileage</span><strong id="mileage-earned">—</strong></div>
+<div class="summary-row"><span>Remaining Quna</span><strong id="quna-left">—</strong></div>
+<p id="pack-breakdown"></p><h3>Limits & uncertainty</h3><ul class="warning-list" id="warnings"></ul>
+<p class="minor">This is a dated planning estimate, not a live shop quote. Taxes, gameplay effort, bind restrictions, limited stock and future changes may apply. Local selections stay on your device; exported files are yours.</p>
+</section></aside></div><p class="minor">© Community research, independent of NCSOFT. No payment or login capability. <a href="https://github.com/fengie/Heaven.gg/tree/main/apps/aion2-value-atlas" target="_blank" rel="noopener noreferrer">Data provenance ↗</a></p></main></body></html>
