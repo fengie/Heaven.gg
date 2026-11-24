@@ -3,7 +3,7 @@ name: Heaven.gg Website
 on:
   push:
     # Unprivileged branch builds cover API-created PR candidates when PR events are absent.
-    # Production publish and served jobs remain strictly limited to main below.
+    # Private H1 development: only explicit manual main releases may publish.
     branches: ['**']
     paths:
       - 'web/**'
@@ -28,6 +28,12 @@ on:
       - '.github/workflows/site.yml'
       - '.heaven/update-policy.json'
   workflow_dispatch:
+    inputs:
+      publish_public:
+        description: 'Explicitly authorize public Heaven.gg publication'
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -66,7 +72,7 @@ jobs:
           test -s dist/aion2/index.html
           test -s dist/ch/catalog.json
       - name: Upload tested Pages artifact
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.publish_public == true
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
@@ -75,7 +81,7 @@ jobs:
     name: Deploy GitHub Pages from verified main
     outputs:
       site_url: ${{ steps.deployment.outputs.page_url }}
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.publish_public == true
     needs: verify-and-build
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -92,8 +98,8 @@ jobs:
 
   verify-served:
     name: Verify served GitHub Pages source and routes
-    # PR checks only build/verify local artifact. A production push must prove what is served.
-    if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+    # Only an explicitly authorized public release verifies the served artifact.
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.publish_public == true }}
     needs: deploy
     runs-on: ubuntu-latest
     timeout-minutes: 5

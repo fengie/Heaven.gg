@@ -72,10 +72,28 @@ export function affordability(cost,resources={}){
  }
  return unknown?'unknown':'affordable';
 }
-export function rankLedger(rows,resources={},preferences={},sort='recommended'){
+// Preferences express willingness, not a change in eligibility, cost or modeled gain.
+export const MAX_ACTION_PREFERENCES=256;
+const preferenceValues=new Set(['prefer','neutral','dislike']);
+export function actionPreferenceKey(row){
+ if(!validRecord(row)||![[row.id,512],[row.category,64],[row.title,512]].every(([v,n])=>typeof v==='string'&&v.length>0&&v.length<=n))return null;
+ const subject=row.subjectId??null,source=row.source??null;
+ if(subject!==null&&!(Number.isSafeInteger(subject)||typeof subject==='string'&&subject.length<=128))return null;
+ if(source!==null&&!(typeof source==='string'&&source.length<=2048))return null;
+ const key=JSON.stringify([row.id,row.category,row.title,subject,source]);
+ return key.length<=4096?key:null;
+}
+export function resolveActionPreference(row,preferences={},actionPreferences=new Map()){
+ const key=actionPreferenceKey(row);
+ const chosen=key!==null&&actionPreferences instanceof Map?actionPreferences.get(key):null;
+ const override=preferenceValues.has(chosen)?chosen:null;
+ const category=validRecord(preferences)&&own(preferences,row.category)?preferences[row.category]:null;
+ return {preferenceKey:key,preferenceOverride:override,preference:override??(preferenceValues.has(category)?category:'neutral')};
+}
+export function rankLedger(rows,resources={},preferences={},sort='recommended',actionPreferences=new Map()){
  if(!Array.isArray(rows)||new Set(rows.map(x=>x.id)).size!==rows.length)throw Error('duplicate action id');
  const rank={affordable:0,unknown:1,unaffordable:2,blocked:3,complete:4};
- const result=rows.map(row=>({...row,status:row.complete?'complete':row.blocked?'blocked':row.requiresVerification===true&&affordability(row.cost,resources)==='affordable'?'unknown':affordability(row.cost,resources),preference:own(preferences,row.category)?preferences[row.category]:'neutral'}));
+ const result=rows.map(row=>({...row,status:row.complete?'complete':row.blocked?'blocked':row.requiresVerification===true&&affordability(row.cost,resources)==='affordable'?'unknown':affordability(row.cost,resources),...resolveActionPreference(row,preferences,actionPreferences)}));
  const prefs={prefer:0,neutral:1,dislike:2};
  const descending=(a,b)=>(finite(b)?b:-Infinity)-(finite(a)?a:-Infinity);
  const ascending=(a,b)=>(finite(a)?a:Infinity)-(finite(b)?b:Infinity);

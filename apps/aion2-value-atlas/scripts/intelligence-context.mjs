@@ -1,5 +1,5 @@
 // Conditional comparisons, not a calibrated game simulator or an authoritative roll catalog.
-import {buildLedger, rankLedger, enumerateBuilds} from './intelligence-engine.mjs';
+import {buildLedger, rankLedger, enumerateBuilds, resolveActionPreference, MAX_ACTION_PREFERENCES} from './intelligence-engine.mjs';
 import {characterKey,normalizeImportedSnapshot} from './armory-engine.mjs';
 const finite=Number.isFinite;
 const record=x=>x!==null&&typeof x==='object'&&!Array.isArray(x);
@@ -70,6 +70,17 @@ export function scenarioGain(delta,totals,encounter='transcendence'){
  const gain=(ratio-1)*100;return finite(gain)?gain:null;
 }
 function same(a,b){try{return JSON.stringify(characterKey(a))===JSON.stringify(characterKey(b));}catch{return false;}}
+// Browser-local action preferences are bound to the exact selected character.
+export function normalizeActionPreferences(packet,key){
+ if(packet===null||packet===undefined)return new Map();
+ if(!record(packet)||packet.schema!=='heaven-gg/aion2-action-preferences/v1'||!same(packet.key,key)||!Array.isArray(packet.entries)||packet.entries.length>MAX_ACTION_PREFERENCES)throw Error('Invalid or mismatched action preferences');
+ const out=new Map();
+ for(const entry of packet.entries){
+  if(!Array.isArray(entry)||entry.length!==2||typeof entry[0]!=='string'||!entry[0].length||entry[0].length>4096||!['prefer','neutral','dislike'].includes(entry[1])||out.has(entry[0]))throw Error('Invalid action preference entry');
+  out.set(entry[0],entry[1]);
+ }
+ return out;
+}
 export function confirmWallet(profile,key,now=Date.now()){
  if(profile?.schema!=='heaven-gg/aion2-profile/v1'||![profile.boundKina,profile.tradableKina].every(x=>Number.isSafeInteger(x)&&x>=0&&x<=1e12)||!finite(now))throw Error('No valid offline planner balances.');
  return {schema:'heaven-gg/aion2-wallet-observation/v1',key:characterKey(key),observedAt:now,boundKina:profile.boundKina,tradableKina:profile.tradableKina};
@@ -284,13 +295,17 @@ function optimize(rows,totals,goal,encounter,preserveAccuracy,maxEvaluations){
  if(result.best){const changes=result.best.ids.map(id=>byId.get(id)).filter(Boolean);const delta=changes.reduce((d,r)=>plus(d,r.delta),{});consider(changes,delta);}
  return {best,search:{exact:result.exact,pairComplete,evaluated:result.evaluated,pairEvaluated,slots:groups.size,modeledOptions:options.length}};
 }
-export function analyzeProgression(snapshot,{wallet=null,catalog=null,preferences={},sort='recommended',goal='hit',encounter='transcendence',preserveAccuracy=true,now=Date.now(),maxEvaluations=20000}={}){
+export function analyzeProgression(snapshot,{wallet=null,catalog=null,preferences={},actionPreferences=new Map(),sort='recommended',goal='hit',encounter='transcendence',preserveAccuracy=true,now=Date.now(),maxEvaluations=20000}={}){
  if(!own(GOALS,goal)||!own(encounters,encounter)||!Number.isSafeInteger(maxEvaluations)||maxEvaluations<1||maxEvaluations>100000)throw Error('Invalid comparison settings');
  const totals=observedTotals(snapshot?.stats),resources=walletResources(wallet,snapshot?.key,now);
- if(!snapshot)return {rows:[],best:null,search:null,totals,resources,matchingItems:0,importedMatchingItems:0};
+ if(!snapshot)return {rows:[],best:null,search:null,preferredPlan:null,totals,resources,matchingItems:0,importedMatchingItems:0};
  let verifiedCatalog=null;if(catalog?.region===snapshot.key?.region){try{verifiedCatalog=normalizeReferenceCatalog(catalog,snapshot.key.region,now);}catch{/* incompatible or malformed references are unavailable */}}
  const current=buildLedger(snapshot,{resources,preferences,sort,now});const refs=candidates(snapshot,verifiedCatalog);
- const referenceRows=refs.rows.map(r=>{const accuracyLoss=(r.delta.accuracy??0)<-1e-9;
+ // Slot-based action IDs can recur after a gear swap; bind the preference to the observed item.
+ const items=new Map((snapshot.equipment??[]).map(g=>[String(g.slotPos),g.id]));
+ const bindSubject=r=>{const m=/^(?:gear|reference):([^:]+):/.exec(r.id);return m&&items.has(m[1])?{...r,subjectId:items.get(m[1])}:r;};
+ const refRows=refs.rows.map(bindSubject);
+ const referenceRows=refRows.map(r=>{const accuracyLoss=(r.delta.accuracy??0)<-1e-9;
   const gain=goal==='hit'?scenarioGain(r.delta,totals,encounter):rawGain(r.delta,goal);
   return {...r,gain,blocked:preserveAccuracy&&accuracyLoss,reason:r.reason+(accuracyLoss?' Loses raw Accuracy; may require a coordinated swap.':'')+(gain===null?' Hit-index effect is unmodeled or aggregate inputs are missing.':'')};});
  const extra=[];
@@ -305,7 +320,11 @@ export function analyzeProgression(snapshot,{wallet=null,catalog=null,preference
   if(finite(bound)&&finite(market))resources.recipeKina={low:0,high:bound+market,fresh:true};
   for(const [difficulty,vouchers] of [['Easy',4],['Normal',2],['Hard',1]])extra.push({id:`content:ludra:${difficulty}`,category:'content',title:`Ludra weapon selection: ${difficulty} voucher path`,cost:{recipeKina:5000000,[`ludra${difficulty}Voucher`]:vouchers},requiresVerification:true,source:'https://store.steampowered.com/news/app/3393110/view/675137971401261063',reason:'Nov 18 Global recipe observation; verify current rule, claim eligibility, voucher balance and usable Kina. Bound and tradable are not interchangeable.'});
  }
- const all=[...current,...referenceRows,...extra.map(r=>({gain:null,minutes:null,cost:null,...r}))];
- const result=optimize(refs.rows,totals,goal,encounter,preserveAccuracy,maxEvaluations);
- return {rows:rankLedger(all,resources,preferences,sort),...result,totals,resources,matchingItems:refs.matchingItems,importedMatchingItems:refs.importedMatchingItems,referenceVersion:REFERENCE_VERSION,modelSource:MECHANICS};
+ const all=[...current,...referenceRows,...extra.map(r=>({gain:null,minutes:null,cost:null,...r}))].map(bindSubject);
+ const result=optimize(refRows,totals,goal,encounter,preserveAccuracy,maxEvaluations);
+ const allowed=refRows.filter(r=>resolveActionPreference(r,preferences,actionPreferences).preference!=='dislike');
+ // The mathematical optimum remains visible. Only a user preference actually excluding
+ // reference rows incurs a second bounded search; no provider requests or extra acquisition assumptions.
+ const preferredPlan=allowed.length<refRows.length?{...optimize(allowed,totals,goal,encounter,preserveAccuracy,maxEvaluations),excluded:refRows.length-allowed.length}:null;
+ return {rows:rankLedger(all,resources,preferences,sort,actionPreferences),...result,preferredPlan,totals,resources,matchingItems:refs.matchingItems,importedMatchingItems:refs.importedMatchingItems,referenceVersion:REFERENCE_VERSION,modelSource:MECHANICS};
 }

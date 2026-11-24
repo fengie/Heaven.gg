@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {analyzeProgression, observedTotals, confirmWallet, walletResources, scenarioGain} from '../../apps/aion2-value-atlas/scripts/intelligence-context.mjs';
+import {analyzeProgression, observedTotals, confirmWallet, walletResources, scenarioGain, normalizeActionPreferences} from '../../apps/aion2-value-atlas/scripts/intelligence-context.mjs';
 const now=Date.parse('2026-11-23T20:00:00Z'), key={region:'nae',serverId:'1101',characterId:'fixture='};
 const gear=(slotPos,slotPosName,lines,level=102)=>({id:100+slotPos,slotPos,slotPosName,name:slotPosName,enchantLevel:5,detailCheckedAt:now,detail:{id:100+slotPos,level,subStats:lines,maxEnchantLevel:10}});
 const line=(name,value)=>({name,value});
@@ -71,4 +71,38 @@ test('confirmed insufficient total Kina proves a recipe shortfall, but higher to
 });
 test('bounded multi-slot search never claims an exact optimum on a truncated domain',()=>{
  const x=analyzeProgression(snapshot,{now,goal:'crit',maxEvaluations:1});assert.equal(x.search.exact,false);assert.ok(x.best);
+});
+
+test('disliking the soul-binding category changes the preferred plan without erasing mathematical alternatives',()=>{
+ const s={...snapshot,equipment:[gear(1,'Shoulder',[line('Accuracy','31')]),gear(2,'Shoes',[line('Critical Hit','26')])]};
+ const unrestricted=analyzeProgression(s,{now,goal:'critBonus'});
+ const preferred=analyzeProgression(s,{now,goal:'critBonus',preferences:{'soul-binding':'dislike'}});
+ assert.deepEqual(preferred.best,unrestricted.best);
+ assert.ok(preferred.preferredPlan,'preferences must influence the separately labeled feasible choice');
+ assert.equal(preferred.preferredPlan.best.changes.length,0);
+ assert.ok(preferred.preferredPlan.excluded>0);
+ assert.equal(preferred.rows.length,unrestricted.rows.length);
+});
+test('one disliked action is excluded from the preferred plan but remains in the ledger',()=>{
+ const s={...snapshot,equipment:[gear(1,'Shoulder',[line('Accuracy','31')]),gear(2,'Shoes',[line('Critical Hit','26')])]};
+ const unrestricted=analyzeProgression(s,{now,goal:'critBonus'});
+ const excluded=unrestricted.rows.find(r=>r.id===unrestricted.best.changes[0].id);
+ assert.ok(excluded.preferenceKey,'every valid action has a stable preference identity');
+ const ranked=analyzeProgression(s,{now,goal:'critBonus',actionPreferences:new Map([[excluded.preferenceKey,'dislike']])});
+ assert.deepEqual(ranked.best,unrestricted.best);
+ assert.ok(ranked.preferredPlan);
+ assert.ok(ranked.preferredPlan.best.changes.every(r=>r.id!==excluded.id));
+ const retained=ranked.rows.find(r=>r.id===excluded.id);
+ assert.equal(retained.preference,'dislike');assert.equal(retained.gain,excluded.gain);
+ assert.equal(retained.status,excluded.status);assert.equal(ranked.rows.length,unrestricted.rows.length);
+});
+
+test('saved action preferences reject cross-character, duplicate and malformed observations',()=>{
+ const packet={schema:'heaven-gg/aion2-action-preferences/v1',key,entries:[['action','dislike']]};
+ assert.equal(normalizeActionPreferences(packet,key).get('action'),'dislike');
+ assert.throws(()=>normalizeActionPreferences(packet,{...key,characterId:'other='}));
+ assert.throws(()=>normalizeActionPreferences({...packet,entries:[['action','neutral'],['action','prefer']]},key));
+ assert.throws(()=>normalizeActionPreferences({...packet,entries:[['action','unknown']]},key));
+ assert.throws(()=>normalizeActionPreferences({...packet,entries:Array.from({length:257},(_,i)=>[String(i),'prefer'])},key));
+ assert.deepEqual(normalizeActionPreferences(null,key),new Map());
 });
