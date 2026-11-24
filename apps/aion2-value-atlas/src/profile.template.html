@@ -174,12 +174,14 @@ ul.warnings li{margin:5px 0}
   </section>
   <section class="panel wide" aria-labelledby="market-input-title">
     <h2 id="market-input-title">Quna exchange assumptions</h2>
-    <p class="help">Lowest asks from your October 19 screenshot, editable for your server. The site cannot read live prices or determine completed-sale liquidity. A 10% morph premium and 10% displayed exchange tax are assumptions until confirmed in-client.</p>
+    <p class="help">Historical October 19 lowest asks, editable for your server. Confirm the observation date for each manual ask, including saved legacy asks; changing a price clears its date. Old or undated quotes are excluded individually. The site cannot read live prices or determine completed-sale liquidity. A 10% morph premium and 10% displayed exchange tax are assumptions until confirmed in-client.</p>
     <div class="formgrid">
       <label class="control-wrap"><span>400K Kina chest · ask Quna</span><input id="ask-400000" type="number" class="profile-control" min="0"></label>
+      <label class="control-wrap"><span>400K chest · observed date</span><input id="market-date-400000" type="date" class="profile-control"></label>
       <label class="control-wrap"><span>2M Kina chest · ask Quna</span><input id="ask-2000000" type="number" class="profile-control" min="0"></label>
+      <label class="control-wrap"><span>2M chest · observed date</span><input id="market-date-2000000" type="date" class="profile-control"></label>
       <label class="control-wrap"><span>10M Kina chest · ask Quna</span><input id="ask-10000000" type="number" class="profile-control" min="0"></label>
-      <label class="control-wrap"><span>When these asks were observed</span><input id="market-date" type="date" class="profile-control"></label>
+      <label class="control-wrap"><span>10M chest · observed date</span><input id="market-date-10000000" type="date" class="profile-control"></label>
     </div>
     <p id="exchange-result" class="help">No current sale advice without your tradable balance and recent prices.</p>
   </section>

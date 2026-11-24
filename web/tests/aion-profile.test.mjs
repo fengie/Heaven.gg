@@ -126,3 +126,58 @@ test('profile page is built into the static site and contains offline import/exp
   const atlas=readFileSync(new URL('../../apps/aion2-value-atlas/index.html',import.meta.url),'utf8');
   assert.match(atlas,/\.\/profile\.html/);
 });
+
+test('editing one quote never refreshes a stale bundled or legacy override quote', () => {
+  const p=profile({tradableKina:11000000,
+    exchangeAsks:{400000:50,10000000:900000},
+    exchangeObservedDate:'2026-11-24',
+    exchangeAskDates:{400000:'2026-11-24'}});
+  const result=evaluateProfile(p,catalog,snapshot,'2026-11-24');
+  assert.equal(result.exchangeAdvice.kind,'snapshot-only');
+  assert.equal(result.exchangeAdvice.bestNominalSellerChestKina,400000);
+  assert.equal(result.exchangeAdvice.qunaNet,45);
+  assert.equal(result.exchangeAdvice.observedDate,'2026-11-24');
+  assert.equal(normalizeProfile(p,catalog).exchangeAsks['10000000'],900000);
+});
+
+test('a legacy shared date or a date-only import cannot certify undated quotes', () => {
+  for(const p of [
+    profile({tradableKina:11000000,exchangeObservedDate:'2026-11-24'}),
+    profile({tradableKina:11000000,exchangeAsks:{10000000:900000},exchangeObservedDate:'2026-11-24'})
+  ]) {
+    const advice=evaluateProfile(p,catalog,snapshot,'2026-11-24').exchangeAdvice;
+    assert.equal(advice.kind,'stale');
+    assert.equal(advice.bestNominalSellerChestKina,null);
+  }
+});
+
+test('per-denomination provenance survives round trip and rejects orphaned or impossible dates', () => {
+  const p=profile({exchangeAsks:{400000:100,2000000:500},
+    exchangeAskDates:{400000:'2026-11-24',2000000:'2026-11-10'}});
+  assert.deepEqual(normalizeProfile(JSON.parse(JSON.stringify(normalizeProfile(p,catalog))),catalog).exchangeAskDates,p.exchangeAskDates);
+  assert.throws(()=>normalizeProfile(profile({exchangeAskDates:{400000:'2026-11-24'}}),catalog),/quote|ask/i);
+  assert.throws(()=>normalizeProfile(profile({exchangeAsks:{400000:100},exchangeAskDates:{400000:'2026-02-30'}}),catalog),/date/i);
+  assert.deepEqual(sourceFreshness('2026-02-30','2026-03-02'),{stale:true,days:null});
+});
+
+test('each quote keeps its own freshness and nonpositive asks never rank', () => {
+  const p=profile({tradableKina:11000000,exchangeAsks:{400000:0,2000000:1000,10000000:900000},
+    exchangeAskDates:{400000:'2026-11-24',2000000:'2026-11-23',10000000:'2026-11-10'}});
+  const advice=evaluateProfile(p,catalog,snapshot,'2026-11-24').exchangeAdvice;
+  assert.equal(advice.bestNominalSellerChestKina,2000000);
+  assert.equal(advice.observedDate,'2026-11-23');
+  const zero=evaluateProfile(profile({tradableKina:11000000,exchangeAsks:{400000:0},exchangeAskDates:{400000:'2026-11-24'}}),catalog,snapshot,'2026-11-24').exchangeAdvice;
+  assert.equal(zero.bestNominalSellerChestKina,null);
+});
+
+test('legacy v1 metadata remains importable but never grants freshness', () => {
+  const p=normalizeProfile(profile({tradableKina:11000000,
+    exchangeAsks:{'000400000':777,10000000:900000},
+    exchangeObservedDate:'2026-02-30'}),catalog);
+  assert.equal(p.exchangeAsks['000400000'],777);
+  assert.equal(p.exchangeAsks['10000000'],900000);
+  assert.equal(p.exchangeObservedDate,'2026-02-30');
+  assert.deepEqual(p.exchangeAskDates,{});
+  assert.equal(evaluateProfile(p,catalog,snapshot,'2026-11-24').exchangeAdvice.kind,'stale');
+  assert.throws(()=>normalizeProfile({...p,exchangeAskDates:{'000400000':'2026-11-24'}},catalog),/quote|ask/i);
+});
