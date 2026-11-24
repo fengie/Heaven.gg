@@ -22,6 +22,17 @@ function Assert-RepoRelativeFile([string]$relative) {
   if ([IO.Path]::IsPathRooted($relative) -or $relative -match '(^|[\\/])\.\.([\\/]|$)') { throw "Update evidence path escapes repository: $relative" }
   if (-not (Test-Path -LiteralPath $relative -PathType Leaf)) { throw "Required update evidence is missing: $relative" }
 }
+# This product's private deployment is a paired H1 apply/readback contract.
+# Do not accept an apply-only or source-only substitute: the parent updater
+# must never promote a hosted runtime without its independent verifier.
+if ($p.kind -isnot [string] -or $p.kind -cne 'product' -or
+    $p.runtime_update.mode -isnot [string] -or $p.runtime_update.mode -cne 'apply-script' -or
+    $p.runtime_update.target_host -isnot [string] -or $p.runtime_update.target_host -cne 'HEAVEN' -or
+    $p.runtime_update.apply_script -isnot [string] -or $p.runtime_update.apply_script -cne 'scripts/Apply-HeavenGg.ps1' -or
+    $p.runtime_update.verify_script -isnot [string] -or $p.runtime_update.verify_script -cne 'scripts/Test-HeavenGgRuntime.ps1') {
+  throw 'H1_RUNTIME_CONTRACT_INVALID'
+}
+Assert-RepoRelativeFile $p.runtime_update.verify_script
 if ($mode -eq 'apply-script') { Assert-RepoRelativeFile ([string]$p.runtime_update.apply_script) }
 if ($mode -in @('self-update-release','release-channel')) {
   $evidence = @($p.runtime_update.evidence_paths)
