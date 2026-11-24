@@ -4,6 +4,12 @@ export const STORAGE_KEY = 'heaven-gg:aion2:character-v1';
 const MONEY_LIMIT = 1_000_000_000_000;
 const SLOT_LIMIT = 40;
 const allowedFunds = new Set(['market','all']);
+const chestDenominations = new Set(['400000','2000000','10000000']);
+function calendarDate(value) {
+  if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(value))return null;
+  const ms=Date.parse(value+'T00:00:00Z');
+  return Number.isFinite(ms)&&new Date(ms).toISOString().slice(0,10)===value?ms:null;
+}
 const number = (value, label, max = MONEY_LIMIT) => {
   const n = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
   if (!Number.isSafeInteger(n) || n < 0 || n > max) throw new Error(label + ' must be an integer from 0 to ' + max);
@@ -31,7 +37,7 @@ export function emptyProfile() {
     boundKina:0, tradableKina:0, quna:0, odyle:0, membership:false,
     vendorBought:0, vendorConfirmed:false, mainQuestDone:false,
     regionalQuestsDone:false, feathersDone:false,
-    gear:{}, runs:{}, upgrades:[], exchangeAsks:{}, exchangeObservedDate:''
+    gear:{}, runs:{}, upgrades:[], exchangeAsks:{}, exchangeAskDates:{}, exchangeObservedDate:''
   };
 }
 function normalizeGear(input, catalog) {
@@ -98,11 +104,18 @@ export function normalizeProfile(input, catalog) {
     };
   });
   for (const [size,quote] of Object.entries(object(src.exchangeAsks ?? {},'exchangeAsks'))) {
-    if(!/^\d+$/.test(size)|| ![400000,2000000,10000000].includes(Number(size))) throw new Error('invalid exchange chest denomination');
+    if(!chestDenominations.has(size)) throw new Error('invalid exchange chest denomination');
     p.exchangeAsks[size]=number(quote,'exchange ask',1_000_000);
   }
+  // A legacy shared date cannot certify which individual prices were observed
+  // together. Retain it and the entered asks, but never use it for freshness.
   p.exchangeObservedDate=boundedText(src.exchangeObservedDate ?? '','exchangeObservedDate',10);
-  if(p.exchangeObservedDate && !/^\d{4}-\d{2}-\d{2}$/.test(p.exchangeObservedDate)) throw new Error('exchangeObservedDate must be YYYY-MM-DD');
+  if(p.exchangeObservedDate && calendarDate(p.exchangeObservedDate)===null) throw new Error('exchangeObservedDate must be a calendar date YYYY-MM-DD');
+  for(const [size,date] of Object.entries(object(src.exchangeAskDates ?? {},'exchangeAskDates'))){
+    if(!chestDenominations.has(size)||!Object.hasOwn(p.exchangeAsks,size))throw new Error('exchange quote date requires a matching manual ask');
+    if(calendarDate(date)===null)throw new Error('exchange quote date must be a calendar date YYYY-MM-DD');
+    p.exchangeAskDates[size]=date;
+  }
   return p;
 }
 function splitCsv(text) {
@@ -148,9 +161,8 @@ export function parseGearCsv(csv, catalog) {
   return out;
 }
 export function sourceFreshness(observedDate, today, maximumAgeDays=7) {
-  const before=Date.parse(String(observedDate)+'T00:00:00Z');
-  const after=Date.parse(String(today)+'T00:00:00Z');
-  if(!Number.isFinite(before)||!Number.isFinite(after)) return {stale:true,days:null};
+  const before=calendarDate(observedDate),after=calendarDate(today);
+  if(before===null||after===null)return {stale:true,days:null};
   const days=Math.floor((after-before)/86400000);
   return {stale:days>maximumAgeDays||days<0,days};
 }
@@ -210,21 +222,25 @@ export function evaluateProfile(input,catalog,snapshot,today) {
     detail:'Modeled +' + Math.round(item.modelGainKinaPerClaim).toLocaleString('en-US')+
       ' Kina/claim and '+item.paybackClaims+' claims to repay; ignores queue time, failure and fees. '+(item.affordable?'Budget available.':'Insufficient eligible Kina for this funding type.')
   });
-  const offers=(snapshot.offers||[]).map(x=>({...x,quna:p.exchangeAsks[String(x.kina)]??x.quna}));
-  const stamp=p.exchangeObservedDate||snapshot.observed_date;
-  const fresh=sourceFreshness(stamp,today);
-  let exchangeAdvice={kind:'unverified',observedDate:stamp,stale:fresh.stale,bestNominalSellerChestKina:null,qunaNet:null};
-  if(fresh.stale)exchangeAdvice.kind='stale';
-  else if(p.tradableKina>0){
+  const offers=(snapshot.offers||[]).map(x=>{
+    const size=String(x.kina),manual=Object.hasOwn(p.exchangeAsks,size);
+    return {...x,quna:manual?p.exchangeAsks[size]:x.quna,
+      observedDate:manual?(p.exchangeAskDates[size]??null):snapshot.observed_date};
+  });
+  const freshOffers=offers.filter(o=>o.quna>0&&!sourceFreshness(o.observedDate,today).stale);
+  const stale=freshOffers.length===0;
+  let exchangeAdvice={kind:stale?'stale':'unverified',observedDate:null,stale,bestNominalSellerChestKina:null,qunaNet:null};
+  if(!stale&&p.tradableKina>0){
     const tax=snapshot.displayed_tax_basis_points/10000;
     const morph=snapshot.morph_fee_basis_points_assumed/10000;
-    const affordable=offers.filter(o=>p.tradableKina>=Math.ceil(o.kina*(1+morph)));
+    const affordable=freshOffers.filter(o=>p.tradableKina>=Math.ceil(o.kina*(1+morph)));
     if(affordable.length) {
       const best=affordable.sort((a,b)=>(b.quna*(1-tax)/(b.kina*(1+morph)))-(a.quna*(1-tax)/(a.kina*(1+morph))))[0];
-      exchangeAdvice={kind:'snapshot-only',observedDate:stamp,stale:false,
+      exchangeAdvice={kind:'snapshot-only',observedDate:best.observedDate,stale:false,
         bestNominalSellerChestKina:best.kina,qunaNet:Math.floor(best.quna*(1-tax))};
     }
   }
+  if(freshOffers.length<offers.length)warnings.push('Missing, expired, future-dated or zero exchange asks are excluded individually; confirm each quote in your server.');
   warnings.push('Exchange quotes are manual asking prices, not completed sales; fees and settlement rounding must be confirmed.');
   const weeklyEstimate=bestFarm?
     Math.round(bestFarm.netPerClaim*(catalog.naturalClaimsPerWeekEstimate+vendorExtraClaims)-vendorExtraClaims*catalog.vendorEnergy.priceKinaPerClaimEstimate):null;
@@ -347,9 +363,10 @@ if(typeof document!=='undefined') {
         else node.value=String(value??'');
       }
       for(const chest of snapshot.offers){
-        const node=el('ask-'+chest.kina);if(node)node.value=String(memory.exchangeAsks[String(chest.kina)]??chest.quna);
+        const size=String(chest.kina),manual=Object.hasOwn(memory.exchangeAsks,size);
+        el('ask-'+size).value=String(manual?memory.exchangeAsks[size]:chest.quna);
+        el('market-date-'+size).value=manual?(memory.exchangeAskDates[size]??''):snapshot.observed_date;
       }
-      el('market-date').value=memory.exchangeObservedDate||snapshot.observed_date;
       gearRows();runRows();upgradeRows();render();
     }
     function appendAction(parent,title,detail,badge){
@@ -376,9 +393,9 @@ if(typeof document!=='undefined') {
       el('weekly-estimate').textContent=result.weeklyEstimate===null?'Not measured':
         printable(result.weeklyEstimate)+' modeled Kina/week before weekly reward caps and downtime';
       el('exchange-result').textContent=result.exchangeAdvice.kind==='snapshot-only'?
-        'Best nominal seller chest: '+printable(result.exchangeAdvice.bestNominalSellerChestKina)+' Kina; up to '+printable(result.exchangeAdvice.qunaNet)+' Quna after assumed tax, before unknown rounding or fill':
+        'Best among recent dated asks: '+printable(result.exchangeAdvice.bestNominalSellerChestKina)+' Kina; observed '+result.exchangeAdvice.observedDate+'; up to '+printable(result.exchangeAdvice.qunaNet)+' Quna after assumed tax, before unknown rounding or fill':
         result.exchangeAdvice.kind==='stale'?
-        'Quotes expired. Re-enter current server asking prices and observation date.':
+        'No recent positive dated asks. Re-enter current server asking prices and confirm each observation date.':
         'Not enough tradable Kina for a supported chest analysis.';
       el('recalc-date').textContent='Calculated '+asToday()+' from locally saved inputs; no live game access';
       const actions=el('strategy-list');actions.replaceChildren();
@@ -434,16 +451,25 @@ if(typeof document!=='undefined') {
       if(!id)return;
       memory.upgrades=memory.upgrades.filter(x=>x.id!==id);persist();upgradeRows();render();
     });
-    for(const chest of snapshot.offers)el('ask-'+chest.kina).addEventListener('change',event=>{
-      const next=Number(event.target.value);
-      const candidate={...memory,exchangeAsks:{...memory.exchangeAsks,[String(chest.kina)]:next},exchangeObservedDate:asToday()};
-      try{memory=normalizeProfile(candidate,catalog);persist();fields();notice('Manually observed quote saved. Not a completed-sale price.');}
-      catch(error){notice(String(error.message),'warn');}
-    });
-    el('market-date').addEventListener('change',event=>{
-      try{memory=normalizeProfile({...memory,exchangeObservedDate:event.target.value},catalog);persist();render();}
-      catch(error){notice(String(error.message),'warn');}
-    });
+    for(const chest of snapshot.offers){
+      const size=String(chest.kina);
+      const updateQuote=(ask,date)=>{
+        const exchangeAsks={...memory.exchangeAsks,[size]:ask},exchangeAskDates={...memory.exchangeAskDates};
+        if(date)exchangeAskDates[size]=date;else delete exchangeAskDates[size];
+        try{
+          memory=normalizeProfile({...memory,exchangeAsks,exchangeAskDates},catalog);
+          persist();fields();notice('Manual quote updated. Not a completed-sale price.');
+        }catch(error){notice(String(error.message),'warn');}
+      };
+      el('ask-'+size).addEventListener('change',event=>{
+        // Editing a price does not establish when it was observed.
+        updateQuote(Number(event.target.value), '');
+      });
+      el('market-date-'+size).addEventListener('change',event=>{
+        // An explicit date confirmation applies only to this denomination.
+        updateQuote(memory.exchangeAsks[size]??chest.quna,event.target.value);
+      });
+    }
     const download=(name,contents,type)=>{
       const url=URL.createObjectURL(new Blob([contents],{type}));
       const anchor=create('a');anchor.href=url;anchor.download=name;document.body.append(anchor);anchor.click();anchor.remove();
