@@ -1,13 +1,14 @@
 import {ArmoryClient,characterKey,parseOfficialCharacterLink} from './armory-engine.mjs';
-import {rankLedger} from './intelligence-engine.mjs';
+import {rankLedger,MAX_ACTION_PREFERENCES} from './intelligence-engine.mjs';
 import {rawArmoryIdentity,normalizeRawArmoryBundle,inspectA2Log,summarizeA2Log,appendCombatEvidence,normalizeCombatEvidence,compareRecordedFights} from './evidence-import.mjs';
-import {analyzeProgression, confirmWallet, walletResources, GOALS, REFERENCE_VERSION,normalizeObservationPack,createObservationPack,normalizeReferenceCatalog,normalizeWalletObservation,appendProgressHistory,normalizeProgressHistory} from './intelligence-context.mjs';
+import {analyzeProgression, confirmWallet, walletResources, GOALS, REFERENCE_VERSION,normalizeObservationPack,createObservationPack,normalizeReferenceCatalog,normalizeWalletObservation,appendProgressHistory,normalizeProgressHistory,normalizeActionPreferences} from './intelligence-context.mjs';
 const byId=id=>document.getElementById(id), node=(tag,content)=>{const n=document.createElement(tag);if(content!==undefined)n.textContent=String(content);return n;};
 const bindingKey='heaven-gg:aion2:intelligence-binding-v1', preferenceKey='heaven-gg:aion2:intelligence-preferences-v1';
 const client=new ArmoryClient();
 const walletKey='heaven-gg:aion2:intelligence-wallet-v1', offlineKey='heaven-gg:aion2:character-v1';
 const observationKey='heaven-gg:aion2:intelligence-observation-v1',historyKey='heaven-gg:aion2:intelligence-history-v1';
-const combatKey='heaven-gg:aion2:intelligence-combat-v1';
+const combatKey='heaven-gg:aion2:intelligence-combat-v1',actionPreferenceStorage='heaven-gg:aion2:intelligence-action-preferences-v1';
+let actionPrefs=new Map(),focusActionKey=null;
 let combatHistory=null,combatDraft=null,combatReadVersion=0;
 let history=null,directory=null,directoryPending=null;
 let wallet=null,catalog=null,snapshotMode='live',analysisCache=null,lastError='',walletTimer=null;
@@ -119,9 +120,22 @@ function saveObservation(){
  catch{/* an oversized or inconsistent snapshot is not persisted */}
 }
 function sameCharacter(a,b){try{return JSON.stringify(characterKey(a))===JSON.stringify(characterKey(b));}catch{return false;}}
+function clearActionPreferences(){actionPrefs=new Map();store(actionPreferenceStorage,null);focusActionKey=null;}
+function setActionPreference(row,value){
+ if(!selected||!row.preferenceKey)return;
+ const next=new Map(actionPrefs),key=row.preferenceKey;
+ if(value==='category')next.delete(key);
+ else if(['prefer','neutral','dislike'].includes(value)){
+  if(!next.has(key)&&next.size>=MAX_ACTION_PREFERENCES){say('Saved action preference limit reached. Reset an existing action preference first.','error');focusActionKey=key;render();return;}
+  next.set(key,value);
+ }else return;
+ actionPrefs=next;
+ store(actionPreferenceStorage,next.size?{schema:'heaven-gg/aion2-action-preferences/v1',key:characterKey(selected.key),entries:[...next]}:null);
+ focusActionKey=key;render();
+}
 function applyObservation(pack){
  pending?.abort();generation++;pending=null;
- if(!sameCharacter(selected?.key,pack.snapshot.key)){clearHistory();clearCombat();}
+ if(!sameCharacter(selected?.key,pack.snapshot.key)){clearHistory();clearCombat();clearActionPreferences();}
  snapshot=pack.snapshot;snapshotMode='imported';catalog=pack.catalog;wallet=pack.wallet;
  selected={key:snapshot.key,name:snapshot.name,serverName:snapshot.serverName};
  analysisCache=null;lastError='';
@@ -174,9 +188,9 @@ function progressFingerprint(s){
 }
 
 function gainText(gain){if(gain===null||!Number.isFinite(gain))return 'Not modeled';const goal=byId('objective').value;const unit=goal==='hit'?'% hit index':['critBonus','weaponBoost','damageBoost','attackIncrease','doubleChance','combatSpeed','multiHit','perfectChance','moveSpeed'].includes(goal)?' pp':' points';return (gain>0?'+':'')+gain.toLocaleString(undefined,{maximumFractionDigits:3})+unit;}
-function costText(cost){if(cost===null)return 'Unknown';if(!Object.keys(cost).length)return 'No resource cost';return Object.entries(cost).map(([k,v])=>fmt(v)+' '+(k==='recipeKina'?'Kina (usable scope unknown)':k)).join(' + ');}
-function analysis(){const now=Date.now(),goal=byId('objective').value,encounter=byId('encounter').value,minute=Math.floor(now/60000),walletFresh=Object.keys(walletResources(wallet,snapshot?.key,now)).length>0;const c=analysisCache;if(c&&c.snapshot===snapshot&&c.wallet===wallet&&c.catalog===catalog&&c.goal===goal&&c.encounter===encounter&&c.minute===minute&&c.walletFresh===walletFresh)return c.value;
- const value=analyzeProgression(snapshot,{wallet,catalog,goal,encounter,now});analysisCache={snapshot,wallet,catalog,goal,encounter,minute,walletFresh,value};return value;}
+function costText(cost){if(!cost||typeof cost!=='object'||Array.isArray(cost))return 'Unknown';if(!Object.keys(cost).length)return 'No resource cost';return Object.entries(cost).map(([k,v])=>{const value=Number.isFinite(v)&&v>=0?fmt(v):Number.isFinite(v?.low)&&Number.isFinite(v?.high)&&v.low>=0&&v.high>=v.low?(v.low===v.high?fmt(v.low):fmt(v.low)+'–'+fmt(v.high)):'Unknown';return value+' '+(k==='recipeKina'?'Kina (usable scope unknown)':k);}).join(' + ');}
+function analysis(){const now=Date.now(),goal=byId('objective').value,encounter=byId('encounter').value,minute=Math.floor(now/60000),walletFresh=Object.keys(walletResources(wallet,snapshot?.key,now)).length>0;const c=analysisCache;if(c&&c.snapshot===snapshot&&c.wallet===wallet&&c.catalog===catalog&&c.goal===goal&&c.encounter===encounter&&c.minute===minute&&c.walletFresh===walletFresh&&c.prefs===prefs&&c.actionPrefs===actionPrefs)return c.value;
+ const value=analyzeProgression(snapshot,{wallet,catalog,goal,encounter,now,preferences:prefs,actionPreferences:actionPrefs});analysisCache={snapshot,wallet,catalog,goal,encounter,minute,walletFresh,prefs,actionPrefs,value};return value;}
 
 function render(){
  byId('refresh').disabled=!selected||!!pending;byId('forget').disabled=!selected;renderHistory();renderCombat();
@@ -192,17 +206,30 @@ function render(){
  else{const detail=snapshot.equipment.filter(x=>x.detail).length,boards=snapshot.boards.filter(x=>x.detail).length;
  const age=Math.max(0,Math.floor((Date.now()-snapshot.checkedAt)/60000));
  byId('coverage').textContent=`${snapshotMode==='imported'?'Imported historical observation':'Armory observation'} · ${snapshot.checkedAt===0?'Original observation time unknown':'Last summary check '+age+' min ago'} · item details ${detail}/${snapshot.equipment.length} · boards ${boards}/${snapshot.boards.length}. Upstream update time unknown. Live wallet, inventory, full quest history, exact legal roll definitions and calibrated DPS remain unavailable.${snapshot.complete?' Published snapshot sections loaded.':' Partial snapshot; missing details are not assumed zero.'}${lastError?' Refresh failed; showing previous observations.':''}`;}
- const data=analysis();const rows=rankLedger(data.rows,data.resources,prefs,byId('sort').value);
+ const data=analysis();const rows=rankLedger(data.rows,data.resources,prefs,byId('sort').value,actionPrefs);
  byId('source-context').textContent=snapshot?`${data.matchingItems} equipped items matched a reference (${data.importedMatchingItems} exact-item imported; remaining matches use ${REFERENCE_VERSION}). ${catalog?'Imported source version '+catalog.version+'; current legality unverified. ':''}Aggregate inputs available: ${Object.keys(data.totals).join(', ')||'none'}. Hit index assumes unchanged rotation/defense, no forced crit, and no raw accuracy loss. Raw objectives compare explicit line values, not actual DPS. Derived attribute contributions below are not complete aggregate combat stats.`:'Reference model activates after character import.';
  const plan=byId('best-plan');plan.replaceChildren();
  if(data.best?.changes.length){plan.append(node('strong',`Best conditional ${GOALS[byId('objective').value]} combination: ${gainText(data.best.gain)}`));const ul=node('ul');for(const r of data.best.changes)ul.append(node('li',r.title));plan.append(ul,node('small',`${data.search.exact?'Exact within searched reference domain':'Bounded search; not proven optimal'} · ${data.search.evaluated.toLocaleString()} combinations; one line per item, selected reference stats only. Net raw Accuracy ${(data.best.delta.accuracy??0)>=0?'+':''}${data.best.delta.accuracy??0}. Legality, cost and actual performance unverified.`));}
  else plan.append(node('strong',snapshot?'No supported positive change in this reference domain.':'Select a character to compare coordinated changes.'),node('small',snapshot?'Try a raw stat objective if aggregate inputs are missing. This is not evidence that your current build is optimal.':''));
+ const preferred=byId('preferred-plan');preferred.replaceChildren();preferred.hidden=!data.preferredPlan;
+ if(data.preferredPlan){
+  const choice=data.preferredPlan;
+  if(choice.best.changes.length){preferred.append(node('strong',`Preference-aware conditional combination: ${gainText(choice.best.gain)}`));const ul=node('ul');for(const r of choice.best.changes)ul.append(node('li',r.title));preferred.append(ul);}
+  else preferred.append(node('strong','No positive conditional plan without disliked actions in the searched domain.'));
+  preferred.append(node('small',`${choice.excluded} disliked reference actions excluded from this alternative only. ${choice.search.exact?'Exact within searched reference domain':'Bounded search; not proven optimal'}. Costs, legality and actual performance remain unverified.`));
+ }
  byId('row-count').textContent=`${rows.length.toLocaleString()} discovered opportunities · ${rows.filter(r=>r.status==='affordable').length} verified affordable · ${rows.filter(r=>r.status==='unknown').length} conditional`;
- const table=document.createDocumentFragment();for(const [i,r] of rows.entries()){
-  const tr=node('tr');tr.append(node('td',i+1));const action=node('td'),name=node('strong',r.title);action.append(name,node('small',`${r.category} · ${r.reason}`));
-  if(r.source){const a=node('a','Source');a.href=r.source;a.rel='noreferrer';a.target='_blank';action.append(a);}tr.append(action,node('td',gainText(r.gain)),node('td',costText(r.cost)));
+ const table=document.createDocumentFragment();let restoreFocus=null;for(const [i,r] of rows.entries()){
+  const tr=node('tr');tr.dataset.actionId=r.id;tr.append(node('td',i+1));const action=node('td'),name=node('strong',r.title);action.append(name,node('small',`${r.category} · ${r.reason}`));
+  if(r.source){const a=node('a','Source');a.href=r.source;a.rel='noreferrer';a.target='_blank';action.append(a);}if(r.preferenceKey&&selected){const choice=node('select');choice.setAttribute('aria-label','Activity preference: '+r.title);
+   for(const [value,label] of [['category','Use category ('+r.preference+')'],['prefer','Prefer'],['neutral','Neutral'],['dislike','Dislike']]){const opt=node('option',label);opt.value=value;choice.append(opt);}
+   choice.options[0].textContent='Use category';choice.value=r.preferenceOverride??'category';
+   choice.addEventListener('change',()=>setActionPreference(r,choice.value));action.append(node('small','Activity preference: '+r.preference),choice);if(focusActionKey===r.preferenceKey)restoreFocus=choice;
+  }
+  const costs=node('td',costText(r.cost));costs.append(node('small','Time: '+(Number.isFinite(r.minutes)&&r.minutes>=0?fmt(r.minutes)+' min':'Unknown')));
+  tr.append(action,node('td',gainText(r.gain)),costs);
   const status=node('td',r.status==='unknown'?'Conditional / unknown':r.status==='blocked'&&r.delta?'Needs coordinated swap':r.status);status.className=r.status;tr.append(status);table.append(tr);
- }if(!rows.length){const tr=node('tr'),td=node('td',snapshot?'No verified candidates for the loaded data.':'Choose a character to begin.');td.colSpan=5;tr.append(td);table.append(tr);}byId('ledger').replaceChildren(table);
+ }if(!rows.length){const tr=node('tr'),td=node('td',snapshot?'No verified candidates for the loaded data.':'Choose a character to begin.');td.colSpan=5;tr.append(td);table.append(tr);}byId('ledger').replaceChildren(table);focusActionKey=null;restoreFocus?.focus({preventScroll:true});
  const gear=document.createDocumentFragment();for(const g of snapshot?.equipment??[]){const card=node('article');card.append(node('h3',g.slotPosName||`Slot ${g.slotPos}`),node('p',`${g.name} · ${g.grade||'unknown grade'} · +${fmt(g.enchantLevel)}`));const lines=node('ul');for(const line of g.detail?.subStats??[])lines.append(node('li',`${line.name||line.id}: ${line.value??'unknown'}`));for(const stone of g.detail?.magicStoneStat??[])lines.append(node('li',`Stone: ${stone.name||stone.id} ${stone.value??''}`));if(!lines.children.length)lines.append(node('li',g.detail?'No published stat lines in this response':g.detailError||'Detail not loaded'));card.append(lines);const refresh=node('button','Refresh this item');refresh.type='button';refresh.disabled=!!pending;refresh.addEventListener('click',()=>load('reroll',g.slotPos));card.append(refresh);gear.append(card);}byId('gear').replaceChildren(gear);
  const facts=document.createDocumentFragment();for(const s of snapshot?.stats??[]){facts.append(node('p',`${s.name||s.type}: ${statText(s.value)}`));if(Array.isArray(s.statSecondList))for(const line of s.statSecondList.slice(0,100))if(typeof line==='string'&&line.length<=512)facts.append(node('small','Published contribution (not total): '+line));}for(const s of snapshot?.skills??[])facts.append(node('p',`${s.name}: level ${fmt(s.skillLevel)}`));for(const b of snapshot?.boards??[])facts.append(node('p',`${b.name}: ${fmt(b.openNodeCount)} / ${fmt(b.totalNodeCount)} nodes`));byId('facts').replaceChildren(facts);
 }
@@ -216,7 +243,7 @@ async function load(trigger='open',slotPos){
 }
 function choose(row){
  pending?.abort();generation++;pending=null;
- if(!sameCharacter(selected?.key,row.key)){clearWallet();clearHistory();clearCombat();catalog=null;snapshot=null;store(observationKey,null);}
+ if(!sameCharacter(selected?.key,row.key)){clearWallet();clearHistory();clearCombat();clearActionPreferences();catalog=null;snapshot=null;store(observationKey,null);}
  const wasImported=snapshotMode==='imported'&&!!snapshot;
  if(!snapshot)snapshotMode='live';
  lastError='';selected={key:characterKey(row.key),name:row.name,serverName:row.serverName};store(bindingKey,selected);
@@ -260,7 +287,7 @@ byId('combat-segment').addEventListener('change',updateCombatSelection);
 byId('save-combat').addEventListener('click',saveCombat);
 byId('clear-combat').addEventListener('click',()=>{clearCombat();renderCombat();});
 byId('refresh').addEventListener('click',()=>load('refresh'));
-byId('forget').addEventListener('click',()=>{pending?.abort();generation++;pending=null;snapshot=null;selected=null;store(bindingKey,null);store(preferenceKey,null);store(walletKey,null);store(observationKey,null);clearHistory();clearCombat();resetDirectory();wallet=null;catalog=null;snapshotMode='live';analysisCache=null;lastError='';prefs={};byId('preference').value='neutral';byId('results').replaceChildren();say('Saved character and preferences removed.');render();});
+byId('forget').addEventListener('click',()=>{pending?.abort();generation++;pending=null;snapshot=null;selected=null;store(bindingKey,null);store(preferenceKey,null);store(walletKey,null);store(observationKey,null);clearHistory();clearCombat();clearActionPreferences();resetDirectory();wallet=null;catalog=null;snapshotMode='live';analysisCache=null;lastError='';prefs={};byId('preference').value='neutral';byId('results').replaceChildren();say('Saved character and preferences removed.');render();});
 byId('sort').addEventListener('change',render);
 byId('objective').addEventListener('change',render);byId('encounter').addEventListener('change',render);
 byId('use-wallet').addEventListener('click',()=>{if(!selected)return;try{const next=confirmWallet(read(offlineKey),selected.key);if(!window.confirm(`Confirm these current balances belong to ${selected.name}: ${fmt(next.boundKina)} bound Kina and ${fmt(next.tradableKina)} tradable Kina?`))return;wallet=next;store(walletKey,wallet);render();}catch(e){say(e.message,'error');}});
@@ -275,6 +302,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden){clearTimeo
 window.addEventListener('focus',resume);window.addEventListener('pagehide',()=>{clearTimeout(walletTimer);directoryPending?.abort();pending?.abort();});
 try{const saved=read(bindingKey);if(saved?.key)selected={key:characterKey(saved.key),name:typeof saved.name==='string'?saved.name:'',serverName:typeof saved.serverName==='string'?saved.serverName:''};}catch{store(bindingKey,null);}
 wallet=read(walletKey);
+try{if(selected)actionPrefs=normalizeActionPreferences(read(actionPreferenceStorage),selected.key);else clearActionPreferences();}catch{clearActionPreferences();}
 resetCombatDraft();try{if(selected&&read(combatKey))combatHistory=normalizeCombatEvidence(read(combatKey),selected.key);else store(combatKey,null);}catch{clearCombat();}
 try{if(selected&&read(historyKey))history=normalizeProgressHistory(read(historyKey),selected.key);}catch{clearHistory();}
 try{const saved=read(observationKey);if(saved?.pack&&selected){const pack=normalizeObservationPack(saved.pack);if(sameCharacter(pack.snapshot.key,selected.key)){snapshot=pack.snapshot;catalog=pack.catalog;snapshotMode=saved.mode==='imported'?'imported':'live';}}}catch{store(observationKey,null);}

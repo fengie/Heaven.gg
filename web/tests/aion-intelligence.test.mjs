@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import {strict as a} from 'node:assert';
-import {damageIndex, enumerateBuilds, statReplacements, affordability, rankLedger, planRefresh, buildLedger} from '../../apps/aion2-value-atlas/scripts/intelligence-engine.mjs';
+import {damageIndex, enumerateBuilds, statReplacements, affordability, rankLedger, planRefresh, buildLedger, actionPreferenceKey} from '../../apps/aion2-value-atlas/scripts/intelligence-engine.mjs';
 import {ArmoryClient, characterKey, normalizeArmory, normalizeSearch} from '../../apps/aion2-value-atlas/scripts/armory-engine.mjs';
 const key={region:'nae',serverId:'1101',characterId:'abc='};
 const info={profile:{characterId:'abc=',characterName:'Fixture',characterLevel:45,combatPower:1234,className:'Spiritmaster',serverName:'Siel'},stat:{statList:[{type:'ItemLevel',name:'Item Level',value:2790}]},daevanion:{boardList:[{id:1,name:'Board',openNodeCount:1,totalNodeCount:3}]}};
@@ -80,4 +80,16 @@ test('free but unconfirmed eligibility is conditional, not a verified recommenda
 test('denied provider is not retried for additional details',async()=>{
  let calls=0;const c=new ArmoryClient({clock:()=>1000000,minInterval:0,transport:async url=>{calls++;const p=new URL(url).pathname;return p.endsWith('/info')?{status:200,body:info}:p.endsWith('/equipment')?{status:200,body:equip}:{status:403};}});
  const s=await c.load(key);a.equal(calls,3);a.match(s.equipment[0].detailError,/403/);a.match(s.boards[0].detailError,/denied/);
+});
+
+test('individual action preference overrides category without changing costs, eligibility, or the available actions',()=>{
+ const a1={id:'gear:1:enhance',title:'Weapon: enhance +5 to +6',category:'enhancement',subjectId:10,gain:4,minutes:5,cost:{}};
+ const b1={id:'gear:2:enhance',title:'Shoes: enhance +5 to +6',category:'enhancement',subjectId:11,gain:2,minutes:5,cost:{}};
+ const rows=rankLedger([a1,b1],{}, {enhancement:'prefer'},'recommended',new Map([[actionPreferenceKey(a1),'dislike']]));
+ a.deepEqual(rows.map(x=>x.id),[b1.id,a1.id]);a.equal(rows[1].status,'affordable');a.equal(rows[1].gain,4);a.equal(rows[1].preferenceOverride,'dislike');
+ const changed={...a1,subjectId:99};
+ a.notEqual(actionPreferenceKey(changed),actionPreferenceKey(a1));
+ a.equal(rankLedger([changed],{}, {enhancement:'prefer'},'recommended',new Map([[actionPreferenceKey(a1),'dislike']]))[0].preference,'prefer');
+ a.equal(rankLedger([a1],{}, {enhancement:'dislike'},'recommended',new Map([[actionPreferenceKey(a1),'neutral']]))[0].preference,'neutral');
+ a.equal(rankLedger([a1],{}, {enhancement:'neutral'},'recommended',new Map([[actionPreferenceKey(a1),'malformed']]))[0].preference,'neutral');
 });

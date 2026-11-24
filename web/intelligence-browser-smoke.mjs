@@ -38,6 +38,12 @@ export async function checkIntelligence(browser,baseUrl){
   assert.match(plan,/12\.84 pp/);assert.match(plan,/Shoulder: Accuracy 31/);assert.match(plan,/Shoes: Critical Hit 26/);assert.match(plan,/Net raw Accuracy \+16/);
   const count=requests.length,rows=await page.locator('#ledger tr').count();await page.locator('#sort').selectOption('power');
   assert.equal(await page.locator('#ledger tr').count(),rows);assert.equal(requests.length,count);
+  const actionChoice=page.locator('#ledger tr[data-action-id="reference:1:0:critBonus"] select');
+  await actionChoice.selectOption('dislike');
+  assert.equal(await actionChoice.inputValue(),'dislike');
+  assert.equal(await page.locator('#ledger tr').count(),rows);assert.equal(requests.length,count,'preference changes must not query the provider');
+  assert.match(await page.locator('#best-plan').innerText(),/12\.84 pp/);
+  assert.match(await page.locator('#preferred-plan').innerText(),/No positive conditional plan without disliked actions/);
   await page.locator('#use-wallet').click();assert.equal(await page.locator('#wallet').innerText(),'5,200 Kina');
   assert.equal(await page.getByRole('row').filter({hasText:'Ludra weapon selection'}).filter({hasText:'unaffordable'}).count(),3);
   await page.locator('#refresh').click();assert.equal(await page.locator('#wallet').innerText(),'Unknown');
@@ -48,6 +54,9 @@ export async function checkIntelligence(browser,baseUrl){
   await page.reload({waitUntil:'domcontentloaded'});
   await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('Published character data checked'),{},{timeout:25000});
   assert.equal(await page.locator('#name').innerText(),'Fixture','saved identity must load without a second search');
+  assert.equal(await actionChoice.inputValue(),'dislike','same-character action preference must persist across reload');
+  await actionChoice.selectOption('category');
+  assert.equal(await page.locator('#preferred-plan').isHidden(),true);
   assert.equal(requests.filter(x=>x.endsWith('/search/v2/character')).length,1);
   assert.match(await page.locator('#history-summary').textContent(),/0 observed changes/);
   fixtures['/api/character/info'].profile.combatPower=1250;
@@ -60,6 +69,7 @@ export async function checkIntelligence(browser,baseUrl){
   fixtures['/api/character/info'].profile.combatPower=1234;
   await page.setViewportSize({width:390,height:844});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),'intelligence page mobile overflow');
   await page.locator('#forget').click();assert.equal(await page.locator('#name').innerText(),'—');
+  assert.equal(await page.evaluate(()=>localStorage.getItem('heaven-gg:aion2:intelligence-action-preferences-v1')),null);
   assert.match(await page.locator('#history-summary').textContent(),/0 observed changes/);
   // A region-less official link resolves through the official directory and skips name search.
   const searchesBeforeLink=requests.filter(x=>x.endsWith('/search/v2/character')).length;
