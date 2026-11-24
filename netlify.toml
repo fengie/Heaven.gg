@@ -1,0 +1,8 @@
+# Keep the existing GitHub Pages workflow and build unchanged.
+[build]
+  command = "node web/build.mjs"
+  publish = "dist"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
