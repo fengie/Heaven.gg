@@ -169,3 +169,15 @@ test('each quote keeps its own freshness and nonpositive asks never rank', () =>
   const zero=evaluateProfile(profile({tradableKina:11000000,exchangeAsks:{400000:0},exchangeAskDates:{400000:'2026-11-24'}}),catalog,snapshot,'2026-11-24').exchangeAdvice;
   assert.equal(zero.bestNominalSellerChestKina,null);
 });
+
+test('legacy v1 metadata remains importable but never grants freshness', () => {
+  const p=normalizeProfile(profile({tradableKina:11000000,
+    exchangeAsks:{'000400000':777,10000000:900000},
+    exchangeObservedDate:'2026-02-30'}),catalog);
+  assert.equal(p.exchangeAsks['000400000'],777);
+  assert.equal(p.exchangeAsks['10000000'],900000);
+  assert.equal(p.exchangeObservedDate,'2026-02-30');
+  assert.deepEqual(p.exchangeAskDates,{});
+  assert.equal(evaluateProfile(p,catalog,snapshot,'2026-11-24').exchangeAdvice.kind,'stale');
+  assert.throws(()=>normalizeProfile({...p,exchangeAskDates:{'000400000':'2026-11-24'}},catalog),/quote|ask/i);
+});
