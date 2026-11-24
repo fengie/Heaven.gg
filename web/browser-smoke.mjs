@@ -177,6 +177,65 @@ async function checkMobile(browser, baseUrl) {
   }
 }
 
+async function checkQuoteEditor(browser, baseUrl) {
+  const context = await browser.newContext({viewport:{width:1440,height:900},timezoneId:'UTC'});
+  const storageKey = 'heaven-gg:aion2:character-v1';
+  const staleDate = '2000-01-01';
+  try {
+    const page = await context.newPage();
+    await page.addInitScript(({key,stale}) => {
+      // Only this new disposable browser context receives synthetic inputs.
+      if (!localStorage.getItem(key)) {
+        localStorage.setItem(key,JSON.stringify({
+          schema:'heaven-gg/aion2-profile/v1',tradableKina:11000000,upgrades:[],
+          exchangeAsks:{400000:50,2000000:500,10000000:900000},
+          exchangeObservedDate:new Date().toISOString().slice(0,10),
+          exchangeAskDates:{2000000:stale}
+        }));
+      }
+    },{key:storageKey,stale:staleDate});
+    const response = await page.goto(new URL('aion2/profile.html',baseUrl).href,{waitUntil:'domcontentloaded'});
+    assert.equal(response?.status(),200,'Profile route was not served');
+    const today = await page.evaluate(() => new Date().toISOString().slice(0,10));
+    const result = page.locator('#exchange-result');
+    const ask = size => page.locator('#ask-'+size);
+    const date = size => page.locator('#market-date-'+size);
+    const waitForText = text => page.waitForFunction(expected =>
+      document.getElementById('exchange-result')?.textContent.includes(expected),text);
+    const edit = async (locator,value) => {
+      await locator.fill(value);
+      await locator.blur();
+    };
+    await waitForText('No recent positive dated asks');
+    assert.equal(await ask(10000000).inputValue(),'900000','Legacy ask must be preserved');
+    assert.equal(await date(10000000).inputValue(),'','Legacy shared date must not certify an ask');
+    assert.equal(await date(2000000).inputValue(),staleDate);
+    await edit(date(400000),today);
+    await waitForText('400,000 Kina; observed '+today+'; up to 45 Quna');
+    assert.equal(await date(2000000).inputValue(),staleDate,'Editing one date must not refresh another quote');
+    assert.equal(await date(10000000).inputValue(),'');
+    await edit(ask(400000),'60');
+    await waitForText('No recent positive dated asks');
+    assert.equal(await date(400000).inputValue(),'','Changing the price must invalidate its date');
+    await edit(date(2000000),today);
+    await waitForText('2,000,000 Kina; observed '+today+'; up to 450 Quna');
+    await page.reload({waitUntil:'domcontentloaded'});
+    await waitForText('2,000,000 Kina; observed '+today+'; up to 450 Quna');
+    assert.equal(await ask(400000).inputValue(),'60');
+    assert.equal(await date(400000).inputValue(),'');
+    assert.equal(await ask(10000000).inputValue(),'900000');
+    assert.equal(await date(10000000).inputValue(),'');
+    assert.equal(await date(2000000).inputValue(),today);
+    const saved = await page.evaluate(key=>JSON.parse(localStorage.getItem(key)),storageKey);
+    assert.deepEqual(saved.exchangeAskDates,{'2000000':today});
+    assert.deepEqual(saved.exchangeAsks,{'400000':60,'2000000':500,'10000000':900000});
+    assert.match(await result.textContent(),/not|assumed tax|unknown rounding/i);
+    console.log('AION2_QUOTE_EDITOR_BROWSER_PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function main() {
   const requested = process.env.BROWSER_SMOKE_SITE_URL;
   const expectedSha = process.env.EXPECTED_SHA;
@@ -191,11 +250,12 @@ async function main() {
     await checkDesktop(browser,site,requested ? expectedSha : undefined);
     await checkMobile(browser,site);
     await checkIntelligence(browser,site);
+    await checkQuoteEditor(browser,site);
     console.log('HEAVEN_GG_BROWSER_INTERACTIONS_PASS ' + JSON.stringify({
       mode:requested ? 'served' : 'built', browser:'Google Chrome',
       observedRevision:requested ? expectedSha : 'local-pr-build',
       checks:['tabs','catalog-filter','research-panels','desktop-companion',
-        'game-tools','game-registry','wardrobe-scenario','mobile-touch','mobile-overflow','mobile-wardrobe','character-intelligence-fixture']
+        'game-tools','game-registry','wardrobe-scenario','mobile-touch','mobile-overflow','mobile-wardrobe','character-intelligence-fixture','quote-editor-provenance']
     }));
   } finally {
     if(browser) await browser.close();
