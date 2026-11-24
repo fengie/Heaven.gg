@@ -31,6 +31,49 @@ try {
             }
         }
     }
+
+    # A declared hosted service is not valid without its independently callable
+    # H1 verifier. The generic apply-script check alone accepted these cases.
+    $invalidRuntimeCases = @(
+        @{field='target_host';literal='missing'},
+        @{field='target_host';literal='null'},
+        @{field='target_host';literal='"HEAVEN2"'},
+        @{field='target_host';literal='"heaven"'},
+        @{field='target_host';literal='["HEAVEN"]'},
+        @{field='verify_script';literal='missing'},
+        @{field='verify_script';literal='null'},
+        @{field='verify_script';literal='true'},
+        @{field='verify_script';literal='"scripts/DoesNotExist.ps1"'},
+        @{field='verify_script';literal='"scripts/../outside.ps1"'},
+        @{field='verify_script';literal='"scripts/Apply-HeavenGg.ps1"'},
+        @{field='verify_script';literal='["scripts/Test-HeavenGgRuntime.ps1"]'},
+        @{field='apply_script';literal='"scripts/Test-HeavenGgRuntime.ps1"'},
+        @{field='mode';literal='"self-update-release"'}
+    )
+    foreach ($case in $invalidRuntimeCases) {
+        $policy = $source | ConvertFrom-Json
+        if ($case.literal -eq 'missing') {
+            $policy.runtime_update.PSObject.Properties.Remove($case.field)
+        } else {
+            $value = ('{"value":' + $case.literal + '}') | ConvertFrom-Json
+            $policy.runtime_update.($case.field) = $value.value
+        }
+        $policy | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $temp -Encoding UTF8
+        $failure = $null
+        try { & $validator -PolicyPath $temp | Out-Null } catch { $failure = $_.Exception.Message }
+        if ($failure -cne 'H1_RUNTIME_CONTRACT_INVALID') {
+            throw "H1_RUNTIME_NEGATIVE_NOT_REJECTED: $($case.field)=$($case.literal); observed='$failure'"
+        }
+    }
+    $policy = $source | ConvertFrom-Json
+    $policy.kind = 'source'
+    $policy | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $temp -Encoding UTF8
+    $failure = $null
+    try { & $validator -PolicyPath $temp | Out-Null } catch { $failure = $_.Exception.Message }
+    if ($failure -cne 'H1_RUNTIME_CONTRACT_INVALID') { throw 'H1_SOURCE_ONLY_PRODUCT_POLICY_ACCEPTED' }
+    $source | Set-Content -LiteralPath $temp -Encoding UTF8
+    & $validator -PolicyPath $temp | Out-Null
+    Write-Output 'H1_RUNTIME_POLICY_NEGATIVES_PASSED'
 } finally {
     Remove-Item -LiteralPath $temp
 }
