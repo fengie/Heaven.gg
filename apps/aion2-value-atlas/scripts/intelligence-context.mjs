@@ -1,6 +1,6 @@
 // Conditional comparisons, not a calibrated game simulator or an authoritative roll catalog.
 import {buildLedger, rankLedger, enumerateBuilds} from './intelligence-engine.mjs';
-import {characterKey} from './armory-engine.mjs';
+import {characterKey,normalizeImportedSnapshot} from './armory-engine.mjs';
 const finite=Number.isFinite;
 const record=x=>x!==null&&typeof x==='object'&&!Array.isArray(x);
 const own=(x,k)=>Object.hasOwn(x,k);
@@ -74,39 +74,124 @@ export function confirmWallet(profile,key,now=Date.now()){
  if(profile?.schema!=='heaven-gg/aion2-profile/v1'||![profile.boundKina,profile.tradableKina].every(x=>Number.isSafeInteger(x)&&x>=0&&x<=1e12)||!finite(now))throw Error('No valid offline planner balances.');
  return {schema:'heaven-gg/aion2-wallet-observation/v1',key:characterKey(key),observedAt:now,boundKina:profile.boundKina,tradableKina:profile.tradableKina};
 }
+const materialNames=new Set(['ludraEasyVoucher','ludraNormalVoucher','ludraHardVoucher','odyle','abyssPoints','quna','soulCodex','soulCodexReset','syncStone','enhancementStone','wisdomStone','stigmaShard']);
+const balance=x=>Number.isSafeInteger(x)&&x>=0&&x<=1e12;
+export function normalizeWalletObservation(wallet,key,now=Date.now()){
+ if(wallet?.schema!=='heaven-gg/aion2-wallet-observation/v1'||!same(wallet.key,key)||!Number.isSafeInteger(wallet.observedAt)||wallet.observedAt<0||wallet.observedAt>now)throw Error('Invalid character-scoped resource observation');
+ const result={schema:wallet.schema,key:characterKey(key),observedAt:wallet.observedAt};
+ for(const k of ['boundKina','tradableKina'])if(wallet[k]!=null){
+  if(!balance(wallet[k]))throw Error('Invalid Kina balance');result[k]=wallet[k];
+ }
+ if(wallet.materials!=null){
+  if(!record(wallet.materials)||Object.keys(wallet.materials).length>256)throw Error('Invalid material observation');
+  result.materials={};
+  for(const [k,v] of Object.entries(wallet.materials)){
+   if(!(materialNames.has(k)||/^item:[1-9]\d{0,9}:(bound|tradable)$/.test(k))||!balance(v))throw Error('Invalid material balance');
+   result.materials[k]=v;
+  }
+ }
+ return result;
+}
 export function walletResources(wallet,key,now=Date.now()){
- if(wallet?.schema!=='heaven-gg/aion2-wallet-observation/v1'||!same(wallet.key,key)||!finite(wallet.observedAt)||wallet.observedAt>now||now-wallet.observedAt>=30*60000||![wallet.boundKina,wallet.tradableKina].every(x=>Number.isSafeInteger(x)&&x>=0&&x<=1e12))return {};
- const value=x=>({low:x,high:x,fresh:true});return {boundKina:value(wallet.boundKina),marketKina:value(wallet.tradableKina)};
+ let w;try{w=normalizeWalletObservation(wallet,key,now);}catch{return {};}
+ if(now-w.observedAt>=30*60000)return {};
+ const value=x=>({low:x,high:x,fresh:true}),result={};
+ if(balance(w.boundKina))result.boundKina=value(w.boundKina);
+ if(balance(w.tradableKina))result.marketKina=value(w.tradableKina);
+ for(const [k,v] of Object.entries(w.materials??{}))result[k]=value(v);
+ return result;
+}
+const referenceRegions=new Set(['nae','naw','eu','la','as']);
+const slotFamilies=new Set(slots.values());
+export function normalizeReferenceCatalog(data,region,now=Date.now()){
+ if(data?.schema!=='heaven-gg/aion2-item-reference/v1'||data.region!==region||!referenceRegions.has(region)||
+  typeof data.version!=='string'||!data.version.trim()||data.version.length>128||
+  !Number.isSafeInteger(data.observedAt)||data.observedAt<0||data.observedAt>now||
+  typeof data.sourceUrl!=='string'||data.sourceUrl.length>1024||!Array.isArray(data.items)||data.items.length>1000)throw Error('Invalid versioned item reference');
+ let u;try{u=new URL(data.sourceUrl);}catch{throw Error('Invalid reference source');}
+ if(u.protocol!=='https:'||u.username||u.password||u.hash)throw Error('Reference source must be HTTPS without credentials');
+ const seen=new Set(),items=[];
+ for(const item of data.items){
+  if(!record(item)||!Number.isSafeInteger(item.id)||item.id<=0||seen.has(item.id)||!Number.isSafeInteger(item.level)||item.level<=0||
+    typeof item.grade!=='string'||!item.grade.trim()||item.grade.length>64||!slotFamilies.has(item.slot)||!Array.isArray(item.subStats)||item.subStats.length>128)throw Error('Invalid or duplicate item reference');
+  seen.add(item.id);
+  const known=new Set(),rawKeys=new Set(),subStats=[];
+  for(const line of item.subStats){
+   if(!record(line)||typeof line.name!=='string'||!line.name.trim()||line.name.length>128||
+    (line.id!=null&&(typeof line.id!=='string'||line.id.length>128))||
+    !['string','number'].includes(typeof line.minValue)||!['string','number'].includes(typeof line.value)||
+    String(line.minValue).length>64||String(line.value).length>64)throw Error('Invalid roll reference');
+   const rawKey=line.id||line.name.trim().toLowerCase();
+   if(rawKeys.has(rawKey))throw Error('Duplicate roll reference');rawKeys.add(rawKey);
+   const key=statKey(line);
+   if(!key&&(ids.has(line.id)||names.has(line.name.trim().toLowerCase())))throw Error('Ambiguous stat identity');
+   if(key){
+    const lo=stat({...line,value:line.minValue}),hi=stat(line);
+    if(!lo||!hi||lo.value>hi.value||known.has(key))throw Error('Invalid or duplicate stat range');
+    known.add(key);
+   }
+   subStats.push({...(line.id!=null?{id:line.id}:{}),name:line.name,minValue:line.minValue,value:line.value});
+  }
+  items.push({id:item.id,level:item.level,grade:item.grade,slot:item.slot,subStats});
+ }
+ return {schema:data.schema,region,version:data.version,observedAt:data.observedAt,sourceUrl:u.href,items};
+}
+export function normalizeObservationPack(data,now=Date.now()){
+ if(data?.schema!=='heaven-gg/aion2-observation-pack/v1'||JSON.stringify(data).length>2_000_000)throw Error('Unsupported or oversized local observation pack');
+ const snapshot=normalizeImportedSnapshot(data.snapshot,now);
+ const wallet=data.wallet==null?null:normalizeWalletObservation(data.wallet,snapshot.key,now);
+ const catalog=data.catalog==null?null:normalizeReferenceCatalog(data.catalog,snapshot.key.region,now);
+ return {schema:data.schema,snapshot,wallet,catalog};
+}
+export function createObservationPack(snapshot,{wallet=null,catalog=null,now=Date.now()}={}){
+ return normalizeObservationPack({schema:'heaven-gg/aion2-observation-pack/v1',snapshot,wallet,catalog},now);
 }
 function fmt(k,v){return percent.has(k)?(v*100).toFixed(2).replace(/\.?0+$/,'')+'%':String(v);}
 function rawGain(delta,goal){return (delta[goal]??0)*(percent.has(goal)?100:1);}
-function poolFor(g,region){
- if(!['nae','naw','eu'].includes(region)||g.detail?.level!==102)return null;
- const slot=slots.get(String(g.slotPosName??'').toLowerCase().replace(/[ _-]/g,'')),p=slot&&pools[slot];if(!p)return null;
- const ranges=Object.fromEntries(['attack','accuracy','crit'].map((k,i)=>[k,p.common[i]]));Object.assign(ranges,p.extra);
- const lines=g.detail.subStats;if(!Array.isArray(lines)||lines.length>64)return null;
+function poolFor(g,region,catalog){
+ const slot=slots.get(String(g.slotPosName??'').toLowerCase().replace(/[ _-]/g,''));
+ if(!slot||!g.detail)return null;
+ const imported=catalog?.region===region?catalog.items.find(x=>x.id===g.id):null;
+ let ranges,source,description;
+ if(imported){
+  if(imported.slot!==slot||imported.level!==g.detail.level||imported.grade!==(g.detail.grade||g.grade)||g.grade&&g.detail.grade&&g.grade!==g.detail.grade)return null;
+  ranges={};
+  for(const line of imported.subStats){
+   const lo=stat({...line,value:line.minValue}),hi=stat(line);
+   if(lo&&hi&&lo.key===hi.key)ranges[hi.key]=[lo.value,hi.value];
+  }
+  source=catalog.sourceUrl;description='Imported exact-item reference '+catalog.version+'; not verified for current game patch or legality';
+ }else{
+  if(!['nae','naw','eu'].includes(region)||g.detail.level!==102)return null;
+  const p=pools[slot];if(!p)return null;
+  ranges=Object.fromEntries(['attack','accuracy','crit'].map((k,i)=>[k,p.common[i]]));Object.assign(ranges,p.extra);
+  source=ROOT+slot;description='Dated tier-102 reference, not verified for this exact item/current patch';
+ }
+ const lines=g.detail.subStats;if(!Array.isArray(lines)||lines.length>64||!Object.keys(ranges).length)return null;
  const observed=lines.map(x=>stat(x));
- const known=lines.map(x=>statKey(x)).filter(Boolean);if(new Set(known).size!==known.length||lines.some((x,i)=>own(ranges,statKey(x))&&!observed[i]))return null;
- // A known observed roll outside the reference range is evidence not to apply this dated pool.
+ const known=lines.map(x=>statKey(x)).filter(Boolean);
+ if(new Set(known).size!==known.length||lines.some((x,i)=>own(ranges,statKey(x))&&!observed[i]))return null;
  if(observed.some(x=>x&&own(ranges,x.key)&&(x.value<ranges[x.key][0]-1e-9||x.value>ranges[x.key][1]+1e-9)))return null;
- return {slot,ranges};
+ return {slot,ranges,source,description,imported:!!imported};
 }
-function candidates(snapshot){
- const rows=[];let matchingItems=0;
- for(const g of snapshot.equipment??[]){const ref=poolFor(g,snapshot.key?.region);if(!ref)continue;matchingItems++;
+function candidates(snapshot,catalog){
+ const rows=[];let matchingItems=0,importedMatchingItems=0;
+ for(const g of snapshot.equipment??[]){
+  const ref=poolFor(g,snapshot.key?.region,catalog);if(!ref)continue;
+  matchingItems++;if(ref.imported)importedMatchingItems++;
   const lines=Array.isArray(g.detail.subStats)?g.detail.subStats:[],parsed=lines.map(x=>stat(x));
   for(let i=0;i<lines.length;i++){
-   const old=parsed[i];if(!old)continue; // Unknown units are not safe to subtract.
+   const old=parsed[i];if(!old)continue;
    for(const [k,range] of Object.entries(ref.ranges)){
     if(parsed.some((x,j)=>j!==i&&x?.key===k))continue;
     const target=range[1];if(old.key===k&&target<=old.value+1e-9)continue;
     const delta=plus({[old.key]:-old.value},{[k]:target});
-    rows.push({id:`reference:${g.slotPos}:${i}:${k}`,category:'soul-binding',slotPos:g.slotPos,title:`${g.slotPosName}: ${labels[old.key]} ${fmt(old.key,old.value)} → ${labels[k]} ${fmt(k,target)}`,delta,source:ROOT+ref.slot,cost:null,minutes:null,requiresVerification:true,
-     reason:`Dated tier-102 reference, not verified for this exact item/current patch. Target range ${fmt(k,range[0])}–${fmt(k,target)}; ${old.key===k?'improve existing roll':'replace line if legal'}. Cost and conditional odds unknown.`});
+    rows.push({id:'reference:'+g.slotPos+':'+i+':'+k,category:'soul-binding',slotPos:g.slotPos,title:g.slotPosName+': '+labels[old.key]+' '+fmt(old.key,old.value)+' → '+labels[k]+' '+fmt(k,target),delta,source:ref.source,cost:null,minutes:null,requiresVerification:true,
+     reason:ref.description+'. Target range '+fmt(k,range[0])+'–'+fmt(k,target)+'; '+(old.key===k?'improve existing roll':'replace line if legal')+'. Cost and conditional odds unknown.'});
    }
   }
  }
- return {rows,matchingItems};
+ return {rows,matchingItems,importedMatchingItems};
 }
 const baseline=()=>({attack:0,accuracy:0,crit:0,critBonus:0,weaponBoost:0,damageBoost:0,attackIncrease:0,doubleChance:0});
 // One target per equipped slot, with every visible single-line reference row retained.
@@ -130,11 +215,12 @@ function optimize(rows,totals,goal,encounter,preserveAccuracy,maxEvaluations){
  if(result.best){const changes=result.best.ids.map(id=>byId.get(id)).filter(Boolean);const delta=changes.reduce((d,r)=>plus(d,r.delta),{});consider(changes,delta);}
  return {best,search:{exact:result.exact,pairComplete,evaluated:result.evaluated,pairEvaluated,slots:groups.size,modeledOptions:options.length}};
 }
-export function analyzeProgression(snapshot,{wallet=null,preferences={},sort='recommended',goal='hit',encounter='transcendence',preserveAccuracy=true,now=Date.now(),maxEvaluations=20000}={}){
+export function analyzeProgression(snapshot,{wallet=null,catalog=null,preferences={},sort='recommended',goal='hit',encounter='transcendence',preserveAccuracy=true,now=Date.now(),maxEvaluations=20000}={}){
  if(!own(GOALS,goal)||!own(encounters,encounter)||!Number.isSafeInteger(maxEvaluations)||maxEvaluations<1||maxEvaluations>100000)throw Error('Invalid comparison settings');
  const totals=observedTotals(snapshot?.stats),resources=walletResources(wallet,snapshot?.key,now);
- if(!snapshot)return {rows:[],best:null,search:null,totals,resources,matchingItems:0};
- const current=buildLedger(snapshot,{resources,preferences,sort,now});const refs=candidates(snapshot);
+ if(!snapshot)return {rows:[],best:null,search:null,totals,resources,matchingItems:0,importedMatchingItems:0};
+ let verifiedCatalog=null;if(catalog?.region===snapshot.key?.region){try{verifiedCatalog=normalizeReferenceCatalog(catalog,snapshot.key.region,now);}catch{/* incompatible or malformed references are unavailable */}}
+ const current=buildLedger(snapshot,{resources,preferences,sort,now});const refs=candidates(snapshot,verifiedCatalog);
  const referenceRows=refs.rows.map(r=>{const accuracyLoss=(r.delta.accuracy??0)<-1e-9;
   const gain=goal==='hit'?scenarioGain(r.delta,totals,encounter):rawGain(r.delta,goal);
   return {...r,gain,blocked:preserveAccuracy&&accuracyLoss,reason:r.reason+(accuracyLoss?' Loses raw Accuracy; may require a coordinated swap.':'')+(gain===null?' Hit-index effect is unmodeled or aggregate inputs are missing.':'')};});
@@ -152,5 +238,5 @@ export function analyzeProgression(snapshot,{wallet=null,preferences={},sort='re
  }
  const all=[...current,...referenceRows,...extra.map(r=>({gain:null,minutes:null,cost:null,...r}))];
  const result=optimize(refs.rows,totals,goal,encounter,preserveAccuracy,maxEvaluations);
- return {rows:rankLedger(all,resources,preferences,sort),...result,totals,resources,matchingItems:refs.matchingItems,referenceVersion:REFERENCE_VERSION,modelSource:MECHANICS};
+ return {rows:rankLedger(all,resources,preferences,sort),...result,totals,resources,matchingItems:refs.matchingItems,importedMatchingItems:refs.importedMatchingItems,referenceVersion:REFERENCE_VERSION,modelSource:MECHANICS};
 }

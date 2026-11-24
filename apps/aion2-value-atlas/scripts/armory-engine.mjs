@@ -12,6 +12,16 @@ export function characterKey(input){
  if(!record(input)||!regions.has(input.region)||!/^\d{1,10}$/.test(String(input.serverId))||Number(input.serverId)<=0)throw Error('invalid region/server identity');
  return {region:input.region,serverId:String(input.serverId),characterId:decoded(input.characterId)};
 }
+// A user-supplied official profile link is an identity, never an arbitrary fetch target.
+export function parseOfficialCharacterLink(input){
+ if(typeof input!=='string'||input.length>2048)throw Error('Invalid official character link');
+ let u;try{u=new URL(input.trim());}catch{throw Error('Invalid official character link');}
+ if(u.origin!=='https://aion2.plaync.com'||u.username||u.password||u.hash||
+    !(u.pathname==='/api/character/info'||/^\/[a-z]{2}-[a-z]{2}\/characters\/[a-z0-9/_-]+$/i.test(u.pathname)))throw Error('Use an official AION 2 character link');
+ const p=u.searchParams;
+ for(const k of ['region','serverId','characterId'])if(p.getAll(k).length!==1)throw Error('Link must include exact region, server and character ID');
+ return characterKey({region:p.get('region'),serverId:p.get('serverId'),characterId:p.get('characterId')});
+}
 const keyId=k=>JSON.stringify(characterKey(k));
 function same(a,b){try{return keyId(a)===keyId(b);}catch{return false;}}
 function url(path,params){const u=new URL(path);for(const [k,v] of Object.entries(params))u.searchParams.set(k,String(v));return u.toString();}
@@ -85,6 +95,72 @@ export function normalizeArmory(input,info,equip,now=Date.now()){
  });
  const boards=(rawBoards??[]).map(b=>{if(!id(b.id)||boardIds.has(b.id))throw Error('invalid/duplicate board');boardIds.add(b.id);return {id:b.id,name:text(b.name),openNodeCount:number(b.openNodeCount),totalNodeCount:number(b.totalNodeCount),detail:null,detailCheckedAt:null};});
  return {schema:'heaven-gg/aion2-armory/v1',key,checkedAt:now,upstreamObservedAt:null,patch:null,name:text(p.characterName),className:text(p.className),serverName:text(p.serverName),characterLevel:number(p.characterLevel),combatPower:number(p.combatPower),itemLevel:number(stats?.find(x=>x.type==='ItemLevel')?.value),stats,skills:skills?.map(s=>({id:s.id,name:text(s.name),skillLevel:number(s.skillLevel),category:text(s.category),equip:s.equip??null,acquired:s.acquired??null}))??null,equipment,boards,title:info.title??null,petwing:equip.petwing??null,resources:null,quests:null,specializations:null,claims:null,summaryCoverage:{stats:stats!==null,skills:skills!==null,equipment:rawGear!==null,boards:rawBoards!==null}};
+}
+// Portable observations are user-owned data. Validate and project only known fields;
+// never accept an imported completeness flag, private state, or fresh timestamp by assertion.
+const primitive=v=>v===null||typeof v==='boolean'||typeof v==='number'&&Number.isFinite(v)||typeof v==='string'&&v.length<=1024;
+function fields(row,keys){
+ if(!record(row))throw Error('Invalid observation row');
+ const out={};
+ for(const k of keys)if(Object.hasOwn(row,k)&&primitive(row[k]))out[k]=row[k];
+ return out;
+}
+const lineFields=['id','name','type','value','minValue','extra','exceed','level','slotPos','grade','desc'];
+function projectedRows(value,limit,keys=lineFields){
+ if(value==null)return null;
+ if(!optionalRows(value,limit))throw Error('Invalid observation collection');
+ return value.map(row=>fields(row,keys));
+}
+function timestamp(value,now,optional=false){
+ if(value==null&&optional)return null;
+ if(!Number.isSafeInteger(value)||value<0||value>now)throw Error('Invalid observation timestamp');
+ return value;
+}
+export function normalizeImportedSnapshot(input,now=Date.now()){
+ if(input?.schema!=='heaven-gg/aion2-armory/v1'||!Number.isSafeInteger(now)||now<0)throw Error('Unsupported armory snapshot');
+ const key=characterKey(input.key),checkedAt=timestamp(input.checkedAt,now);
+ if(!Array.isArray(input.equipment)||input.equipment.length>100||!input.equipment.every(record)||
+    !Array.isArray(input.boards)||input.boards.length>30||!input.boards.every(record))throw Error('Invalid observation manifest');
+ const stats=projectedRows(input.stats,500);
+ if(stats)for(let i=0;i<stats.length;i++){
+  const second=input.stats[i].statSecondList;
+  if(Array.isArray(second)&&second.length<=100&&second.every(x=>typeof x==='string'&&x.length<=512))stats[i].statSecondList=[...second];
+ }
+ const skills=projectedRows(input.skills,500,['id','name','skillLevel','category','equip','acquired']);
+ const info={profile:{characterId:key.characterId,serverId:key.serverId,characterName:input.name,className:input.className,serverName:input.serverName,characterLevel:input.characterLevel,combatPower:input.combatPower},stat:{statList:stats},daevanion:{boardList:input.summaryCoverage?.boards===false?null:input.boards.map(b=>fields(b,['id','name','openNodeCount','totalNodeCount']))}};
+ const equip={equipment:{equipmentList:input.summaryCoverage?.equipment===false?null:input.equipment.map(g=>fields(g,['id','slotPos','slotPosName','name','grade','enchantLevel','exceedLevel']))},skill:{skillList:skills}};
+ const result=normalizeArmory(key,info,equip,checkedAt);
+ if((skills!==null&&result.skills===null)||result.equipment.length!==input.equipment.length||result.boards.length!==input.boards.length)throw Error('Inconsistent observation manifest');
+ result.upstreamObservedAt=timestamp(input.upstreamObservedAt,now,true);
+ result.patch=typeof input.patch==='string'&&input.patch.length<=128?input.patch:null;
+ for(let i=0;i<result.equipment.length;i++){
+  const g=result.equipment[i],old=input.equipment[i];
+  if(old.detail==null)continue;
+  const detail=normalizeItemDetail(g,old.detail);
+  const projected=fields(detail,['id','name','grade','gradeName','level','equipLevel','slotPos','enchantLevel','exceedLevel','maxEnchantLevel','maxExceedEnchantLevel','magicStoneSlotCount','godStoneSlotCount','subStatCount','subSkillCountMax','soulBindRate','subStatRandom']);
+  for(const k of ['mainStats','subStats','subSkills','magicStoneStat','godStoneStat'])if(detail[k]!=null)projected[k]=projectedRows(detail[k],128);
+  g.detail=normalizeItemDetail(g,projected);g.detailCheckedAt=timestamp(old.detailCheckedAt,now,true);
+ }
+ for(let i=0;i<result.boards.length;i++){
+  const b=result.boards[i],old=input.boards[i];if(old.detail==null)continue;
+  const raw=normalizeBoardDetail(b,old.detail),projected={boardId:b.id,nodeList:raw.nodeList.map(n=>{
+   const row=fields(n,['nodeId','boardId','row','col','type','open','name','grade']);
+   if(n.effectList!=null)row.effectList=projectedRows(n.effectList,128);
+   return row;
+  })};
+  for(const k of ['openStatEffectList','openSkillEffectList'])if(raw[k]!=null)projected[k]=projectedRows(raw[k],500);
+  b.detail=normalizeBoardDetail(b,projected);b.detailCheckedAt=timestamp(old.detailCheckedAt,now,true);
+ }
+ // Optional display-only public fields are deliberately reduced to known metadata.
+ if(record(input.title)){
+  result.title=fields(input.title,['totalCount','ownedCount']);
+  if(Array.isArray(input.title.titleList)&&input.title.titleList.length<=2000&&input.title.titleList.every(record))result.title.titleList=input.title.titleList.map(t=>fields(t,['id','name','grade','equipCategory','totalCount','ownedCount','ownedPercent']));
+ }
+ if(record(input.petwing)){
+  result.petwing={};for(const k of ['pet','wing','wingSkin'])if(record(input.petwing[k]))result.petwing[k]=fields(input.petwing[k],['id','name','level','grade','enchantLevel']);
+ }
+ result.complete=Object.values(result.summaryCoverage).every(Boolean)&&result.equipment.every(x=>x.detail!==null)&&result.boards.every(x=>x.detail!==null);
+ return result;
 }
 function wait(ms,signal){if(signal?.aborted)return Promise.reject(signal.reason??Error('aborted'));return new Promise((resolve,reject)=>{const abort=()=>{clearTimeout(timer);reject(signal.reason??Error('aborted'));};const timer=setTimeout(()=>{signal?.removeEventListener('abort',abort);resolve();},ms);signal?.addEventListener('abort',abort,{once:true});});}
 export async function browserTransport(request,{signal}={}){

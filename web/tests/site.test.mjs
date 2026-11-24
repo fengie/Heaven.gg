@@ -28,6 +28,8 @@ test('build produces both game tabs, copied AION dashboard and source-pinned CH 
     assert.ok(profilePage.includes('href="./intelligence.html"'));
     const intelligence=await readFile(join(tmp,'aion2/intelligence.html'),'utf8');
     assert.ok(intelligence.includes('id="best-plan"'));
+    assert.ok(intelligence.includes('id="import-observation"'));
+    assert.ok(intelligence.includes('id="export-observation"'));
     for(const asset of ["aion2/scripts/intelligence-engine.mjs","aion2/scripts/armory-engine.mjs","aion2/scripts/intelligence-context.mjs","aion2/scripts/intelligence-page.mjs"])
       assert.ok((await readFile(join(tmp,asset),'utf8')).length>0,asset);
     assert.match(page,/Plan my character/);
@@ -97,7 +99,7 @@ function goodPages(sha = liveSha) {
     ['index.html', '<button data-game="ch"></button><button data-game="aion"></button><a href="./aion2/wardrobe.html">Wardrobe</a><section id="mod-manager"><h2 id="mod-manager-title">Mod Manager</h2><a href="https://github.com/fengie/Heaven-Mod_Manager/releases/latest">Windows release</a></section>'],
     ['aion2/index.html', '<title>ATREIA ATLAS</title><a href="./profile.html">My character</a>'],
     ['aion2/profile.html', '<main data-engine="PROFILE_EDITOR"><input id="profile-upload"><a href="./intelligence.html">Intelligence</a></main>'],
-    ['aion2/intelligence.html','<select id="objective"></select><section id="best-plan"></section><section id="ledger"></section><script src="./scripts/intelligence-page.mjs"></script>'],
+    ['aion2/intelligence.html','<select id="objective"></select><section id="best-plan"></section><section id="ledger"></section><input id="import-observation"><button id="export-observation"></button><script src="./scripts/intelligence-page.mjs"></script>'],
     ['aion2/scripts/intelligence-engine.mjs','export function enumerateBuilds(){}'],
     ['aion2/scripts/armory-engine.mjs','export class ArmoryClient{}'],
     ['aion2/scripts/intelligence-context.mjs','export function analyzeProgression(){}'],

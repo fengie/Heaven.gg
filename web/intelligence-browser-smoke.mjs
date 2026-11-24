@@ -46,6 +46,32 @@ export async function checkIntelligence(browser,baseUrl){
   assert.equal(requests.filter(x=>x.endsWith('/search/v2/character')).length,1);
   await page.setViewportSize({width:390,height:844});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),'intelligence page mobile overflow');
   await page.locator('#forget').click();assert.equal(await page.locator('#name').innerText(),'—');
+  // A direct official link bypasses name search but still uses the fixed armory endpoints.
+  const searchesBeforeLink=requests.filter(x=>x.endsWith('/search/v2/character')).length;
+  await page.locator('#character-name').fill('https://aion2.plaync.com/en-us/characters/view?characterId=fixture%253D&serverId=1101&region=nae');
+  await page.getByRole('button',{name:'Find character'}).click();
+  await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('Published character data checked'),{},{timeout:25000});
+  assert.equal(await page.locator('#name').innerText(),'Fixture');
+  assert.equal(requests.filter(x=>x.endsWith('/search/v2/character')).length,searchesBeforeLink);
+  // Export is local; round-trip through an actual file upload and verify offline reopening.
+  const downloadPromise=page.waitForEvent('download');
+  await page.locator('#export-observation').click();
+  const download=await downloadPromise;
+  assert.equal(download.suggestedFilename(),'heaven-gg-aion2-observation.json');
+  const localFile=await download.path();assert.ok(localFile);
+  await page.locator('#forget').click();
+  const beforeImport=requests.length;
+  await page.locator('#import-observation').setInputFiles(localFile);
+  await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('Imported local observation'));
+  assert.equal(await page.locator('#il').innerText(),'2,800');
+  assert.match(await page.locator('#coverage').textContent(),/Imported historical observation/);
+  await page.locator('#objective').selectOption('critBonus');
+  assert.match(await page.locator('#best-plan').innerText(),/12\.84 pp/);
+  await page.reload({waitUntil:'domcontentloaded'});
+  await page.waitForFunction(()=>document.querySelector('#coverage').textContent.includes('Imported historical observation'));
+  assert.equal(await page.locator('#name').innerText(),'Fixture');
+  assert.equal(requests.length,beforeImport);
+  await page.locator('#forget').click();
   // Exercise the optional same-origin transport in a synthetic built-site browser fixture.
   // The broker is not available on static Pages; do not pretend this fixture is a live test.
   if(new URL(baseUrl).hostname==='127.0.0.1'){

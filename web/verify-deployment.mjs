@@ -106,7 +106,7 @@ export async function verifyServedRelease({baseUrl,expectedSha,fetchImpl=fetch})
   if (!profile.includes('data-engine="PROFILE_EDITOR"') || !profile.includes('id="profile-upload"')) throw new Error('SERVED_PROFILE_INCOMPLETE');
   const intelligence=content.get('aion2/intelligence.html');
   if (!profile.includes('href="./intelligence.html"') ||
-      !['id="objective"','id="best-plan"','id="ledger"','./scripts/intelligence-page.mjs'].every(marker=>intelligence.includes(marker)))
+      !['id="objective"','id="best-plan"','id="ledger"','id="import-observation"','id="export-observation"','./scripts/intelligence-page.mjs'].every(marker=>intelligence.includes(marker)))
     throw new Error('SERVED_INTELLIGENCE_INCOMPLETE');
   if (!content.get('aion2/scripts/intelligence-context.mjs').includes('export function analyzeProgression') ||
       !content.get('aion2/scripts/armory-engine.mjs').includes('export class ArmoryClient') ||
