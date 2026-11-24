@@ -6,6 +6,7 @@ import {lstat,mkdir,mkdtemp,readFile,readdir,realpath,rename,rm,unlink,writeFile
 import {join,resolve,dirname,sep} from 'node:path';
 import {hostname} from 'node:os';
 import {request} from 'node:http';
+import {createConnection} from 'node:net';
 import {fileURLToPath} from 'node:url';
 
 const REPO='fengie/Heaven.gg';
@@ -218,15 +219,26 @@ async function observe(port,r,release){
  }
  return {schema:OWNER,status:'verified',source_sha:r.revision,installed_sha:r.revision,url:'http://127.0.0.1:'+port,observed_at:new Date().toISOString(),upstream_enabled:false};
 }
+function portRefused(port){
+ return new Promise(resolve=>{
+  const socket=createConnection({host:'127.0.0.1',port});
+  let settled=false;
+  const done=value=>{if(settled)return;settled=true;socket.destroy();resolve(value);};
+  socket.once('connect',()=>done(false));
+  socket.once('error',e=>done(e.code==='ECONNREFUSED'));
+  socket.setTimeout(1000,()=>done(false));
+ });
+}
 async function stopOwned(port,r,release){
  if(!await observe(port,r,release))return;
  const response=await get(port,'/__heavengg/stop',{method:'POST',headers:{Authorization:'Bearer '+r.token}});
  if(response?.status!==202)fail('OWNED_STOP_UNVERIFIED');
  await response.body?.cancel().catch(()=>{});
+ // HTTP may reset while an authenticated shutdown drains connections.
+ // Only a fresh TCP refusal establishes that the port is closed. Never
+ // classify an HTTP reset, timeout, or unexpected response as absence.
  for(let i=0;i<25;i++){
-  const health=await get(port,'/__heavengg/status');
-  if(!health)return;
-  await health.body?.cancel().catch(()=>{});
+  if(await portRefused(port))return;
   await sleep(200);
  }
  fail('OWNED_STOP_UNVERIFIED');
