@@ -72,3 +72,27 @@ test('confirmed insufficient total Kina proves a recipe shortfall, but higher to
 test('bounded multi-slot search never claims an exact optimum on a truncated domain',()=>{
  const x=analyzeProgression(snapshot,{now,goal:'crit',maxEvaluations:1});assert.equal(x.search.exact,false);assert.ok(x.best);
 });
+
+test('disliking the soul-binding category changes the preferred plan without erasing mathematical alternatives',()=>{
+ const s={...snapshot,equipment:[gear(1,'Shoulder',[line('Accuracy','31')]),gear(2,'Shoes',[line('Critical Hit','26')])]};
+ const unrestricted=analyzeProgression(s,{now,goal:'critBonus'});
+ const preferred=analyzeProgression(s,{now,goal:'critBonus',preferences:{'soul-binding':'dislike'}});
+ assert.deepEqual(preferred.best,unrestricted.best);
+ assert.ok(preferred.preferredPlan,'preferences must influence the separately labeled feasible choice');
+ assert.equal(preferred.preferredPlan.best.changes.length,0);
+ assert.ok(preferred.preferredPlan.excluded>0);
+ assert.equal(preferred.rows.length,unrestricted.rows.length);
+});
+test('one disliked action is excluded from the preferred plan but remains in the ledger',()=>{
+ const s={...snapshot,equipment:[gear(1,'Shoulder',[line('Accuracy','31')]),gear(2,'Shoes',[line('Critical Hit','26')])]};
+ const unrestricted=analyzeProgression(s,{now,goal:'critBonus'});
+ const excluded=unrestricted.rows.find(r=>r.id===unrestricted.best.changes[0].id);
+ assert.ok(excluded.preferenceKey,'every valid action has a stable preference identity');
+ const ranked=analyzeProgression(s,{now,goal:'critBonus',actionPreferences:new Map([[excluded.preferenceKey,'dislike']])});
+ assert.deepEqual(ranked.best,unrestricted.best);
+ assert.ok(ranked.preferredPlan);
+ assert.ok(ranked.preferredPlan.best.changes.every(r=>r.id!==excluded.id));
+ const retained=ranked.rows.find(r=>r.id===excluded.id);
+ assert.equal(retained.preference,'dislike');assert.equal(retained.gain,excluded.gain);
+ assert.equal(retained.status,excluded.status);assert.equal(ranked.rows.length,unrestricted.rows.length);
+});
