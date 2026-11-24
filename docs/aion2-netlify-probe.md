@@ -1,5 +1,7 @@
 # AION 2 hosted armory connectivity pilot
 
+**Deferred (2026-11-23):** operator selected personal-only Heaven1 hosting. Do not import, deploy or activate this Netlify alternative during private development. Use the existing local Node preview in `web/DEPLOYMENT.md`. Retained for tested historical reference and a possible separately authorized future public release.
+
 Scope: issue #32. This branch proves a minimal deployable function boundary before a production character-data adapter. No UI redirect, character query, HAR upload, public proxy, automatic upstream request, credential forwarding, or new paid service.
 
 ## Deployment
