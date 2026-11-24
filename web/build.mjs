@@ -52,7 +52,7 @@ async function build(outputDir) {
   // Character intelligence remains a separate page; preserve the existing offline planner.
   await copyFile(join(root,'apps/aion2-value-atlas/intelligence.html'),join(outputDir,'aion2/intelligence.html'));
   await mkdir(join(outputDir,'aion2/scripts'),{recursive:true});
-  for (const file of ['intelligence-engine.mjs','armory-engine.mjs','intelligence-page.mjs'])
+  for (const file of ['intelligence-engine.mjs','armory-engine.mjs','intelligence-context.mjs','intelligence-page.mjs'])
     await copyFile(join(root,'apps/aion2-value-atlas/scripts',file),join(outputDir,'aion2/scripts',file));
   // Wardrobe's live module fetch must resolve to this versioned source snapshot.
   await copyFile(join(root,'apps/aion2-value-atlas/data/catalog.json'),join(outputDir,'aion2/catalog.json'));

@@ -4,7 +4,7 @@ const own=(o,k)=>Object.hasOwn(o,k);
 const finite=x=>typeof x==='number'&&Number.isFinite(x);
 const validRecord=x=>x!==null&&typeof x==='object'&&!Array.isArray(x);
 const compare=(a,b)=>a<b?-1:a>b?1:0;
-const statKeys=new Set(['attack','accuracy','crit','critBonus','weaponBoost']);
+const statKeys=new Set(['attack','accuracy','crit','critBonus','weaponBoost','damageBoost','attackIncrease','doubleChance','might','precision','combatSpeed','multiHit','perfectChance','moveSpeed']);
 function add(base,delta){
  const next={...base};
  for(const [key,val] of Object.entries(delta||{})){

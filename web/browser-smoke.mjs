@@ -6,6 +6,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve, join, dirname, sep, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
+import { checkIntelligence } from './intelligence-browser-smoke.mjs';
 
 const project = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const output = resolve(project, 'dist');
@@ -189,11 +190,12 @@ async function main() {
     const site = requested || local.url;
     await checkDesktop(browser,site,requested ? expectedSha : undefined);
     await checkMobile(browser,site);
+    await checkIntelligence(browser,site);
     console.log('HEAVEN_GG_BROWSER_INTERACTIONS_PASS ' + JSON.stringify({
       mode:requested ? 'served' : 'built', browser:'Google Chrome',
       observedRevision:requested ? expectedSha : 'local-pr-build',
       checks:['tabs','catalog-filter','research-panels','desktop-companion',
-        'game-tools','game-registry','wardrobe-scenario','mobile-touch','mobile-overflow','mobile-wardrobe']
+        'game-tools','game-registry','wardrobe-scenario','mobile-touch','mobile-overflow','mobile-wardrobe','character-intelligence-fixture']
     }));
   } finally {
     if(browser) await browser.close();
