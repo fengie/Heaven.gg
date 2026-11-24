@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {analyzeProgression, observedTotals, confirmWallet, walletResources, scenarioGain} from '../../apps/aion2-value-atlas/scripts/intelligence-context.mjs';
+import {analyzeProgression, observedTotals, confirmWallet, walletResources, scenarioGain, normalizeActionPreferences} from '../../apps/aion2-value-atlas/scripts/intelligence-context.mjs';
 const now=Date.parse('2026-11-23T20:00:00Z'), key={region:'nae',serverId:'1101',characterId:'fixture='};
 const gear=(slotPos,slotPosName,lines,level=102)=>({id:100+slotPos,slotPos,slotPosName,name:slotPosName,enchantLevel:5,detailCheckedAt:now,detail:{id:100+slotPos,level,subStats:lines,maxEnchantLevel:10}});
 const line=(name,value)=>({name,value});
@@ -95,4 +95,14 @@ test('one disliked action is excluded from the preferred plan but remains in the
  const retained=ranked.rows.find(r=>r.id===excluded.id);
  assert.equal(retained.preference,'dislike');assert.equal(retained.gain,excluded.gain);
  assert.equal(retained.status,excluded.status);assert.equal(ranked.rows.length,unrestricted.rows.length);
+});
+
+test('saved action preferences reject cross-character, duplicate and malformed observations',()=>{
+ const packet={schema:'heaven-gg/aion2-action-preferences/v1',key,entries:[['action','dislike']]};
+ assert.equal(normalizeActionPreferences(packet,key).get('action'),'dislike');
+ assert.throws(()=>normalizeActionPreferences(packet,{...key,characterId:'other='}));
+ assert.throws(()=>normalizeActionPreferences({...packet,entries:[['action','neutral'],['action','prefer']]},key));
+ assert.throws(()=>normalizeActionPreferences({...packet,entries:[['action','unknown']]},key));
+ assert.throws(()=>normalizeActionPreferences({...packet,entries:Array.from({length:257},(_,i)=>[String(i),'prefer'])},key));
+ assert.deepEqual(normalizeActionPreferences(null,key),new Map());
 });
