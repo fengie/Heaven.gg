@@ -1,5 +1,6 @@
 import test from 'node:test';
-import {EventEmitter} from 'node:events';
+import {EventEmitter,once} from 'node:events';
+import {createServer,request} from 'node:http';
 import assert from 'node:assert/strict';
 import {resolveBrokerRequest, createArmoryHandler} from '../armory-broker.mjs';
 import {normalizeItemDetail, normalizeBoardDetail, normalizeArmory, armoryRequestTarget, ArmoryClient} from '../../apps/aion2-value-atlas/scripts/armory-engine.mjs';
@@ -115,4 +116,64 @@ test('browser disconnect aborts the in-flight upstream read and releases the slo
  assert.equal(calls,2);
  assert.equal(nextReq.listenerCount('aborted'),0);
  assert.equal(nextRes.listenerCount('close'),0);
+});
+
+test('actual downstream socket close aborts an upstream streaming response and frees its slot',
+ {timeout:10000},async t=>{
+ const start=async server=>{
+  t.after(()=>new Promise(resolve=>{
+   if(!server.listening){resolve();return;}
+   server.close(resolve);
+   server.closeAllConnections();
+  }));
+  const ready=once(server,'listening');
+  server.listen(0,'127.0.0.1');
+  await ready;
+  return 'http://127.0.0.1:'+server.address().port;
+ };
+ const headersReceived=Promise.withResolvers();
+ const upstreamClosed=Promise.withResolvers();
+ const firstHandlerDone=Promise.withResolvers();
+ let upstreamCalls=0,downstreamCalls=0;
+ // Both sockets are disposable loopback fixtures; no actual game endpoint is contacted.
+ const upstream=createServer((req,res)=>{
+  upstreamCalls++;
+  res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});
+  if(upstreamCalls===1){
+   res.once('close',upstreamClosed.resolve);
+   res.write('{"profile":');
+  }else res.end(JSON.stringify({profile:{characterName:'Next'}}));
+ });
+ const upstreamOrigin=await start(upstream);
+ let handler;
+ const broker=createServer((req,res)=>{
+  const n=++downstreamCalls;
+  const handled=handler(req,res);
+  if(n===1)handled.then(firstHandlerDone.resolve,firstHandlerDone.reject);
+  else handled.catch(()=>res.destroy());
+ });
+ const origin=await start(broker);
+ handler=createArmoryHandler({enabled:true,origin,minInterval:0,fetchImpl:async(url,opts)=>{
+  assert.equal(new URL(url).origin,'https://aion2.plaync.com');
+  assert.equal(new URL(url).pathname,'/api/character/info');
+  const response=await fetch(upstreamOrigin+'/fixture',opts);
+  if(upstreamCalls===1)headersReceived.resolve(opts.signal);
+  return response;
+ }});
+ const client=request(origin+base+'info?'+query);
+ t.after(()=>client.destroy());
+ client.on('error',()=>{});
+ client.on('response',res=>res.resume());
+ client.end();
+ const signal=await headersReceived.promise;
+ assert.equal(signal.aborted,false);
+ client.destroy();
+ await Promise.all([upstreamClosed.promise,firstHandlerDone.promise]);
+ assert.equal(signal.aborted,true);
+ // This cannot succeed while the first per-origin slot is still occupied.
+ const next=await fetch(origin+base+'info?'+query,{signal:AbortSignal.timeout(3000)});
+ assert.equal(next.status,200);
+ assert.deepEqual(await next.json(),{profile:{characterName:'Next'}});
+ assert.equal(upstreamCalls,2);
+ assert.equal(downstreamCalls,2);
 });
