@@ -3,11 +3,15 @@ $validator = Join-Path $PSScriptRoot '../.github/scripts/Test-UpdatePolicy.ps1'
 $source = Get-Content (Join-Path $PSScriptRoot '../.heaven/update-policy.json') -Raw
 $temp = [IO.Path]::GetTempFileName()
 try {
-    foreach ($field in 'required', 'poll_interval_minutes') {
+    foreach ($field in 'required', 'poll_interval_minutes', 'controller') {
         if ($field -eq 'required') {
             $invalid = @('false','null','"true"','"false"','1','{}','[]','[true]')
             $valid = @('true')
             $expected = 'Automatic main source consumption must be required.'
+        } elseif ($field -eq 'controller') {
+            $invalid = @('null','false','""','"other/controller"','"HEAVEN-TOOLBOX/repo-autoupdate"','{}','[]','["heaven-toolbox/repo-autoupdate"]')
+            $valid = @('"heaven-toolbox/repo-autoupdate"')
+            $expected = 'Source update controller mismatch.'
         } else {
             $invalid = @('false','null','"1"','0','61','1.5','{}','[]')
             $valid = @('1','60')
