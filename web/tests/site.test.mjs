@@ -32,7 +32,7 @@ test('build produces both game tabs, copied AION dashboard and source-pinned CH 
     assert.ok(intelligence.includes('id="progress-history"'));
     assert.ok(intelligence.includes('id="import-observation"'));
     assert.ok(intelligence.includes('id="export-observation"'));
-    for(const asset of ["aion2/scripts/intelligence-engine.mjs","aion2/scripts/armory-engine.mjs","aion2/scripts/intelligence-context.mjs","aion2/scripts/intelligence-page.mjs"])
+    for(const asset of ["aion2/scripts/intelligence-engine.mjs","aion2/scripts/armory-engine.mjs","aion2/scripts/intelligence-context.mjs","aion2/scripts/evidence-import.mjs","aion2/scripts/intelligence-page.mjs"])
       assert.ok((await readFile(join(tmp,asset),'utf8')).length>0,asset);
     assert.match(page,/Plan my character/);
     assert.match(page,/Frame Generation lab/);
@@ -66,7 +66,7 @@ test('copy/rebuild is deterministic for fixed inputs',async()=>{
   const b=await mkdtemp(join(tmpdir(),'heaven-b-'));
   try {
     await build(a);await build(b);
-    for(const path of ['index.html','site.css','site.js','game-tools.html','ch/catalog.json','aion2/index.html','aion2/profile.html','aion2/intelligence.html','aion2/scripts/intelligence-engine.mjs','aion2/scripts/armory-engine.mjs','aion2/scripts/intelligence-context.mjs','aion2/scripts/intelligence-page.mjs','aion2/performance.html','aion2/performance-engine.mjs','aion2/catalog.json','aion2/wardrobe.html','aion2/wardrobe.js','wardrobe.mjs','decision.mjs','games.json','version.json'])
+    for(const path of ['index.html','site.css','site.js','game-tools.html','ch/catalog.json','aion2/index.html','aion2/profile.html','aion2/intelligence.html','aion2/scripts/intelligence-engine.mjs','aion2/scripts/armory-engine.mjs','aion2/scripts/intelligence-context.mjs','aion2/scripts/evidence-import.mjs','aion2/scripts/intelligence-page.mjs','aion2/performance.html','aion2/performance-engine.mjs','aion2/catalog.json','aion2/wardrobe.html','aion2/wardrobe.js','wardrobe.mjs','decision.mjs','games.json','version.json'])
       assert.equal(await readFile(join(a,path),'utf8'),await readFile(join(b,path),'utf8'),'Divergence: '+path);
   } finally {await rm(a,{recursive:true,force:true});await rm(b,{recursive:true,force:true});}
 });
@@ -101,11 +101,12 @@ function goodPages(sha = liveSha) {
     ['index.html', '<button data-game="ch"></button><button data-game="aion"></button><a href="./aion2/wardrobe.html">Wardrobe</a><section id="mod-manager"><h2 id="mod-manager-title">Mod Manager</h2><a href="https://github.com/fengie/Heaven-Mod_Manager/releases/latest">Windows release</a></section>'],
     ['aion2/index.html', '<title>ATREIA ATLAS</title><a href="./profile.html">My character</a>'],
     ['aion2/profile.html', '<main data-engine="PROFILE_EDITOR"><input id="profile-upload"><a href="./intelligence.html">Intelligence</a></main>'],
-    ['aion2/intelligence.html','<select id="objective"></select><section id="best-plan"></section><section id="ledger"></section><input id="import-observation"><button id="export-observation"></button><select id="server-filter"></select><section id="progress-history"></section><script src="./scripts/intelligence-page.mjs"></script>'],
+    ['aion2/intelligence.html','<select id="objective"></select><section id="best-plan"></section><section id="ledger"></section><input id="import-observation"><button id="export-observation"></button><select id="server-filter"></select><section id="progress-history"></section><input id="import-combat"><section id="combat-evidence"></section><script src="./scripts/intelligence-page.mjs"></script>'],
     ['aion2/scripts/intelligence-engine.mjs','export function enumerateBuilds(){}'],
     ['aion2/scripts/armory-engine.mjs','export class ArmoryClient{}'],
     ['aion2/scripts/intelligence-context.mjs','export function analyzeProgression(){}'],
-    ['aion2/scripts/intelligence-page.mjs','import "./intelligence-context.mjs";'],
+    ['aion2/scripts/evidence-import.mjs','export function summarizeA2Log(){}'],
+    ['aion2/scripts/intelligence-page.mjs','import "./intelligence-context.mjs"; import "./evidence-import.mjs";'],
     ['aion2/performance.html', '<main id="performance-result">Frame Generation<script src="./performance-engine.mjs"></script></main>'],
     ['aion2/performance-engine.mjs', 'export function analyzeFrameOutput(){}'],
     ['aion2/catalog.json', {as_of:'2026-10-09',products:Array(12).fill({id:'p'}),packs:[{id:'q'}],sources:[{id:'s'}]}],
@@ -136,7 +137,7 @@ test('served release verifies exact source SHA and every public product route',a
   assert.equal(receipt.status,'SERVED_OBSERVED');
   assert.equal(receipt.sourceSha,liveSha);
   assert.equal(receipt.repository,'fengie/Heaven.gg');
-  assert.equal(receipt.paths.length,19);
+  assert.equal(receipt.paths.length,20);
   assert.equal(receipt.authoritative,false);
 });
 test('served release rejects stale SHA even when every HTML route responds',async()=>{

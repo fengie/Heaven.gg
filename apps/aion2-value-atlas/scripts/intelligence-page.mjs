@@ -1,11 +1,14 @@
 import {ArmoryClient,characterKey,parseOfficialCharacterLink} from './armory-engine.mjs';
 import {rankLedger} from './intelligence-engine.mjs';
+import {rawArmoryIdentity,normalizeRawArmoryBundle,inspectA2Log,summarizeA2Log,appendCombatEvidence,normalizeCombatEvidence,compareRecordedFights} from './evidence-import.mjs';
 import {analyzeProgression, confirmWallet, walletResources, GOALS, REFERENCE_VERSION,normalizeObservationPack,createObservationPack,normalizeReferenceCatalog,normalizeWalletObservation,appendProgressHistory,normalizeProgressHistory} from './intelligence-context.mjs';
 const byId=id=>document.getElementById(id), node=(tag,content)=>{const n=document.createElement(tag);if(content!==undefined)n.textContent=String(content);return n;};
 const bindingKey='heaven-gg:aion2:intelligence-binding-v1', preferenceKey='heaven-gg:aion2:intelligence-preferences-v1';
 const client=new ArmoryClient();
 const walletKey='heaven-gg:aion2:intelligence-wallet-v1', offlineKey='heaven-gg:aion2:character-v1';
 const observationKey='heaven-gg:aion2:intelligence-observation-v1',historyKey='heaven-gg:aion2:intelligence-history-v1';
+const combatKey='heaven-gg:aion2:intelligence-combat-v1';
+let combatHistory=null,combatDraft=null,combatReadVersion=0;
 let history=null,directory=null,directoryPending=null;
 let wallet=null,catalog=null,snapshotMode='live',analysisCache=null,lastError='',walletTimer=null;
 for(const [value,label] of Object.entries(GOALS)){const o=node('option',label);o.value=value;byId('objective').append(o);}
@@ -21,6 +24,54 @@ const fmt=x=>typeof x==='number'&&Number.isFinite(x)?x.toLocaleString():'Unknown
 const statText=x=>typeof x==='string'&&x.trim()&&x.length<=100?x:fmt(x);
 function clearWallet(){wallet=null;store(walletKey,null);analysisCache=null;}
 function clearHistory(){history=null;store(historyKey,null);}
+function resetCombatDraft(){
+ combatReadVersion++;combatDraft=null;
+ for(const id of ['combat-actor','combat-segment']){const o=node('option','Choose…');o.value='';byId(id).replaceChildren(o);}
+ byId('import-combat').value='';byId('save-combat').disabled=true;
+ byId('combat-draft-status').textContent='No pending combat file.';
+}
+function clearCombat(){combatHistory=null;store(combatKey,null);resetCombatDraft();}
+function updateCombatSelection(){byId('save-combat').disabled=!(selected&&combatDraft&&byId('combat-actor').value&&byId('combat-segment').value!=='');}
+async function importCombat(file){
+ resetCombatDraft();if(!file)return;
+ const version=combatReadVersion,identity=selected?.key;
+ try{
+  if(!identity)throw Error('Select a character first');
+  if(file.size>8_000_000)throw Error('Combat file exceeds 8 MB');
+  const data=JSON.parse(await file.text()),overview=inspectA2Log(data);
+  if(version!==combatReadVersion||!sameCharacter(identity,selected?.key))return;
+  combatDraft=data;
+  for(const p of overview.players){const o=node('option',p.name+' ('+p.id+')');o.value=p.id;byId('combat-actor').append(o);}
+  for(const s of overview.segments){const o=node('option',s.label+' · '+fmt(s.duration)+' s');o.value=String(s.index);byId('combat-segment').append(o);}
+  byId('combat-draft-status').textContent='Choose the recorded actor and encounter, then confirm that actor belongs to '+selected.name+'.';
+  updateCombatSelection();
+ }catch(e){if(version===combatReadVersion)byId('combat-draft-status').textContent='Combat import failed: '+e.message;}
+}
+function saveCombat(){
+ if(!selected||!combatDraft||!byId('combat-actor').value||byId('combat-segment').value==='')return;
+ try{
+  const fight=summarizeA2Log(combatDraft,{key:selected.key,playerId:byId('combat-actor').value,segmentIndex:Number(byId('combat-segment').value),confirmed:true});
+  combatHistory=appendCombatEvidence(combatHistory,fight,selected.key);store(combatKey,combatHistory);resetCombatDraft();renderCombat();
+  byId('combat-draft-status').textContent='Recorded combat summary retained locally.';
+ }catch(e){byId('combat-draft-status').textContent='Combat import failed: '+e.message;}
+}
+function renderCombat(){
+ const fights=combatHistory?.fights??[],list=node('ul');
+ byId('import-combat').disabled=!selected;byId('clear-combat').disabled=!fights.length&&!combatDraft;
+ byId('combat-summary').textContent=fights.length+' local recorded encounters. These are observations, not predicted DPS or verified encounter-time gear.';
+ const number=n=>n.toLocaleString(undefined,{maximumFractionDigits:2});
+ for(const f of [...fights].reverse()){
+  const li=node('li',(f.target??'Unknown encounter')+' · Recorded DPS '+number(f.dps)+' · '+number(f.damage)+' damage / '+number(f.duration)+' s');
+  li.append(node('small',' — '+(f.recordedAt===null?'Original time unknown':new Date(f.recordedAt).toLocaleString())+' · '+(f.patch??'Patch unknown')+' · '+f.completeness));
+  const evidence=node('p','Annotated crit records: '+(f.flags.crit.known?number(100*f.flags.crit.positive/f.flags.crit.known)+'% ('+f.flags.crit.positive+'/'+f.flags.crit.known+')':'Unknown')+' · Multi-hit extra hits: '+(f.multi.known?fmt(f.multi.extraHits)+' ('+f.multi.known+' annotated records)':'Unknown'));
+  li.append(evidence);
+  const skills=node('ul');for(const s of f.skills.slice(0,8))skills.append(node('li',s.name+': '+number(s.damage)+' damage · '+fmt(s.hits)+' records'));li.append(skills);list.append(li);
+ }
+ const sorted=fights.filter(f=>f.recordedAt!==null).sort((a,b)=>a.recordedAt-b.recordedAt),pair=compareRecordedFights(sorted.at(-2),sorted.at(-1));
+ byId('combat-comparison').textContent=pair?'Context-matched recorded DPS change: '+(pair.changePct>0?'+':'')+number(pair.changePct)+'%. '+pair.qualification:'No comparable pair with matching reported context and similar duration.';
+ byId('combat-evidence').replaceChildren(list);updateCombatSelection();
+}
+
 function recordHistory(before,after){
  try{const next=appendProgressHistory(history,before,after);if(next.changes.length){history=next;store(historyKey,history);}}catch{/* unusable comparison never prevents refresh */}
 }
@@ -70,7 +121,7 @@ function saveObservation(){
 function sameCharacter(a,b){try{return JSON.stringify(characterKey(a))===JSON.stringify(characterKey(b));}catch{return false;}}
 function applyObservation(pack){
  pending?.abort();generation++;pending=null;
- if(!sameCharacter(selected?.key,pack.snapshot.key))clearHistory();
+ if(!sameCharacter(selected?.key,pack.snapshot.key)){clearHistory();clearCombat();}
  snapshot=pack.snapshot;snapshotMode='imported';catalog=pack.catalog;wallet=pack.wallet;
  selected={key:snapshot.key,name:snapshot.name,serverName:snapshot.serverName};
  analysisCache=null;lastError='';
@@ -92,6 +143,10 @@ async function importObservation(file){
    if(!selected)throw Error('Select the character before importing resource observations');
    const next=normalizeWalletObservation(data,selected.key);
    wallet=next;store(walletKey,wallet);analysisCache=null;say('Imported local resource observation at its original timestamp.');render();
+  }else if(data?.info&&data?.equipment&&data?.daevanion){
+   const key=selected?.key??rawArmoryIdentity(data,byId('region').value),imported=normalizeRawArmoryBundle(data,key);
+   if(!selected&&!window.confirm('Import '+imported.name+' on server '+key.serverId+' in '+key.region+'? Confirm this is your selected character and region.'))return;
+   applyObservation(createObservationPack(imported,{catalog:sameCharacter(selected?.key,key)?catalog:null}));
   }else applyObservation(normalizeObservationPack(data));
  }catch(e){if(generation===started)say('Import failed: '+String(e.message),'error');}
 }
@@ -124,7 +179,7 @@ function analysis(){const now=Date.now(),goal=byId('objective').value,encounter=
  const value=analyzeProgression(snapshot,{wallet,catalog,goal,encounter,now});analysisCache={snapshot,wallet,catalog,goal,encounter,minute,walletFresh,value};return value;}
 
 function render(){
- byId('refresh').disabled=!selected||!!pending;byId('forget').disabled=!selected;renderHistory();
+ byId('refresh').disabled=!selected||!!pending;byId('forget').disabled=!selected;renderHistory();renderCombat();
  byId('name').textContent=snapshot?.name??selected?.name??'—';byId('il').textContent=fmt(snapshot?.itemLevel);byId('cp').textContent=fmt(snapshot?.combatPower);
  const resources=walletResources(wallet,selected?.key),known=Object.hasOwn(resources,'boundKina')&&Object.hasOwn(resources,'marketKina');
  const materialCount=Object.keys(resources).filter(k=>k!=='boundKina'&&k!=='marketKina').length;
@@ -136,9 +191,9 @@ function render(){
  if(!snapshot){byId('coverage').textContent='No character snapshot loaded. Live combat, private resources and legal-roll eligibility are not verified.';}
  else{const detail=snapshot.equipment.filter(x=>x.detail).length,boards=snapshot.boards.filter(x=>x.detail).length;
  const age=Math.max(0,Math.floor((Date.now()-snapshot.checkedAt)/60000));
- byId('coverage').textContent=`${snapshotMode==='imported'?'Imported historical observation':'Armory observation'} · Last summary check ${age} min ago · item details ${detail}/${snapshot.equipment.length} · boards ${boards}/${snapshot.boards.length}. Upstream update time unknown. Live wallet, inventory, full quest history, exact legal roll definitions and calibrated DPS remain unavailable.${snapshot.complete?' Published snapshot sections loaded.':' Partial snapshot; missing details are not assumed zero.'}${lastError?' Refresh failed; showing previous observations.':''}`;}
+ byId('coverage').textContent=`${snapshotMode==='imported'?'Imported historical observation':'Armory observation'} · ${snapshot.checkedAt===0?'Original observation time unknown':'Last summary check '+age+' min ago'} · item details ${detail}/${snapshot.equipment.length} · boards ${boards}/${snapshot.boards.length}. Upstream update time unknown. Live wallet, inventory, full quest history, exact legal roll definitions and calibrated DPS remain unavailable.${snapshot.complete?' Published snapshot sections loaded.':' Partial snapshot; missing details are not assumed zero.'}${lastError?' Refresh failed; showing previous observations.':''}`;}
  const data=analysis();const rows=rankLedger(data.rows,data.resources,prefs,byId('sort').value);
- byId('source-context').textContent=snapshot?`${data.matchingItems} equipped items matched a reference (${data.importedMatchingItems} exact-item imported; remaining matches use ${REFERENCE_VERSION}). ${catalog?'Imported source version '+catalog.version+'; current legality unverified. ':''}Aggregate inputs available: ${Object.keys(data.totals).join(', ')||'none'}. Hit index assumes unchanged rotation/defense, no forced crit, and no raw accuracy loss. Raw objectives compare explicit line values, not actual DPS.`:'Reference model activates after character import.';
+ byId('source-context').textContent=snapshot?`${data.matchingItems} equipped items matched a reference (${data.importedMatchingItems} exact-item imported; remaining matches use ${REFERENCE_VERSION}). ${catalog?'Imported source version '+catalog.version+'; current legality unverified. ':''}Aggregate inputs available: ${Object.keys(data.totals).join(', ')||'none'}. Hit index assumes unchanged rotation/defense, no forced crit, and no raw accuracy loss. Raw objectives compare explicit line values, not actual DPS. Derived attribute contributions below are not complete aggregate combat stats.`:'Reference model activates after character import.';
  const plan=byId('best-plan');plan.replaceChildren();
  if(data.best?.changes.length){plan.append(node('strong',`Best conditional ${GOALS[byId('objective').value]} combination: ${gainText(data.best.gain)}`));const ul=node('ul');for(const r of data.best.changes)ul.append(node('li',r.title));plan.append(ul,node('small',`${data.search.exact?'Exact within searched reference domain':'Bounded search; not proven optimal'} · ${data.search.evaluated.toLocaleString()} combinations; one line per item, selected reference stats only. Net raw Accuracy ${(data.best.delta.accuracy??0)>=0?'+':''}${data.best.delta.accuracy??0}. Legality, cost and actual performance unverified.`));}
  else plan.append(node('strong',snapshot?'No supported positive change in this reference domain.':'Select a character to compare coordinated changes.'),node('small',snapshot?'Try a raw stat objective if aggregate inputs are missing. This is not evidence that your current build is optimal.':''));
@@ -149,7 +204,7 @@ function render(){
   const status=node('td',r.status==='unknown'?'Conditional / unknown':r.status==='blocked'&&r.delta?'Needs coordinated swap':r.status);status.className=r.status;tr.append(status);table.append(tr);
  }if(!rows.length){const tr=node('tr'),td=node('td',snapshot?'No verified candidates for the loaded data.':'Choose a character to begin.');td.colSpan=5;tr.append(td);table.append(tr);}byId('ledger').replaceChildren(table);
  const gear=document.createDocumentFragment();for(const g of snapshot?.equipment??[]){const card=node('article');card.append(node('h3',g.slotPosName||`Slot ${g.slotPos}`),node('p',`${g.name} · ${g.grade||'unknown grade'} · +${fmt(g.enchantLevel)}`));const lines=node('ul');for(const line of g.detail?.subStats??[])lines.append(node('li',`${line.name||line.id}: ${line.value??'unknown'}`));for(const stone of g.detail?.magicStoneStat??[])lines.append(node('li',`Stone: ${stone.name||stone.id} ${stone.value??''}`));if(!lines.children.length)lines.append(node('li',g.detail?'No published stat lines in this response':g.detailError||'Detail not loaded'));card.append(lines);const refresh=node('button','Refresh this item');refresh.type='button';refresh.disabled=!!pending;refresh.addEventListener('click',()=>load('reroll',g.slotPos));card.append(refresh);gear.append(card);}byId('gear').replaceChildren(gear);
- const facts=document.createDocumentFragment();for(const s of snapshot?.stats??[])facts.append(node('p',`${s.name||s.type}: ${statText(s.value)}`));for(const s of snapshot?.skills??[])facts.append(node('p',`${s.name}: level ${fmt(s.skillLevel)}`));for(const b of snapshot?.boards??[])facts.append(node('p',`${b.name}: ${fmt(b.openNodeCount)} / ${fmt(b.totalNodeCount)} nodes`));byId('facts').replaceChildren(facts);
+ const facts=document.createDocumentFragment();for(const s of snapshot?.stats??[]){facts.append(node('p',`${s.name||s.type}: ${statText(s.value)}`));if(Array.isArray(s.statSecondList))for(const line of s.statSecondList.slice(0,100))if(typeof line==='string'&&line.length<=512)facts.append(node('small','Published contribution (not total): '+line));}for(const s of snapshot?.skills??[])facts.append(node('p',`${s.name}: level ${fmt(s.skillLevel)}`));for(const b of snapshot?.boards??[])facts.append(node('p',`${b.name}: ${fmt(b.openNodeCount)} / ${fmt(b.totalNodeCount)} nodes`));byId('facts').replaceChildren(facts);
 }
 async function load(trigger='open',slotPos){
  if(!selected||document.hidden)return;
@@ -161,7 +216,7 @@ async function load(trigger='open',slotPos){
 }
 function choose(row){
  pending?.abort();generation++;pending=null;
- if(!sameCharacter(selected?.key,row.key)){clearWallet();clearHistory();catalog=null;snapshot=null;store(observationKey,null);}
+ if(!sameCharacter(selected?.key,row.key)){clearWallet();clearHistory();clearCombat();catalog=null;snapshot=null;store(observationKey,null);}
  const wasImported=snapshotMode==='imported'&&!!snapshot;
  if(!snapshot)snapshotMode='live';
  lastError='';selected={key:characterKey(row.key),name:row.name,serverName:row.serverName};store(bindingKey,selected);
@@ -199,8 +254,13 @@ byId('region').addEventListener('change',()=>{pending?.abort();generation++;pend
 byId('server-filter').addEventListener('change',()=>{byId('results').replaceChildren();});
 byId('clear-history').addEventListener('click',()=>{clearHistory();renderHistory();});
 byId('export-history').addEventListener('click',exportHistory);
+byId('import-combat').addEventListener('change',e=>void importCombat(e.target.files?.[0]));
+byId('combat-actor').addEventListener('change',updateCombatSelection);
+byId('combat-segment').addEventListener('change',updateCombatSelection);
+byId('save-combat').addEventListener('click',saveCombat);
+byId('clear-combat').addEventListener('click',()=>{clearCombat();renderCombat();});
 byId('refresh').addEventListener('click',()=>load('refresh'));
-byId('forget').addEventListener('click',()=>{pending?.abort();generation++;pending=null;snapshot=null;selected=null;store(bindingKey,null);store(preferenceKey,null);store(walletKey,null);store(observationKey,null);clearHistory();resetDirectory();wallet=null;catalog=null;snapshotMode='live';analysisCache=null;lastError='';prefs={};byId('preference').value='neutral';byId('results').replaceChildren();say('Saved character and preferences removed.');render();});
+byId('forget').addEventListener('click',()=>{pending?.abort();generation++;pending=null;snapshot=null;selected=null;store(bindingKey,null);store(preferenceKey,null);store(walletKey,null);store(observationKey,null);clearHistory();clearCombat();resetDirectory();wallet=null;catalog=null;snapshotMode='live';analysisCache=null;lastError='';prefs={};byId('preference').value='neutral';byId('results').replaceChildren();say('Saved character and preferences removed.');render();});
 byId('sort').addEventListener('change',render);
 byId('objective').addEventListener('change',render);byId('encounter').addEventListener('change',render);
 byId('use-wallet').addEventListener('click',()=>{if(!selected)return;try{const next=confirmWallet(read(offlineKey),selected.key);if(!window.confirm(`Confirm these current balances belong to ${selected.name}: ${fmt(next.boundKina)} bound Kina and ${fmt(next.tradableKina)} tradable Kina?`))return;wallet=next;store(walletKey,wallet);render();}catch(e){say(e.message,'error');}});
@@ -215,6 +275,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden){clearTimeo
 window.addEventListener('focus',resume);window.addEventListener('pagehide',()=>{clearTimeout(walletTimer);directoryPending?.abort();pending?.abort();});
 try{const saved=read(bindingKey);if(saved?.key)selected={key:characterKey(saved.key),name:typeof saved.name==='string'?saved.name:'',serverName:typeof saved.serverName==='string'?saved.serverName:''};}catch{store(bindingKey,null);}
 wallet=read(walletKey);
+resetCombatDraft();try{if(selected&&read(combatKey))combatHistory=normalizeCombatEvidence(read(combatKey),selected.key);else store(combatKey,null);}catch{clearCombat();}
 try{if(selected&&read(historyKey))history=normalizeProgressHistory(read(historyKey),selected.key);}catch{clearHistory();}
 try{const saved=read(observationKey);if(saved?.pack&&selected){const pack=normalizeObservationPack(saved.pack);if(sameCharacter(pack.snapshot.key,selected.key)){snapshot=pack.snapshot;catalog=pack.catalog;snapshotMode=saved.mode==='imported'?'imported':'live';}}}catch{store(observationKey,null);}
 if(document.querySelector('meta[name="heaven-gg-armory-transport"][content="same-origin"]'))byId('transport-detail').textContent='Using the explicitly enabled local same-origin armory transport. No account login or private inventory access. All character data stays local to this preview.';

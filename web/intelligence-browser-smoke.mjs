@@ -87,6 +87,25 @@ export async function checkIntelligence(browser,baseUrl){
   assert.equal(await page.locator('#name').innerText(),'Fixture');
   assert.equal(requests.length,beforeImport);
   await page.locator('#forget').click();
+  // Companion-shaped armory bundle and explicit actor/encounter selection, all offline.
+  const raw={info:{profile:{characterId:'fixture=',serverId:1101,characterName:'Fixture'},stat:{statList:[{type:'ItemLevel',value:2800},{name:'Might',value:100,statSecondList:['Attack increase +1.4%']}]},daevanion:{boardList:[{id:1,openNodeCount:1,totalNodeCount:2}]}},equipment:{equipment:{equipmentList:[{id:101,slotPos:1,name:'Shoulder'}]},skill:{skillList:[]}},daevanion:{1:{nodeList:[{boardId:1,nodeId:1,type:'Stat',open:1},{boardId:1,nodeId:2,type:'Stat',open:0}]}}};
+  const interopBefore=requests.length;
+  await page.locator('#import-observation').setInputFiles({name:'raw.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(raw))});
+  await page.waitForFunction(()=>document.querySelector('#coverage').textContent.includes('Original observation time unknown'));
+  assert.match(await page.locator('#facts').textContent(),/Published contribution \(not total\): Attack increase \+1\.4%/);
+  const combat={format:'a2log',version:1,meta:{source:'fixture'},players:[{id:'self',name:'Fixture'},{id:'party',name:'Other party member'}],segments:[{duration:10,boss:'Fixture boss',hits:[{t:1,player:'self',damage:100,crit:true},{t:2,player:'self',damage:200},{t:3,player:'party',damage:99000}]}]};
+  await page.locator('#import-combat').setInputFiles({name:'fight.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(combat))});
+  await page.waitForFunction(()=>document.querySelector('#combat-actor').options.length===3);
+  assert.equal(await page.locator('#save-combat').isDisabled(),true);
+  await page.locator('#combat-actor').selectOption('self');await page.locator('#combat-segment').selectOption('0');
+  await page.locator('#save-combat').click();
+  assert.match(await page.locator('#combat-evidence').textContent(),/Recorded DPS 30/);
+  assert.match(await page.locator('#combat-evidence').textContent(),/100% \(1\/1\)/);
+  await page.reload({waitUntil:'domcontentloaded'});
+  await page.waitForFunction(()=>document.querySelector('#combat-evidence').textContent.includes('Recorded DPS 30'));
+  assert.equal(requests.length,interopBefore);
+  await page.locator('#forget').click();
+  assert.match(await page.locator('#combat-summary').textContent(),/^0 local recorded encounters/);
   // Exercise the optional same-origin transport in a synthetic built-site browser fixture.
   // The broker is not available on static Pages; do not pretend this fixture is a live test.
   if(new URL(baseUrl).hostname==='127.0.0.1'){
