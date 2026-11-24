@@ -31,7 +31,7 @@ function resetCombatDraft(){
  byId('combat-draft-status').textContent='No pending combat file.';
 }
 function clearCombat(){combatHistory=null;store(combatKey,null);resetCombatDraft();}
-function updateCombatSelection(){byId('save-combat').disabled=!(selected&&combatDraft&&byId('combat-actor').value&&byId('combat-segment').value!=='');}
+function updateCombatSelection(){byId('save-combat').disabled=!(selected&&combatDraft&&byId('combat-actor').value&&byId('combat-segment').value!=='');byId('clear-combat').disabled=!combatHistory?.fights?.length&&!combatDraft;}
 async function importCombat(file){
  resetCombatDraft();if(!file)return;
  const version=combatReadVersion,identity=selected?.key;
