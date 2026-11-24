@@ -79,26 +79,47 @@ export function createArmoryHandler({enabled=false,origin='http://127.0.0.1:8787
   if(clock()<state.backoff)return send(res,429,errorBody('provider backoff'),{'Retry-After':String(Math.max(1,Math.ceil((state.backoff-clock())/1000)))});
   if(state.busy)return send(res,429,errorBody('one request per origin at a time'),{'Retry-After':'1'});
   state.busy=true;
+  const disconnected=new AbortController();
+  const onDisconnect=()=>disconnected.abort();
   try{
-   const wait=state.next-clock();if(wait>0)await delay(wait);
-   if(req.aborted||res.destroyed)return;
+   req.once?.('aborted',onDisconnect);
+   res.once?.('close',onDisconnect);
+   if(req.aborted||res.destroyed)onDisconnect();
+   disconnected.signal.throwIfAborted();
+   const wait=state.next-clock();
+   if(wait>0)await delay(wait,undefined,{signal:disconnected.signal});
+   if(req.aborted||res.destroyed||disconnected.signal.aborted)return;
    state.next=clock()+minInterval;
-   const response=await fetchImpl(upstream.href,{method:'GET',credentials:'omit',redirect:'error',cache:'no-store',referrerPolicy:'no-referrer',headers:{Accept:'application/json'},signal:AbortSignal.timeout(15000)});
+   const signal=AbortSignal.any([disconnected.signal,AbortSignal.timeout(15000)]);
+   const response=await fetchImpl(upstream.href,{method:'GET',credentials:'omit',redirect:'error',cache:'no-store',referrerPolicy:'no-referrer',headers:{Accept:'application/json'},signal});
    if(response.redirected)throw Error('redirected');
    if(response.status===401||response.status===403)state.denied=true;
    if(response.status===429||response.status===503){
     const seconds=retrySeconds(response.headers.get('Retry-After'),clock());
     state.backoff=clock()+seconds*1000;
     await response.body?.cancel().catch(()=>{});
+    if(disconnected.signal.aborted)return;
     return send(res,response.status,errorBody('provider backoff'),{'Retry-After':String(seconds)});
    }
    if(response.status!==200){
     await response.body?.cancel().catch(()=>{});
+    if(disconnected.signal.aborted)return;
     return send(res,response.status>=400&&response.status<500?response.status:502,errorBody('upstream response unavailable'));
    }
+   if(disconnected.signal.aborted){
+    await response.body?.cancel().catch(()=>{});
+    return;
+   }
    const body=await boundedJSON(response);
+   if(disconnected.signal.aborted)return;
    return send(res,200,body);
-  }catch{return send(res,502,errorBody('upstream network or response error'));}
-  finally{state.busy=false;}
+  }catch{
+   if(disconnected.signal.aborted)return;
+   return send(res,502,errorBody('upstream network or response error'));
+  }finally{
+   req.off?.('aborted',onDisconnect);
+   res.off?.('close',onDisconnect);
+   state.busy=false;
+  }
  };
 }

@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {EventEmitter} from 'node:events';
 import assert from 'node:assert/strict';
 import {resolveBrokerRequest, createArmoryHandler} from '../armory-broker.mjs';
 import {normalizeItemDetail, normalizeBoardDetail, normalizeArmory, armoryRequestTarget, ArmoryClient} from '../../apps/aion2-value-atlas/scripts/armory-engine.mjs';
@@ -78,4 +79,40 @@ test('a malformed equipped-item or board response becomes an isolated detail fai
  assert.equal(result.equipment[0].detail,null);assert.match(result.equipment[0].detailError,/collection/);
  assert.equal(result.equipment[1].detail.subStats[0].value,'31');
  assert.equal(result.boards[0].detail,null);assert.match(result.boards[0].detailError,/duplicate/);
+});
+
+test('browser disconnect aborts the in-flight upstream read and releases the slot',async()=>{
+ const req=()=>Object.assign(new EventEmitter(),{method:'GET',url:base+'info?'+query,headers:{host:'127.0.0.1:8787'}});
+ const res=()=>Object.assign(new EventEmitter(),response());
+ let calls=0,finish,markStarted;
+ const started=new Promise(resolve=>{markStarted=resolve;});
+ const handler=createArmoryHandler({enabled:true,minInterval:0,fetchImpl:async(url,{signal})=>{
+  calls++;
+  if(calls>1)return new Response(JSON.stringify({profile:{characterName:'Next'}}));
+  return new Promise((resolve,reject)=>{
+   finish=()=>resolve(new Response(JSON.stringify({profile:{characterName:'Previous'}})));
+   signal.addEventListener('abort',()=>reject(signal.reason),{once:true});
+   markStarted(signal);
+  });
+ }});
+ const firstReq=req(),firstRes=res();
+ const first=handler(firstReq,firstRes);
+ try{
+  const signal=await started;
+  firstRes.destroyed=true;
+  firstRes.emit('close');
+  assert.equal(signal.aborted,true,'disconnected browser must cancel the upstream read');
+ }finally{
+  finish?.();
+  await first;
+ }
+ assert.equal(firstRes.status,null);
+ assert.equal(firstReq.listenerCount('aborted'),0);
+ assert.equal(firstRes.listenerCount('close'),0);
+ const nextReq=req(),nextRes=res();
+ await handler(nextReq,nextRes);
+ assert.equal(nextRes.status,200);
+ assert.equal(calls,2);
+ assert.equal(nextReq.listenerCount('aborted'),0);
+ assert.equal(nextRes.listenerCount('close'),0);
 });
