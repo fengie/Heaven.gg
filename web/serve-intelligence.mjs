@@ -1,6 +1,7 @@
 // Explicit local preview only. Build the existing static site first.
 // Enabling the armory broker requires the operator to confirm permission for these public reads.
 import {createServer} from 'node:http';
+import {timingSafeEqual} from 'node:crypto';
 import {readFile,stat,realpath} from 'node:fs/promises';
 import {dirname,extname,resolve,sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -11,10 +12,32 @@ if(!Number.isSafeInteger(port)||port<1024||port>65535)throw Error('Invalid local
 const origin='http://127.0.0.1:'+port;
 const enabled=process.env.HEAVEN_ARMORY_UPSTREAM==='allowed';
 const broker=createArmoryHandler({enabled,origin});
+const instance=process.env.HEAVEN_GG_MANAGED_INSTANCE;
+const token=process.env.HEAVEN_GG_MANAGED_TOKEN;
+const managed=instance!==undefined||token!==undefined;
+let revision;
+if(managed){
+ if(!/^[a-f0-9]{32}$/.test(instance??'')||!/^[a-f0-9]{64}$/.test(token??'')||enabled)throw Error('Invalid managed local runtime');
+ const version=JSON.parse(await readFile(resolve(root,'version.json'),'utf8'));
+ revision=version.revision;
+ if(version.repository!=='fengie/Heaven.gg'||!(/^[a-f0-9]{40}$/.test(revision??''))||revision!==process.env.HEAVEN_GG_EXPECTED_REVISION)throw Error('Managed release revision mismatch');
+}
+function managementAuthorized(req){
+ const value=Buffer.from(req.headers.authorization??'');
+ const expected=Buffer.from('Bearer '+token);
+ return !req.headers.origin&&value.length===expected.length&&timingSafeEqual(value,expected);
+}
 const MIME={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.png':'image/png','.svg':'image/svg+xml','.ico':'image/x-icon'};
 await stat(resolve(root,'aion2/intelligence.html'));
 const server=createServer(async(req,res)=>{
  if(req.headers.host!=='127.0.0.1:'+port)return res.writeHead(403).end();
+ if(req.url==='/__heavengg/status'&&req.method==='GET'&&managed){
+  return res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}).end(JSON.stringify({schema:'heaven.gg/private-runtime/v1',instance,revision,upstreamEnabled:false}));
+ }
+ if(req.url==='/__heavengg/stop'&&managed){
+  if(req.method!=='POST'||!managementAuthorized(req)||req.headers['transfer-encoding']||Number(req.headers['content-length']??0)!==0)return res.writeHead(403).end();
+  return res.writeHead(202,{'Cache-Control':'no-store'}).end(()=>server.close());
+ }
  if(req.url?.startsWith('/aion2/armory-api/'))return broker(req,res);
  if(req.method!=='GET')return res.writeHead(405,{Allow:'GET'}).end();
  try{
