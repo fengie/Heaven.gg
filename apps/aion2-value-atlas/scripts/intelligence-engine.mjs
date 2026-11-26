@@ -72,6 +72,69 @@ export function affordability(cost,resources={}){
  }
  return unknown?'unknown':'affordable';
 }
+// Restricted stationary retry scenario only. A caller's conditional odds and
+// costs are not calibrated game evidence; real rerolls can change the state.
+export function estimateStationaryReroll(input={}){
+ const invalid=()=>{throw Error('invalid reroll scenario');};
+ if(!validRecord(input))invalid();
+ const {action,probabilityKind,probability:p,stationaryIndependent,preservesCurrentOnFailure,
+   costPerAttempt,budget,maxAttempts,targetProbability:target=null}=input;
+ const unknown=reason=>({status:'unknown',reason,successProbability:null,expectedCost:null,
+   calibrated:false,canPurchase:false,scenarioOnly:true});
+ if(p!==undefined&&p!==null&&(!finite(p)||p<0||p>1))invalid();
+ if(target!==null&&(!finite(target)||target<=0||target>1))invalid();
+ if(!Number.isSafeInteger(maxAttempts)||maxAttempts<0||maxAttempts>100000)invalid();
+ const vector=(value,required)=>{
+  if(!validRecord(value))invalid();
+  const rows=Object.entries(value);
+  if(rows.length>16||(required&&rows.length===0))invalid();
+  for(const [key,n] of rows)
+   if(!/^[a-z][A-Za-z0-9]{0,63}$/.test(key)||['constructor','prototype','cash','recipeKina'].includes(key)||
+      !Number.isSafeInteger(n)||n<0||n>1_000_000_000_000)invalid();
+  return rows.sort(([a],[b])=>compare(a,b));
+ };
+ const costs=costPerAttempt==null?null:vector(costPerAttempt,true);
+ if(budget!=null)vector(budget,false);
+ if(!['sync','full-binding'].includes(action))return unknown('ACTION_MODEL_UNAVAILABLE');
+ const kind=action==='sync'?'conditional-single-line':'joint-acceptance';
+ if(probabilityKind!==kind)return unknown('CONDITIONAL_PROBABILITY_REQUIRED');
+ if(p==null)return unknown('PROBABILITY_UNAVAILABLE');
+ if(stationaryIndependent!==true||preservesCurrentOnFailure!==true)
+  return unknown('STATE_TRANSITION_MODEL_REQUIRED');
+ if(costs===null||budget==null)return unknown('COST_OR_BUDGET_UNAVAILABLE');
+ if(costs.some(([key,c])=>c>0&&!own(budget,key)))return unknown('RESOURCE_BUDGET_UNAVAILABLE');
+ const caps=costs.filter(([,c])=>c>0).map(([key,c])=>[key,Math.floor(budget[key]/c)]);
+ const n=Math.min(maxAttempts,...caps.map(([,cap])=>cap));
+ const limitingResources=caps.filter(([,cap])=>cap===n).map(([key])=>key);
+ // Avoid cancellation for very small p, and preserve exact simple binary
+ // fractions in ordinary scenarios (e.g. three quarter-probability trials).
+ const chanceAt=k=>k===0||p===0?0:p===1?1:p<1e-5
+  ?-Math.expm1(k*Math.log1p(-p)):1-Math.pow(1-p,k);
+ const successProbability=chanceAt(n);
+ const expectedAttempts=p===0?n:Math.min(n,successProbability/p);
+ const unbounded=p>0&&finite(1/p)?1/p:null;
+ const maxCost=Object.fromEntries(costs.map(([key,c])=>[key,c*n]));
+ const expectedCost=Object.fromEntries(costs.map(([key,c])=>[key,c*expectedAttempts]));
+ const unboundedExpectedCost=unbounded!==null&&costs.every(([,c])=>finite(c*unbounded))
+  ?Object.fromEntries(costs.map(([key,c])=>[key,c*unbounded])):null;
+ let minAttemptsForTarget=null;
+ if(target!==null&&p===1)minAttemptsForTarget=1;
+ else if(target!==null&&target<1&&p>0){
+  let candidate=Math.ceil(Math.log1p(-target)/Math.log1p(-p));
+  if(Number.isSafeInteger(candidate)&&candidate>0){
+   // Correct an adjacent floating-point rounding error without unbounded search.
+   if(candidate>1&&chanceAt(candidate-1)>=target)candidate--;
+   else if(chanceAt(candidate)<target)candidate++;
+   if(Number.isSafeInteger(candidate)&&chanceAt(candidate)>=target)minAttemptsForTarget=candidate;
+  }
+ }
+ return {status:'conditional',action,probabilityKind,probability:p,
+  maxAffordableAttempts:n,limitingResources,successProbability,expectedAttempts,
+  maxCost,expectedCost,unboundedExpectedAttempts:unbounded,unboundedExpectedCost,
+  targetProbability:target,minAttemptsForTarget,targetWithinBudget:target===null?null:
+   minAttemptsForTarget!==null&&n>=minAttemptsForTarget,
+  probabilityProvenance:'CALLER_DECLARED',scenarioOnly:true,calibrated:false,canPurchase:false};
+}
 // Preferences express willingness, not a change in eligibility, cost or modeled gain.
 export const MAX_ACTION_PREFERENCES=256;
 const preferenceValues=new Set(['prefer','neutral','dislike']);
