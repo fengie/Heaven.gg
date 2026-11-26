@@ -45,3 +45,26 @@ Bootstrapped using `fengie/heaven-toolbox` guidance: `AGENTS.md`, `GLOBAL_GIT_DI
 - **0.1.0 — 2026-10-09:** Offline dashboard, data-source ledger, Quna pack optimizer, Mileage table and patch radar.
 
 © Fan research, not affiliated with NCSOFT. No automated purchases or scheduled agents.
+
+## Conditional reroll economics (source engine)
+
+The existing intelligence engine exports `estimateStationaryReroll` for the
+whole-build optimizer's restricted stationary retry scenario (#32). It accepts
+explicit `sync` conditional-single-line or `full-binding` joint-acceptance
+probability, a separate exact per-attempt resource cost and budget vector,
+maximum attempts, and optional target success probability. It requires explicit
+independence/stationarity and preservation of the current usable state on
+failure. The result gives bounded affordable attempts, chance of reaching the
+target, expected spend when stopping at first success, worst-case spend and
+unbounded geometric expectation when representable. Bound and tradable Kina
+are never combined, and real-money inputs are excluded.
+
+Full-roll inclusion odds cannot substitute for Sync odds. Missing data,
+state-changing/destructive failures or an unsupported action return unknown;
+no actual acquisition probability or budget is inferred from reference gear.
+The five synthetic regressions cover arithmetic, zero/certain probability,
+resource separation, missing assumptions and small probabilities. This is
+source-level math only, not calibrated AION 2 economics, an armory/provider
+request, a live recommendation, UI integration or authorization to spend.
+The real item/patch/action transition kernel and finite-horizon keep/replace/stop
+planner, CP calibration, and visual acceptance remain on issue #32.
