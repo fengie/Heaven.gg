@@ -3,12 +3,13 @@ name: Refresh Celtic Heroes catalog
 on:
   workflow_dispatch:
   push:
+    branches: [main]
     paths:
       - ".github/workflows/catalog-import.yml"
       - "ch_tables/catalog_ingest.py"
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ch-catalog-import
@@ -16,13 +17,15 @@ concurrency:
 
 jobs:
   import:
+    if: github.repository == 'fengie/Heaven.gg' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          persist-credentials: true
-      - uses: actions/setup-python@v5
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
       - name: Verify local extraction tests before network I/O
@@ -36,19 +39,33 @@ jobs:
       - name: Inspect manifest
         run: |
           python -c "import json; x=json.load(open('data/catalog/catalog_manifest.json')); print('selected=', x['selected_relevant_items'], 'total=',x['total_unique_items'], 'missing=',x['missing_terms'])"
-      - name: Publish data only when canonical main has not moved
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/catalog
-          if git diff --cached --quiet; then
-            echo "No catalog changes"
-            exit 0
-          fi
-          git commit -m "data: import source-pinned rogue item catalog"
-          git fetch origin main
-          if [ "$(git rev-parse HEAD^)" != "$(git rev-parse origin/main)" ]; then
-            echo "::error::main moved; refusing stale generated catalog publication"
-            exit 1
-          fi
-          git push origin HEAD:main
+      - name: Prepare exact public-data patch
+        run: python -m ch_tables.generated_publication prepare catalog --bundle "$RUNNER_TEMP/generated-catalog"
+      - name: Transfer bounded same-run data patch
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: generated-catalog
+          path: ${{ runner.temp }}/generated-catalog/
+          retention-days: 1
+          if-no-files-found: error
+
+  publish:
+    if: github.repository == 'fengie/Heaven.gg' && github.ref == 'refs/heads/main'
+    needs: import
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout exact trusted generator source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: true
+      - name: Receive only this run's public-data patch
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: generated-catalog
+          path: ${{ runner.temp }}/generated-catalog
+      - name: Verify bounded patch and publish only against unchanged main
+        run: python -m ch_tables.generated_publication publish catalog --bundle "$RUNNER_TEMP/generated-catalog"
