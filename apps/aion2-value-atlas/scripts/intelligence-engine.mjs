@@ -20,17 +20,106 @@ export function damageIndex(stats, model){
  const q=Math.min(critCap,Math.max(0,critBase+crit/critRatingPerPoint));
  return attack*(1+weaponBoost)*(1+q*(baseBonus+critBonus));
 }
-export function enumerateBuilds({base,groups,evaluate,minAccuracy=0,maxEvaluations=100000}){
- if(!Array.isArray(groups)||groups.length>64||groups.some(g=>!Array.isArray(g)||g.length===0)||!Number.isSafeInteger(maxEvaluations)||maxEvaluations<1||!finite(minAccuracy)||minAccuracy<0||typeof evaluate!=='function')throw Error('invalid search domain');
- let evaluated=0,best=null,exact=true;
- const ids=[];
- function visit(i,state){
-  if(evaluated>=maxEvaluations){exact=false;return false;}
-  if(i===groups.length){evaluated++;if(state.accuracy>=minAccuracy){const score=evaluate(state);if(!finite(score))throw Error('nonfinite score');const candidate={ids:[...ids],score,state};if(!best||score>best.score||score===best.score&&compare(JSON.stringify(candidate.ids),JSON.stringify(best.ids))<0)best=candidate;}return true;}
-  for(const opt of groups[i]){if(typeof opt.id!=='string')throw Error('invalid option');ids.push(opt.id);const done=visit(i+1,add(state,opt.delta));ids.pop();if(!done)return false;}
+// Resource vectors are explicit, deterministic and non-interchangeable.
+// Unknown acquisition costs are not zero; real-money purchases are excluded.
+function searchResourceEntries(value,invalid){
+ if(!validRecord(value))invalid();
+ const entries=Object.entries(value);
+ if(entries.length>16)invalid();
+ for(const [key,n] of entries)
+  if(!/^[a-z][A-Za-z0-9]{0,63}$/.test(key)||['constructor','prototype','cash','recipeKina'].includes(key)||
+     !Number.isSafeInteger(n)||n<0||n>1_000_000_000_000)invalid();
+ return entries;
+}
+// The caller supplies a complete legal domain of mutually exclusive option
+// groups and a conditional evaluator. A budget constrains declared deterministic
+// acquisition costs, not uncertain reroll prices. No budget means theoretical.
+export function enumerateBuilds({base,groups,evaluate,minAccuracy=0,minStats={},budget,maxEvaluations=100000,maxVisited=1000000,topK=1}){
+ const invalid=()=>{throw Error('invalid search domain');};
+ if(!validRecord(base)||Object.entries(base).some(([key,n])=>statKeys.has(key)&&!finite(n))||
+    !Array.isArray(groups)||groups.length>64||
+    groups.some(g=>!Array.isArray(g)||g.length===0||g.length>4096)||
+    groups.reduce((n,g)=>n+g.length,0)>16384||
+    !Number.isSafeInteger(maxEvaluations)||maxEvaluations<1||
+    !Number.isSafeInteger(maxVisited)||maxVisited<1||maxVisited>1000000||
+    !Number.isSafeInteger(topK)||topK<1||topK>50||
+    !finite(minAccuracy)||minAccuracy<0||typeof evaluate!=='function'||!validRecord(minStats))invalid();
+ const constraints=new Map([['accuracy',minAccuracy]]);
+ for(const [key,n] of Object.entries(minStats)){
+  if(!statKeys.has(key)||!finite(n)||n<0)invalid();
+  constraints.set(key,Math.max(constraints.get(key)??0,n));
+ }
+ const budgeted=budget!==undefined,unknown=reason=>({
+  best:null,alternatives:[],evaluated:0,visited:0,pruned:0,exact:false,status:'unknown',
+  reason,scenarioOnly:true,canPurchase:false,acquisitionBudgeted:budgeted
+ });
+ const balances=new Map(budgeted&&budget!==null?searchResourceEntries(budget,invalid):[]);
+ const resources=new Set(balances.keys());
+ let missing=budgeted&&budget===null?'RESOURCE_BUDGET_UNAVAILABLE':null;
+ // Validate the entire declared domain before pruning or stopping early.
+ const domain=groups.map(group=>{
+  const seen=new Set();
+  return group.map(opt=>{
+   if(!validRecord(opt)||typeof opt.id!=='string'||opt.id.length===0||opt.id.length>128||
+      seen.has(opt.id)||(opt.delta!=null&&!validRecord(opt.delta)))invalid();
+   seen.add(opt.id);
+   const delta=opt.delta??{};
+   for(const [key,n] of Object.entries(delta))
+    if(!statKeys.has(key)||!finite(n))throw Error('unsupported stat or unit');
+   const cost=new Map();
+   if(budgeted){
+    if(opt.cost==null)missing=missing??'ACQUISITION_COST_UNAVAILABLE';
+    else for(const [key,n] of searchResourceEntries(opt.cost,invalid)){
+     cost.set(key,n);
+     resources.add(key);
+     if(n>0&&!balances.has(key))missing=missing??'RESOURCE_BUDGET_UNAVAILABLE';
+    }
+   }
+   return {id:opt.id,delta,cost};
+  });
+ });
+ if(resources.size>16)invalid();
+ if(missing)return unknown(missing);
+ const keys=[...resources].sort(compare),initial=keys.map(key=>balances.get(key)??0);
+ for(const group of domain)for(const opt of group)opt.cost=keys.map(key=>opt.cost.get(key)??0);
+ let evaluated=0,visited=0,pruned=0,exact=true;
+ const ids=[],alternatives=[];
+ function remember(state,available){
+  const score=evaluate(state);
+  if(!finite(score))throw Error('nonfinite score');
+  const candidate={ids:[...ids],score,state};
+  if(budgeted)candidate.cost=Object.fromEntries(keys.map((key,i)=>[key,initial[i]-available[i]]));
+  const order=(a,b)=>compare(b.score,a.score)||compare(JSON.stringify(a.ids),JSON.stringify(b.ids));
+  if(alternatives.length===topK&&order(candidate,alternatives[topK-1])>=0)return;
+  alternatives.push(candidate);
+  alternatives.sort(order);
+  if(alternatives.length>topK)alternatives.pop();
+ }
+ function visit(i,state,available){
+  if(visited>=maxVisited){exact=false;return false;}
+  visited++;
+  if(i===domain.length){
+   if(evaluated>=maxEvaluations){exact=false;return false;}
+   evaluated++;
+   if([...constraints].every(([key,n])=>own(state,key)&&finite(state[key])&&state[key]>=n))remember(state,available);
+   return true;
+  }
+  for(const opt of domain[i]){
+   if(opt.cost.some((n,j)=>n>available[j])){pruned++;continue;}
+   const next=add(state,opt.delta);
+   if(Object.entries(next).some(([key,n])=>statKeys.has(key)&&!finite(n)))throw Error('unsupported stat or unit');
+   ids.push(opt.id);
+   const done=visit(i+1,next,available.map((n,j)=>n-opt.cost[j]));
+   ids.pop();
+   if(!done)return false;
+  }
   return true;
  }
- visit(0,{...base});return {best,evaluated,exact,status:exact?(best?'optimal':'infeasible'):(best?'bounded-candidate':'search-incomplete')};
+ visit(0,{...base},initial);
+ const best=alternatives[0]??null;
+ return {best,alternatives,evaluated,visited,pruned,exact,
+  status:exact?(best?'optimal':'infeasible'):(best?'bounded-candidate':'search-incomplete'),
+  scenarioOnly:true,canPurchase:false,acquisitionBudgeted:budgeted};
 }
 export function statReplacements({lines,pool,base,evaluate}){
  if(!Array.isArray(lines)||!Array.isArray(pool)||lines.length>64||pool.length>128||new Set(lines.map(x=>x.id)).size!==lines.length||new Set(lines.map(x=>x.stat)).size!==lines.length)throw Error('invalid line pool');
