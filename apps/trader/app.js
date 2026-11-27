@@ -101,7 +101,9 @@ for(const [button,action] of [['acceptCounter','accept-counter'],['rejectCounter
 el('catalogSearch').addEventListener('click',async()=>{
  const list=el('catalogResults');list.replaceChildren();
  try{
-   const d=await api('/api/catalog?q='+encodeURIComponent(el('catalogQuery').value));
+   const query=el('catalogQuery').value.trim();
+   const params=query.startsWith('#') ? {id:query.slice(1)} : {q:query};
+   const d=await api('/api/catalog?'+new URLSearchParams(params));
    for(const item of d.items){
      const li=document.createElement('li');li.textContent=item.name+' ';
      const span=document.createElement('span');span.textContent='ID '+item.id;

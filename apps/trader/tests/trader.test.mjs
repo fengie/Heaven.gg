@@ -19,10 +19,10 @@ test('exact token arithmetic across range boundaries',()=>{
  assert.throws(()=>totals({petHalfK:81.4,mountHalfK:160,rateCents:700,offerCents:11000}));
  assert.throws(()=>totals({petHalfK:80,mountHalfK:160,rateCents:705,offerCents:11000}));
 });
-async function fixture(run,{trustCloudflareIp=false}={}){
+async function fixture(run,{trustCloudflareIp=false,catalogRows='7\tPet Token\n8\tMount Token\n9\tTest Item\n'}={}){
  const dir=await mkdtemp(join(tmpdir(),'trader-test-'));
  const catalogPath=join(dir,'names.tsv'),dataPath=join(dir,'offers.json');
- await writeFile(catalogPath,'7\tPet Token\n8\tMount Token\n9\tTest Item\n');
+ await writeFile(catalogPath,catalogRows);
  const app=await makeApp({sellerKey,dataPath,catalogPath,publicOrigin:origin,trustCloudflareIp});
  const server=createServer(app.listener);
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
@@ -34,6 +34,38 @@ async function fixture(run,{trustCloudflareIp=false}={}){
  try{await run({req,dataPath,catalogPath});}
  finally{await new Promise(resolve=>server.close(resolve));await rm(dir,{recursive:true,force:true});}
 }
+test('exact historical IDs remain reachable when the 20-name preview is full',async()=>{
+ const catalogRows=await readFile(new URL('../../../data/game/item_names.tsv',import.meta.url),'utf8');
+ await fixture(async({req})=>{
+   for(const [id,name] of Object.entries({'51695':'Fire Crystal','56782':'Fire Crystal','52020':"Wayfarer's Headdress",'59004':'Carp','59005':'Pike','63981':'Ling'})){
+     const preview=await req('/api/catalog?q='+encodeURIComponent(name));
+     assert.equal(preview.status,200);assert.equal(preview.data.items.length,20);
+     assert.ok(!preview.data.items.some(item=>item.id===id));
+     const exact=await req('/api/catalog?id='+id);
+     assert.equal(exact.status,200);assert.deepEqual(exact.data.items,[{id,name}]);
+     assert.equal(exact.data.provenance,preview.data.provenance);
+     assert.match(exact.data.provenance,/historical.*not verified tradeable or priced/i);
+   }
+ },{catalogRows});
+});
+test('exact-ID queries preserve string identity and reject mixed or malformed selectors',async()=>{
+ await fixture(async({req})=>{
+   assert.deepEqual((await req('/api/catalog?id=7')).data.items,[{id:'7',name:'Pet Token'}]);
+   assert.deepEqual((await req('/api/catalog?id=77')).data.items,[]);
+   assert.deepEqual((await req('/api/catalog?id=07')).data.items,[]);
+   for(const query of ['id=','id=-7','id=7.0','id=7e0','id=7x','id=7&id=8','id=7&q=token']){
+     assert.equal((await req('/api/catalog?'+query)).status,400,query);
+   }
+   assert.equal((await req('/api/catalog?q=t')).status,400);
+ });
+});
+test('duplicate rows agree on identity or fail closed without blocking name preview',async()=>{
+ await fixture(async({req})=>{
+   assert.equal((await req('/api/catalog?id=7')).status,409);
+   assert.deepEqual((await req('/api/catalog?id=8')).data.items,[{id:'8',name:'Mount'}]);
+   assert.equal((await req('/api/catalog?q=Pet')).status,200);
+ },{catalogRows:'7\tPet A\n7\tPet B\n8\tMount\n8\tMount\n'});
+});
 test('buyer proposals, private credentials and two-sided counter transitions',async()=>{
  await fixture(async({req,dataPath,catalogPath})=>{
    const bad=await req('/api/offers',{method:'POST',reqOrigin:'https://attacker.example',body:{petHalfK:80,mountHalfK:160,rateCents:750,offerCents:11000}});

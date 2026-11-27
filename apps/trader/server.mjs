@@ -107,6 +107,12 @@ export async function makeApp(options={}) {
     const tab=line.indexOf('\t');
     return tab>0 ? {id:line.slice(0,tab),name:line.slice(tab+1).trim()} : null;
   }).filter(x=>x && /^\d+$/.test(x.id) && x.name);
+  // Identity is the source string, not a parsed number or an item's display name.
+  const itemsById=new Map();
+  for(const item of names){
+    if(!itemsById.has(item.id)) itemsById.set(item.id,item);
+    else if(itemsById.get(item.id)?.name!==item.name) itemsById.set(item.id,null);
+  }
   let records=[];
   try {
     const saved=JSON.parse(await readFile(dataPath,'utf8'));
@@ -170,9 +176,22 @@ export async function makeApp(options={}) {
         return;
       }
       if(method==='GET' && pathname==='/api/catalog') {
-        const q=(url.searchParams.get('q')||'').trim().toLocaleLowerCase('en-US');
-        if(q.length<2 || q.length>60) throw fail(400,'Search needs 2-60 characters');
-        const matches=names.filter(x=>x.name.toLocaleLowerCase('en-US').includes(q)).slice(0,20);
+        const matches=[];
+        if(url.searchParams.has('id')){
+          const ids=url.searchParams.getAll('id');
+          if(ids.length!==1 || url.searchParams.has('q') || !/^\d{1,60}$/.test(ids[0]))
+            throw fail(400,'Use one exact numeric item ID or a name search, not both');
+          const item=itemsById.get(ids[0]);
+          if(item===null) throw fail(409,'Conflicting historical names for this item ID');
+          if(item) matches.push(item);
+        }else{
+          const q=(url.searchParams.get('q')||'').trim().toLocaleLowerCase('en-US');
+          if(q.length<2 || q.length>60) throw fail(400,'Search needs 2-60 characters');
+          for(const item of names){
+            if(item.name.toLocaleLowerCase('en-US').includes(q)) matches.push(item);
+            if(matches.length===20) break;
+          }
+        }
         respond(res,200,{items:matches,provenance:'Heaven.gg pinned historical game-data inventory; not verified tradeable or priced'});
         return;
       }

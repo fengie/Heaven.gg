@@ -1,7 +1,8 @@
 name: Trader Safety & Pricing
 on:
   push:
-    branches: [main]
+    # Opt-in task branches run the same read-only checks before a pull request.
+    branches: [main, 'ci/trader/**']
     paths:
       - 'apps/trader/**'
       - 'data/game/item_names.tsv'
