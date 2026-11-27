@@ -4,7 +4,7 @@ import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createServer } from 'node:http';
-import { makeApp, totals } from '../server.mjs';
+import { makeApp, totals, catalogSource } from '../server.mjs';
 const origin='https://trader.example';
 const sellerKey='test-only-seller-key-abcdefghijklmnopqrstuvwxyz123';
 test('exact token arithmetic across range boundaries',()=>{
@@ -65,6 +65,40 @@ test('duplicate rows agree on identity or fail closed without blocking name prev
    assert.deepEqual((await req('/api/catalog?id=8')).data.items,[{id:'8',name:'Mount'}]);
    assert.equal((await req('/api/catalog?q=Pet')).status,200);
  },{catalogRows:'7\tPet A\n7\tPet B\n8\tMount\n8\tMount\n'});
+});
+test('catalog provenance ties a historical snapshot to the bytes actually queried',async()=>{
+ const source=await readFile(new URL('../../../data/game/item_names.tsv',import.meta.url),'utf8');
+ for(const [bytes,verified] of [[source,true],[source.replace(/\r?\n/g,'\r\n'),true],[source+'999999\tUnreleased sample\n',false]]){
+   await fixture(async({req})=>{
+     const {data}=await req('/api/catalog?id=5');
+     assert.deepEqual(data.items,[{id:'5',name:'Leystone Fragment'}]);
+     assert.equal(data.source.verification,verified?'matches-checked-in-manifest':'unverified');
+     assert.equal(data.source.game,'Celtic Heroes');
+     assert.deepEqual(data.source.marketEvidence,{world:null,release:'unverified',tradability:'unverified',price:null});
+     if(verified){
+       const m=JSON.parse(await readFile(new URL('../../../data/game/manifest.json',import.meta.url),'utf8'));
+       assert.equal(data.source.snapshotDate,m.snapshot_date);
+       assert.equal(data.source.upstreamCommit,m.upstream_commit);
+       assert.equal(data.source.upstreamRepository,m.upstream_repo);
+       assert.equal(data.source.catalogSha256,m.generated_files['item_names.tsv'].sha256);
+     }else{
+       assert.equal(data.source.upstreamCommit,undefined);assert.equal(data.source.snapshotDate,undefined);
+       assert.match(data.provenance,/unverified origin/i);
+     }
+   },{catalogRows:bytes});
+ }
+});
+test('catalog attribution withholds a snapshot for absent, inconsistent, or malformed manifests',async()=>{
+ const text='7\tPet Token\n';
+ const valid={upstream_repo:'owner/inventory',upstream_commit:'a'.repeat(40),snapshot_date:'2026-10-08',
+   generated_files:{'item_names.tsv':{format:'tsv',rows:1,sha256:catalogSource(text,1,null).catalogSha256}}};
+ assert.equal(catalogSource(text,1,valid).verification,'matches-checked-in-manifest');
+ for(const bad of [undefined,null,{}, {...valid,generated_files:{}},{...valid,upstream_repo:[]},
+   {...valid,upstream_commit:'main'},{...valid,snapshot_date:'2026-02-31'},
+   {...valid,generated_files:{'item_names.tsv':{...valid.generated_files['item_names.tsv'],rows:2}}}]){
+   const result=catalogSource(text,1,bad);assert.equal(result.verification,'unverified');
+   assert.equal(result.upstreamCommit,undefined);assert.equal(result.snapshotDate,undefined);
+ }
 });
 test('buyer proposals, private credentials and two-sided counter transitions',async()=>{
  await fixture(async({req,dataPath,catalogPath})=>{

@@ -89,6 +89,21 @@ function respond(res,status,data,headers={}) {
   res.writeHead(status,{...securityHeaders,...jsonHeaders,...headers});
   res.end(JSON.stringify(data));
 }
+// Only describe a snapshot when the queried inventory agrees with its checked-in manifest.
+// Normalize checkout CRLF to the manifest's LF text representation, never content or order.
+export function catalogSource(text, rows, m) {
+  const catalogSha256=hash(text.replace(/\r\n/g,'\n'));
+  const evidence={game:'Celtic Heroes',catalogSha256,verification:'unverified',
+    marketEvidence:{world:null,release:'unverified',tradability:'unverified',price:null}};
+  const entry=m?.generated_files?.['item_names.tsv'];
+  if(entry?.format!=='tsv' || entry.sha256!==catalogSha256 || entry.rows!==rows ||
+     typeof m.snapshot_date!=='string' || !/^\d{4}-\d{2}-\d{2}$/.test(m.snapshot_date) ||
+     !Number.isFinite(Date.parse(m.snapshot_date)) || new Date(m.snapshot_date).toISOString().slice(0,10)!==m.snapshot_date ||
+     typeof m.upstream_commit!=='string' || !/^[a-f0-9]{40}$/.test(m.upstream_commit) ||
+     typeof m.upstream_repo!=='string' || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(m.upstream_repo)) return evidence;
+  return {...evidence,verification:'matches-checked-in-manifest',snapshotDate:m.snapshot_date,
+    upstreamRepository:m.upstream_repo,upstreamCommit:m.upstream_commit};
+}
 export async function makeApp(options={}) {
   const sellerKey=options.sellerKey ?? process.env.TRADER_SELLER_KEY;
   if (typeof sellerKey!=='string' || Buffer.byteLength(sellerKey)<32)
@@ -103,10 +118,18 @@ export async function makeApp(options={}) {
   const origin = configuredOrigin.origin;
   // Only trust Cloudflare's client address when a local cloudflared instance is the sole origin ingress.
   const trustCloudflareIp = options.trustCloudflareIp ?? process.env.TRADER_TRUST_CF_CONNECTING_IP === '1';
-  const names=(await readFile(catalogPath,'utf8')).split(/\r?\n/).map(line=>{
+  const catalogText=await readFile(catalogPath,'utf8');
+  const names=catalogText.split(/\r?\n/).map(line=>{
     const tab=line.indexOf('\t');
     return tab>0 ? {id:line.slice(0,tab),name:line.slice(tab+1).trim()} : null;
   }).filter(x=>x && /^\d+$/.test(x.id) && x.name);
+  let catalogManifest;
+  try { catalogManifest=JSON.parse(await readFile(join(root,'data/game/manifest.json'),'utf8')); }
+  catch { /* Historical lookup still works, but the source cannot be verified. */ }
+  const source=catalogSource(catalogText,names.length,catalogManifest);
+  const provenance=source.verification==='matches-checked-in-manifest'
+    ? 'Heaven.gg pinned historical game-data inventory; not verified tradeable or priced'
+    : 'Historical item-name inventory of unverified origin; not verified tradeable or priced';
   // Identity is the source string, not a parsed number or an item's display name.
   const itemsById=new Map();
   for(const item of names){
@@ -192,7 +215,7 @@ export async function makeApp(options={}) {
             if(matches.length===20) break;
           }
         }
-        respond(res,200,{items:matches,provenance:'Heaven.gg pinned historical game-data inventory; not verified tradeable or priced'});
+        respond(res,200,{items:matches,provenance,source});
         return;
       }
       if(method==='POST' && pathname==='/api/offers') {
