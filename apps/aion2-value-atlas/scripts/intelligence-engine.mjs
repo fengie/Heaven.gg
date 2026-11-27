@@ -135,6 +135,125 @@ export function estimateStationaryReroll(input={}){
    minAttemptsForTarget!==null&&n>=minAttemptsForTarget,
   probabilityProvenance:'CALLER_DECLARED',scenarioOnly:true,calibrated:false,canPurchase:false};
 }
+// Finite-horizon, state-conditional reroll scenario. The caller must supply
+// the complete legal action domain, utilities and transition distributions;
+// this engine neither infers odds nor authorizes any in-game action.
+// Success probability means target attainment in the terminal state.
+// Exact denotes exhaustive DP over the declared bounded scenario only.
+export function planFiniteReroll(input={}){
+ const invalid=()=>{throw Error('invalid finite reroll scenario');};
+ const unknown=reason=>({status:'unknown',reason,exact:false,firstAction:null,
+  expectedUtility:null,successProbability:null,expectedCost:null,expectedAttempts:null,
+  alternatives:[],scenarioOnly:true,calibrated:false,canPurchase:false});
+ if(!validRecord(input))invalid();
+ const {states,initialState,budget,maxAttempts,objective='expected-utility',maxStates=20000}=input;
+ if(!['expected-utility','target-probability'].includes(objective)||
+    !Number.isSafeInteger(maxAttempts)||maxAttempts<0||maxAttempts>20||
+    !Number.isSafeInteger(maxStates)||maxStates<1||maxStates>100000)invalid();
+ if(states==null||budget==null)return unknown('STATE_OR_BUDGET_UNAVAILABLE');
+ const id=x=>typeof x==='string'&&x.length>0&&x.length<=128&&/^[A-Za-z0-9._:-]+$/.test(x);
+ const vector=value=>{
+  if(!validRecord(value))invalid();
+  const rows=Object.entries(value);
+  if(rows.length>16)invalid();
+  for(const [key,n] of rows)
+   if(!/^[a-z][A-Za-z0-9]{0,63}$/.test(key)||
+      ['constructor','prototype','cash','recipeKina'].includes(key)||
+      !Number.isSafeInteger(n)||n<0||n>1_000_000_000_000)invalid();
+  return rows;
+ };
+ const balances=new Map(vector(budget));
+ if(!Array.isArray(states)||states.length===0||states.length>64||!id(initialState))invalid();
+ const graph=new Map();
+ for(const state of states){
+  if(!validRecord(state)||!id(state.id)||graph.has(state.id)||
+     !finite(state.utility)||Math.abs(state.utility)>1e12||typeof state.target!=='boolean')invalid();
+  if(state.actions==null)return unknown('ACTION_DOMAIN_UNAVAILABLE');
+  if(!Array.isArray(state.actions)||state.actions.length>8)invalid();
+  graph.set(state.id,{utility:state.utility,target:state.target,actions:[]});
+ }
+ if(!graph.has(initialState))invalid();
+ const resources=new Set(balances.keys());
+ for(const state of states){
+  const seen=new Set();
+  for(const action of state.actions){
+   if(!validRecord(action)||!id(action.id)||action.id==='stop'||seen.has(action.id)||
+      !['sync','full-binding','reset','bind'].includes(action.kind))invalid();
+   seen.add(action.id);
+   if(action.cost==null||action.outcomes==null)return unknown('TRANSITION_OR_COST_UNAVAILABLE');
+   const cost=new Map(vector(action.cost));
+   for(const [key,n] of cost){
+    resources.add(key);
+    if(n>0&&!balances.has(key))return unknown('RESOURCE_BUDGET_UNAVAILABLE');
+   }
+   if(resources.size>16||!Array.isArray(action.outcomes)||
+      action.outcomes.length===0||action.outcomes.length>64)invalid();
+   const destinations=new Set();
+   let sum=0;
+   for(const outcome of action.outcomes){
+    if(!validRecord(outcome)||!graph.has(outcome.stateId)||destinations.has(outcome.stateId)||
+       !finite(outcome.probability)||outcome.probability<0||outcome.probability>1)invalid();
+    destinations.add(outcome.stateId);
+    sum+=outcome.probability;
+   }
+   if(Math.abs(sum-1)>1e-9)invalid();
+   const outcomes=action.outcomes.filter(o=>o.probability>0)
+    .map(o=>({stateId:o.stateId,probability:o.probability/sum}))
+    .sort((a,b)=>compare(a.stateId,b.stateId));
+   graph.get(state.id).actions.push({id:action.id,cost,outcomes});
+  }
+  graph.get(state.id).actions.sort((a,b)=>compare(a.id,b.id));
+ }
+ const keys=[...resources].sort(compare);
+ const initialBudget=keys.map(key=>balances.get(key)??0);
+ for(const state of graph.values())for(const action of state.actions)
+  action.cost=keys.map(key=>action.cost.get(key)??0);
+ const memo=new Map();
+ const limit=Symbol('computation limit');
+ let visited=0,transitions=0;
+ let rootAlternatives=[];
+ const primary=result=>objective==='target-probability'?result.successProbability:result.expectedUtility;
+ function solve(stateId,remaining,available,root=false){
+  const key=JSON.stringify([stateId,remaining,available]);
+  if(memo.has(key))return memo.get(key);
+  if(++visited>maxStates)throw limit;
+  const state=graph.get(stateId);
+  let best={firstAction:'stop',expectedUtility:state.utility,
+   successProbability:Number(state.target),expectedAttempts:0,expectedCost:keys.map(()=>0)};
+  if(root)rootAlternatives=[best];
+  if(remaining>0)for(const action of state.actions){
+   if(action.cost.some((n,i)=>n>available[i]))continue;
+   const nextBudget=available.map((n,i)=>n-action.cost[i]);
+   const candidate={firstAction:action.id,expectedUtility:0,successProbability:0,
+    expectedAttempts:1,expectedCost:[...action.cost]};
+   for(const outcome of action.outcomes){
+    if(++transitions>250000)throw limit;
+    const p=outcome.probability,next=solve(outcome.stateId,remaining-1,nextBudget);
+    candidate.expectedUtility+=p*next.expectedUtility;
+    candidate.successProbability+=p*next.successProbability;
+    candidate.expectedAttempts+=p*next.expectedAttempts;
+    for(let i=0;i<keys.length;i++)candidate.expectedCost[i]+=p*next.expectedCost[i];
+   }
+   candidate.successProbability=Math.max(0,Math.min(1,candidate.successProbability));
+   if(root)rootAlternatives.push(candidate);
+   // Prefer keeping the current state on an exact tie; among actions the
+   // stable ID order is deterministic. Never spend solely to break a tie.
+   if(primary(candidate)>primary(best))best=candidate;
+  }
+  memo.set(key,best);
+  return best;
+ }
+ const present=result=>({...result,expectedCost:Object.fromEntries(keys.map((key,i)=>[key,result.expectedCost[i]]))});
+ try{
+  const best=solve(initialState,maxAttempts,initialBudget,true);
+  return {status:'conditional',exact:true,objective,...present(best),
+   alternatives:rootAlternatives.map(present),evaluatedStates:visited,evaluatedTransitions:transitions,
+   probabilityProvenance:'CALLER_DECLARED',scenarioOnly:true,calibrated:false,canPurchase:false};
+ }catch(error){
+  if(error===limit)return unknown('COMPUTATION_LIMIT');
+  throw error;
+ }
+}
 // Preferences express willingness, not a change in eligibility, cost or modeled gain.
 export const MAX_ACTION_PREFERENCES=256;
 const preferenceValues=new Set(['prefer','neutral','dislike']);
